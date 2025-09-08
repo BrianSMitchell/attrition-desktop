@@ -7,7 +7,7 @@
     "dev": "nodemon",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
-    "clean": "rimraf dist",
+    "clean": "node -e \"require('fs').rmSync('dist', {recursive: true, force: true})\"",
     "test": "jest",
     "migrate:remove-legacy-pop": "ts-node src/scripts/migrations/removeLegacyPopulation.ts",
     "backfill:starter-urban": "ts-node src/scripts/backfillStarterUrban.ts",

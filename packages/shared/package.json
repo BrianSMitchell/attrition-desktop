@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "build": "rimraf dist && tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json",
+    "build": "node -e \"require('fs').rmSync('dist', {recursive: true, force: true})\" && tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json",
     "dev": "tsc --watch",
     "clean": "rimraf dist",
     "test": "jest"
