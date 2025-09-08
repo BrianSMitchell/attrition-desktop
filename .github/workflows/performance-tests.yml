@@ -1,0 +1,457 @@
+name: Performance Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run performance tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Performance test suite to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - startup
+          - runtime
+          - memory
+          - network
+      baseline_comparison:
+        description: 'Compare against baseline'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+  ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+  ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+
+jobs:
+  build-app:
+    name: Build Desktop Application
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    
+    outputs:
+      app-path-windows: ${{ steps.build-windows.outputs.app-path }}
+      app-path-macos: ${{ steps.build-macos.outputs.app-path }}
+      app-path-linux: ${{ steps.build-linux.outputs.app-path }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Need full history for performance comparison
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Cache Electron binaries
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.ELECTRON_CACHE }}
+          key: ${{ runner.os }}-electron-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
+      - name: Cache Electron Builder
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.ELECTRON_BUILDER_CACHE }}
+          key: ${{ runner.os }}-electron-builder-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-builder-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build desktop application (Windows)
+        if: runner.os == 'Windows'
+        id: build-windows
+        run: |
+          npm run build:desktop
+          $appPath = Get-ChildItem -Path "packages/desktop/dist" -Filter "*.exe" | Select-Object -First 1 -ExpandProperty FullName
+          echo "app-path=$appPath" >> $env:GITHUB_OUTPUT
+
+      - name: Build desktop application (macOS)
+        if: runner.os == 'macOS'
+        id: build-macos
+        run: |
+          npm run build:desktop
+          APP_PATH=$(find packages/desktop/dist -name "*.app" -type d | head -n 1)
+          echo "app-path=$APP_PATH" >> $GITHUB_OUTPUT
+
+      - name: Build desktop application (Linux)
+        if: runner.os == 'Linux'
+        id: build-linux
+        run: |
+          npm run build:desktop
+          APP_PATH=$(find packages/desktop/dist -name "*.AppImage" -type f | head -n 1)
+          echo "app-path=$APP_PATH" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: desktop-app-${{ runner.os }}
+          path: packages/desktop/dist/
+          retention-days: 7
+
+  performance-tests:
+    name: Run Performance Tests
+    needs: build-app
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+      fail-fast: false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: desktop-app-${{ runner.os }}
+          path: packages/desktop/dist/
+
+      - name: Make executable (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          find packages/desktop/dist -name "*.AppImage" -exec chmod +x {} \;
+          find packages/desktop/dist -name "*.app" -exec chmod -R +x {} \;
+
+      - name: Install performance test dependencies
+        working-directory: e2e/performance
+        run: |
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Configure performance test environment
+        run: |
+          # Set up environment variables for performance testing
+          echo "ELECTRON_APP_PATH=${{ needs.build-app.outputs[format('app-path-{0}', runner.os == 'macOS' && 'macos' || runner.os == 'Windows' && 'windows' || 'linux')] }}" >> $GITHUB_ENV
+          echo "PERFORMANCE_TEST_MODE=ci" >> $GITHUB_ENV
+          echo "GITHUB_RUN_ID=${{ github.run_id }}" >> $GITHUB_ENV
+          echo "GITHUB_SHA=${{ github.sha }}" >> $GITHUB_ENV
+          echo "GITHUB_REF=${{ github.ref }}" >> $GITHUB_ENV
+
+      - name: Run startup performance tests
+        if: inputs.test_suite == 'all' || inputs.test_suite == 'startup'
+        working-directory: e2e/performance
+        run: npm run test:startup -- --reporter=json-summary
+        continue-on-error: true
+
+      - name: Run runtime performance tests
+        if: inputs.test_suite == 'all' || inputs.test_suite == 'runtime'
+        working-directory: e2e/performance
+        run: npm run test:runtime -- --reporter=json-summary
+        continue-on-error: true
+
+      - name: Run memory performance tests
+        if: inputs.test_suite == 'all' || inputs.test_suite == 'memory'
+        working-directory: e2e/performance
+        run: npm run test:memory -- --reporter=json-summary
+        continue-on-error: true
+
+      - name: Run network performance tests
+        if: inputs.test_suite == 'all' || inputs.test_suite == 'network'
+        working-directory: e2e/performance
+        run: npm run test:network -- --reporter=json-summary
+        continue-on-error: true
+
+      - name: Run all performance tests (default)
+        if: inputs.test_suite == '' || inputs.test_suite == 'all'
+        working-directory: e2e/performance
+        run: npm run test:all -- --reporter=json-summary
+        continue-on-error: true
+
+      - name: Upload performance test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: performance-results-${{ runner.os }}
+          path: |
+            e2e/performance/performance-results/
+            e2e/performance/performance-test-results/
+          retention-days: 30
+
+      - name: Upload performance traces
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: performance-traces-${{ runner.os }}
+          path: e2e/performance/test-results/
+          retention-days: 7
+
+  performance-analysis:
+    name: Analyze Performance Results
+    needs: performance-tests
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Download all performance results
+        uses: actions/download-artifact@v3
+        with:
+          path: performance-artifacts/
+
+      - name: Install analysis dependencies
+        run: |
+          cd e2e/performance
+          npm ci
+
+      - name: Run performance analysis
+        run: |
+          node e2e/performance/scripts/analyze-performance.js \
+            --results-dir performance-artifacts/ \
+            --baseline-branch main \
+            --current-sha ${{ github.sha }} \
+            --output performance-analysis.json
+
+      - name: Generate performance report
+        run: |
+          node e2e/performance/scripts/generate-report.js \
+            --analysis performance-analysis.json \
+            --format html \
+            --output performance-report.html
+
+      - name: Check performance regressions
+        id: regression-check
+        run: |
+          node e2e/performance/scripts/check-regressions.js \
+            --analysis performance-analysis.json \
+            --threshold 10 \
+            --output regression-report.json
+          
+          # Set outputs based on regression analysis
+          if [ -s regression-report.json ] && [ "$(jq '.regressions | length' regression-report.json)" -gt 0 ]; then
+            echo "regressions-found=true" >> $GITHUB_OUTPUT
+            echo "regression-count=$(jq '.regressions | length' regression-report.json)" >> $GITHUB_OUTPUT
+          else
+            echo "regressions-found=false" >> $GITHUB_OUTPUT
+            echo "regression-count=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload performance analysis
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-analysis
+          path: |
+            performance-analysis.json
+            performance-report.html
+            regression-report.json
+          retention-days: 90
+
+      - name: Store performance metrics
+        run: |
+          # Store performance metrics in GitHub repository for trend tracking
+          mkdir -p .performance-history
+          
+          METRICS_FILE=".performance-history/metrics-$(date +%Y-%m-%d-%H-%M-%S)-${{ github.sha }}.json"
+          
+          jq '{
+            timestamp: now,
+            sha: "${{ github.sha }}",
+            branch: "${{ github.ref_name }}",
+            run_id: "${{ github.run_id }}",
+            metrics: .
+          }' performance-analysis.json > "$METRICS_FILE"
+          
+          # Commit metrics to repository (if on main branch and not PR)
+          if [ "${{ github.event_name }}" != "pull_request" ] && [ "${{ github.ref_name }}" == "main" ]; then
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add "$METRICS_FILE"
+            git commit -m "Add performance metrics for ${{ github.sha }}" || exit 0
+            git push
+          fi
+
+      - name: Comment on PR with performance results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read performance analysis results
+            const analysisData = JSON.parse(fs.readFileSync('performance-analysis.json', 'utf8'));
+            const regressionData = fs.existsSync('regression-report.json') 
+              ? JSON.parse(fs.readFileSync('regression-report.json', 'utf8'))
+              : null;
+            
+            // Generate performance summary comment
+            let comment = '## 🚀 Performance Test Results\n\n';
+            
+            // Add summary metrics
+            if (analysisData.summary) {
+              comment += '### Performance Summary\n';
+              comment += `| Metric | Value | Status |\n`;
+              comment += `|--------|-------|--------|\n`;
+              
+              Object.entries(analysisData.summary).forEach(([metric, data]) => {
+                const status = data.regression ? '❌ Regression' : '✅ OK';
+                comment += `| ${metric} | ${data.value} | ${status} |\n`;
+              });
+              comment += '\n';
+            }
+            
+            // Add regression details if any
+            if (regressionData && regressionData.regressions && regressionData.regressions.length > 0) {
+              comment += '### ⚠️ Performance Regressions Detected\n\n';
+              regressionData.regressions.forEach(regression => {
+                comment += `- **${regression.metric}**: ${regression.change} (${regression.severity})\n`;
+              });
+              comment += '\n';
+            }
+            
+            // Add link to detailed report
+            comment += `### 📊 Detailed Results\n`;
+            comment += `- [Performance Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+            comment += `- Run ID: ${{ github.run_id }}\n`;
+            comment += `- Commit: ${{ github.sha }}\n\n`;
+            
+            comment += '<sub>This comment was automatically generated by the performance testing workflow.</sub>';
+            
+            // Post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Fail workflow on performance regressions
+        if: steps.regression-check.outputs.regressions-found == 'true' && github.event_name == 'pull_request'
+        run: |
+          echo "❌ Performance regressions detected (${{ steps.regression-check.outputs.regression-count }} regressions)"
+          echo "Please review the performance report and address the regressions before merging."
+          exit 1
+
+  performance-trending:
+    name: Update Performance Trends
+    needs: performance-analysis
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download performance analysis
+        uses: actions/download-artifact@v3
+        with:
+          name: performance-analysis
+          path: ./
+
+      - name: Update performance trends
+        run: |
+          # Create or update performance trends dashboard
+          node e2e/performance/scripts/update-trends.js \
+            --analysis performance-analysis.json \
+            --trends-file docs/performance-trends.json \
+            --dashboard-file docs/performance-dashboard.html
+
+      - name: Commit performance trends
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if [ -n "$(git status --porcelain)" ]; then
+            git add docs/performance-trends.json docs/performance-dashboard.html .performance-history/
+            git commit -m "Update performance trends dashboard [skip ci]"
+            git push
+          fi
+
+      - name: Deploy performance dashboard
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          destination_dir: performance
+          keep_files: true
+
+  notify-slack:
+    name: Notify Slack
+    needs: [performance-tests, performance-analysis]
+    runs-on: ubuntu-latest
+    if: always() && (failure() || (success() && github.ref == 'refs/heads/main'))
+    
+    steps:
+      - name: Download performance analysis
+        uses: actions/download-artifact@v3
+        with:
+          name: performance-analysis
+          path: ./
+        continue-on-error: true
+
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          custom_payload: |
+            {
+              "attachments": [{
+                "color": "${{ job.status == 'success' && 'good' || job.status == 'failure' && 'danger' || 'warning' }}",
+                "title": "Performance Test Results - ${{ github.ref_name }}",
+                "fields": [
+                  {
+                    "title": "Repository",
+                    "value": "${{ github.repository }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Commit",
+                    "value": "<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>",
+                    "short": true
+                  },
+                  {
+                    "title": "Results",
+                    "value": "<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View detailed results>",
+                    "short": false
+                  }
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != null

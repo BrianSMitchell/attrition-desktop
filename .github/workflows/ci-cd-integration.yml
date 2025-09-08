@@ -1,0 +1,768 @@
+name: CI/CD Integration
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      test_level:
+        description: 'Testing level'
+        required: false
+        default: 'standard'
+        type: choice
+        options:
+          - quick
+          - standard
+          - comprehensive
+          - full
+      skip_cache:
+        description: 'Skip cache for fresh build'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+  PNPM_VERSION: '8.15.0'
+  CI: true
+
+# Concurrency settings
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  # ====================
+  # Setup and Validation
+  # ====================
+  setup:
+    name: Setup & Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    outputs:
+      test-level: ${{ steps.determine-test-level.outputs.level }}
+      affected-packages: ${{ steps.affected.outputs.packages }}
+      should-run-e2e: ${{ steps.determine-test-level.outputs.run-e2e }}
+      should-run-performance: ${{ steps.determine-test-level.outputs.run-performance }}
+      cache-key: ${{ steps.cache-key.outputs.key }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for affected detection
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          echo "key=v1-${{ runner.os }}-node${{ env.NODE_VERSION }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml', '**/package.json') }}" >> $GITHUB_OUTPUT
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        if: ${{ !inputs.skip_cache }}
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+            ~/.pnpm-store
+          key: ${{ steps.cache-key.outputs.key }}
+          restore-keys: |
+            v1-${{ runner.os }}-node${{ env.NODE_VERSION }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Determine test level
+        id: determine-test-level
+        run: |
+          TEST_LEVEL="${{ inputs.test_level }}"
+          
+          # Auto-determine based on context if not specified
+          if [ -z "$TEST_LEVEL" ] || [ "$TEST_LEVEL" = "" ]; then
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              if [ "${{ github.base_ref }}" = "main" ]; then
+                TEST_LEVEL="comprehensive"
+              else
+                TEST_LEVEL="standard"
+              fi
+            elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+              TEST_LEVEL="full"
+            else
+              TEST_LEVEL="standard"
+            fi
+          fi
+          
+          echo "level=$TEST_LEVEL" >> $GITHUB_OUTPUT
+          
+          # Determine what to run based on test level
+          case "$TEST_LEVEL" in
+            "quick")
+              echo "run-e2e=false" >> $GITHUB_OUTPUT
+              echo "run-performance=false" >> $GITHUB_OUTPUT
+              ;;
+            "standard")
+              echo "run-e2e=true" >> $GITHUB_OUTPUT
+              echo "run-performance=false" >> $GITHUB_OUTPUT
+              ;;
+            "comprehensive")
+              echo "run-e2e=true" >> $GITHUB_OUTPUT
+              echo "run-performance=true" >> $GITHUB_OUTPUT
+              ;;
+            "full")
+              echo "run-e2e=true" >> $GITHUB_OUTPUT
+              echo "run-performance=true" >> $GITHUB_OUTPUT
+              ;;
+          esac
+          
+          echo "Selected test level: $TEST_LEVEL"
+
+      - name: Detect affected packages
+        id: affected
+        run: |
+          # Simple affected detection based on changed files
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          else
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          fi
+          
+          AFFECTED_PACKAGES=""
+          
+          if echo "$CHANGED_FILES" | grep -q "packages/server/"; then
+            AFFECTED_PACKAGES="$AFFECTED_PACKAGES server"
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -q "packages/client/"; then
+            AFFECTED_PACKAGES="$AFFECTED_PACKAGES client"
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -q "packages/shared/"; then
+            AFFECTED_PACKAGES="$AFFECTED_PACKAGES shared server client"
+          fi
+          
+          if [ -z "$AFFECTED_PACKAGES" ]; then
+            AFFECTED_PACKAGES="all"
+          fi
+          
+          echo "packages=$AFFECTED_PACKAGES" >> $GITHUB_OUTPUT
+          echo "Affected packages: $AFFECTED_PACKAGES"
+
+  # ====================
+  # Code Quality Checks
+  # ====================
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    needs: setup
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Restore dependencies cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+            ~/.pnpm-store
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint code
+        run: pnpm run lint
+
+      - name: Check formatting
+        run: pnpm run format:check
+
+      - name: Type checking
+        run: pnpm run type-check
+
+      - name: Upload lint results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-results
+          path: |
+            packages/*/eslint-report.json
+            packages/*/lint-results.txt
+          retention-days: 7
+
+  # ====================
+  # Unit & Integration Tests
+  # ====================
+  unit-tests:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    needs: [setup, code-quality]
+    timeout-minutes: 30
+
+    strategy:
+      matrix:
+        package: [server, client, shared]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Restore dependencies cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+            ~/.pnpm-store
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests
+        run: pnpm --filter @game/${{ matrix.package }} run test:unit --coverage
+        env:
+          NODE_ENV: test
+
+      - name: Run integration tests
+        if: matrix.package == 'server'
+        run: pnpm --filter @game/${{ matrix.package }} run test:integration
+        env:
+          NODE_ENV: test
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.package }}
+          path: packages/${{ matrix.package }}/coverage/
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.package }}
+          path: |
+            packages/${{ matrix.package }}/test-results.xml
+            packages/${{ matrix.package }}/test-results.json
+          retention-days: 7
+
+  # ====================
+  # Game-Specific Tests
+  # ====================
+  game-tests:
+    name: Game Logic Tests
+    runs-on: ubuntu-latest
+    needs: [setup, unit-tests]
+    timeout-minutes: 45
+    if: contains(needs.setup.outputs.affected-packages, 'server') || contains(needs.setup.outputs.affected-packages, 'all')
+
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: --health-cmd="mongosh --eval 'db.runCommand({ping:1})'" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Restore dependencies cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+            ~/.pnpm-store
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup test database
+        run: |
+          echo "MONGODB_URI=mongodb://localhost:27017/attrition_test" >> $GITHUB_ENV
+          echo "NODE_ENV=test" >> $GITHUB_ENV
+
+      - name: Run game simulation tests
+        run: pnpm run test:game-simulation
+        timeout-minutes: 20
+
+      - name: Run multiplayer scenario tests
+        run: pnpm run test:multiplayer
+        timeout-minutes: 25
+
+      - name: Run game balance tests
+        run: pnpm run test:balance
+        timeout-minutes: 20
+        env:
+          MONGODB_URI_TEST: mongodb://localhost:27017/attrition_test_balance
+
+      - name: Run game performance tests
+        run: pnpm run test:performance
+        timeout-minutes: 30
+        env:
+          MONGODB_URI_TEST: mongodb://localhost:27017/attrition_test_performance
+
+      - name: Upload game test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: game-test-results
+          path: |
+            packages/server/test-results/game-simulation/
+            packages/server/test-results/multiplayer-scenarios/
+            packages/server/test-results/balance-tests/
+            packages/server/test-results/performance-tests/
+          retention-days: 7
+
+  # ====================
+  # Build Verification
+  # ====================
+  build:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    needs: [setup, code-quality]
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Restore dependencies cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+            ~/.pnpm-store
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm run build
+
+      - name: Verify build outputs
+        run: |
+          # Check that all expected build outputs exist
+          test -d packages/shared/dist || (echo "Shared build failed" && exit 1)
+          test -d packages/server/dist || (echo "Server build failed" && exit 1)
+          test -d packages/client/dist || (echo "Client build failed" && exit 1)
+          
+          echo "✅ All builds completed successfully"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            packages/*/dist/
+          retention-days: 3
+
+  # ====================
+  # End-to-End Tests
+  # ====================
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [setup, build]
+    timeout-minutes: 60
+    if: needs.setup.outputs.should-run-e2e == 'true'
+
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: --health-cmd="mongosh --eval 'db.runCommand({ping:1})'" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: ./
+
+      - name: Restore dependencies cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+            ~/.pnpm-store
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm run e2e:install
+
+      - name: Setup test environment
+        run: |
+          echo "MONGODB_URI=mongodb://localhost:27017/attrition_e2e" >> $GITHUB_ENV
+          echo "NODE_ENV=test" >> $GITHUB_ENV
+          echo "BASE_URL=http://localhost:3000" >> $GITHUB_ENV
+          echo "API_URL=http://localhost:3001" >> $GITHUB_ENV
+
+      - name: Start application servers
+        run: |
+          # Start server
+          cd packages/server
+          node dist/index.js &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          
+          # Start client (using built files)
+          cd packages/client
+          npx serve -s dist -l 3000 &
+          CLIENT_PID=$!
+          echo "CLIENT_PID=$CLIENT_PID" >> $GITHUB_ENV
+          
+          # Wait for servers to be ready
+          npx wait-on http://localhost:3001/health http://localhost:3000 --timeout 60000
+
+      - name: Run E2E tests
+        run: pnpm run e2e:ci
+        env:
+          PLAYWRIGHT_HTML_REPORT: e2e-results/html-report
+
+      - name: Stop servers
+        if: always()
+        run: |
+          kill $SERVER_PID || true
+          kill $CLIENT_PID || true
+
+      - name: Upload E2E test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: |
+            e2e-results/
+            test-results/
+          retention-days: 7
+
+  # ====================
+  # Performance Tests
+  # ====================
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [setup, build]
+    timeout-minutes: 45
+    if: needs.setup.outputs.should-run-performance == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: ./
+
+      - name: Restore dependencies cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+            ~/.pnpm-store
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Run performance tests
+        run: pnpm run test:performance
+        env:
+          PERFORMANCE_TEST_MODE: ci
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results
+          path: |
+            performance-results/
+            packages/*/performance-test-results/
+          retention-days: 14
+
+  # ====================
+  # Test Results Analysis
+  # ====================
+  test-analysis:
+    name: Analyze Test Results
+    runs-on: ubuntu-latest
+    needs: [unit-tests, game-tests, e2e-tests, performance-tests]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all test artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: test-artifacts/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Generate test report
+        run: |
+          # Create comprehensive test report
+          mkdir -p reports
+          
+          echo "# 🧪 Test Results Summary" > reports/test-summary.md
+          echo "" >> reports/test-summary.md
+          echo "**Commit**: [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})" >> reports/test-summary.md
+          echo "**Branch**: ${{ github.ref_name }}" >> reports/test-summary.md
+          echo "**Workflow**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> reports/test-summary.md
+          echo "**Test Level**: ${{ needs.setup.outputs.test-level }}" >> reports/test-summary.md
+          echo "" >> reports/test-summary.md
+          
+          # Analyze results
+          echo "## 📊 Test Results" >> reports/test-summary.md
+          echo "" >> reports/test-summary.md
+          echo "| Test Suite | Status | Duration |" >> reports/test-summary.md
+          echo "|------------|--------|----------|" >> reports/test-summary.md
+          echo "| Unit Tests | ${{ needs.unit-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} | - |" >> reports/test-summary.md
+          echo "| Game Logic Tests | ${{ needs.game-tests.result == 'success' && '✅ Passed' || needs.game-tests.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} | - |" >> reports/test-summary.md
+          echo "| Game Balance Tests | ${{ needs.game-tests.result == 'success' && '✅ Passed' || needs.game-tests.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} | - |" >> reports/test-summary.md
+          echo "| E2E Tests | ${{ needs.e2e-tests.result == 'success' && '✅ Passed' || needs.e2e-tests.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} | - |" >> reports/test-summary.md
+          echo "| Performance Tests | ${{ needs.performance-tests.result == 'success' && '✅ Passed' || needs.performance-tests.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} | - |" >> reports/test-summary.md
+          echo "" >> reports/test-summary.md
+          
+          # Coverage analysis
+          if [ -d "test-artifacts/coverage-server" ]; then
+            echo "## 📈 Coverage Report" >> reports/test-summary.md
+            echo "" >> reports/test-summary.md
+            echo "Coverage reports are available in the artifacts." >> reports/test-summary.md
+            echo "" >> reports/test-summary.md
+          fi
+          
+          # Performance analysis
+          if [ -d "test-artifacts/performance-results" ]; then
+            echo "## ⚡ Performance Analysis" >> reports/test-summary.md
+            echo "" >> reports/test-summary.md
+            echo "Performance test results are available in the artifacts." >> reports/test-summary.md
+            echo "" >> reports/test-summary.md
+          fi
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'reports/test-summary.md';
+            
+            if (fs.existsSync(path)) {
+              const summary = fs.readFileSync(path, 'utf8');
+              
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: summary
+              });
+            }
+
+      - name: Upload test analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-analysis
+          path: reports/
+          retention-days: 30
+
+  # ====================
+  # Deployment Readiness
+  # ====================
+  deployment-check:
+    name: Deployment Readiness
+    runs-on: ubuntu-latest
+    needs: [unit-tests, game-tests, build, e2e-tests]
+    if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+
+    steps:
+      - name: Evaluate deployment readiness
+        id: deployment-check
+        run: |
+          # Check if all required tests passed
+          UNIT_TESTS="${{ needs.unit-tests.result }}"
+          GAME_TESTS="${{ needs.game-tests.result }}"
+          BUILD="${{ needs.build.result }}"
+          E2E_TESTS="${{ needs.e2e-tests.result }}"
+          
+          if [ "$UNIT_TESTS" = "success" ] && [ "$BUILD" = "success" ] && 
+             ([ "$GAME_TESTS" = "success" ] || [ "$GAME_TESTS" = "skipped" ]) && 
+             ([ "$E2E_TESTS" = "success" ] || [ "$E2E_TESTS" = "skipped" ]); then
+            echo "ready=true" >> $GITHUB_OUTPUT
+            echo "status=✅ Ready for deployment" >> $GITHUB_OUTPUT
+          else
+            echo "ready=false" >> $GITHUB_OUTPUT
+            echo "status=❌ Not ready for deployment" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create deployment status
+        run: |
+          echo "${{ steps.deployment-check.outputs.status }}"
+          
+          if [ "${{ steps.deployment-check.outputs.ready }}" = "false" ]; then
+            echo "Deployment blocked due to test failures"
+            exit 1
+          fi
+
+  # ====================
+  # Notification
+  # ====================
+  notify:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [test-analysis, deployment-check]
+    if: always() && (failure() || (success() && github.ref == 'refs/heads/main'))
+
+    steps:
+      - name: Determine overall status
+        id: status
+        run: |
+          if [ "${{ needs.deployment-check.result }}" = "failure" ]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "message=❌ CI/CD pipeline failed - deployment blocked" >> $GITHUB_OUTPUT
+          elif [ "${{ needs.deployment-check.result }}" = "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "message=✅ CI/CD pipeline passed - ready for deployment" >> $GITHUB_OUTPUT
+          else
+            echo "status=partial" >> $GITHUB_OUTPUT
+            echo "message=⚠️ CI/CD pipeline completed with warnings" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notify team
+        if: env.SLACK_WEBHOOK_URL != ''
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "CI/CD Pipeline Results",
+              "attachments": [
+                {
+                  "color": "${{ steps.status.outputs.status == 'success' && 'good' || steps.status.outputs.status == 'failure' && 'danger' || 'warning' }}",
+                  "title": "${{ steps.status.outputs.message }}",
+                  "fields": [
+                    {
+                      "title": "Repository",
+                      "value": "${{ github.repository }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Branch",
+                      "value": "${{ github.ref_name }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Test Level",
+                      "value": "${{ needs.setup.outputs.test-level }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Results",
+                      "value": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>",
+                      "short": true
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

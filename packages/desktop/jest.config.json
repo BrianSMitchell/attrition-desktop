@@ -1,0 +1,22 @@
+{
+  "testEnvironment": "node",
+  "extensionsToTreatAsEsm": [".js"],
+  "transform": {},
+  "testMatch": [
+    "<rootDir>/src/__tests__/**/*.test.js"
+  ],
+  "moduleNameMapping": {
+    "^(\.{1,2}/.*)\\.js$": "$1"
+  },
+  "collectCoverageFrom": [
+    "src/**/*.js",
+    "!src/__tests__/**/*",
+    "!src/main.js"
+  ],
+  "coverageDirectory": "coverage",
+  "coverageReporters": ["text", "lcov", "html"],
+  "setupFilesAfterEnv": [],
+  "globals": {
+    "__DEV__": true
+  }
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "content": "[Energy Budget Consistency] Producers (delta ≥ 0) always allowed; consumers (delta < 0) only if balance + reservedNegative + delta ≥ 0. Standard log: [StructuresService.start] key=<catalogKey> delta=<delta> produced=<produced> consumed=<consumed> balance=<balance> reserved=<reservedNegative> projectedEnergy=<projectedEnergy>."
+  },
+  {
+    "content": "[Capacity Parity] ETA minutes = max(1, ceil((creditsCost / constructionPerHour) * 60)). UI must match server; avoid recomputation drift. Format: if ≥ 60m show h+m else minutes."
+  },
+  {
+    "content": "[DTO/Error Schema] Success: { success: true, data, message }. Error: { success: false, code, message, details }. Missing catalogKey: { success:false, code: \"INVALID_REQUEST\", message: \"catalogKey is required\", details:{ field:\"catalogKey\" } }."
+  },
+  {
+    "content": "[Queue Idempotency] Start endpoints are idempotent. Duplicate identity returns HTTP 409 with code ALREADY_IN_PROGRESS and details including identityKey, queueType, catalogKey, existing { _id, state, etaSeconds }."
+  },
+  {
+    "content": "[PowerShell Command Syntax] Do not use Unix '&&' in PowerShell. Use sequential commands or semicolons. Example: $env:TEST_EMAIL=\"test@test.com\"; $env:TEST_PASSWORD=\"•••\"; pnpm exec playwright test e2e/energy.gating.spec.ts."
+  },
+  {
+    "content": "[Dual ESM/CJS Build] Library exports map: main: dist/cjs/index.js, module: dist/esm/index.js, types: dist/types/index.d.ts, exports: { \".\": { types, import, require } }. Build cmd: rimraf dist && tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json."
+  },
+  {
+    "content": "[React SSR/Jest Interop] Use namespace import: import * as React from \"react\"; call hooks via React.useX to avoid undefined default import issues under ts-jest/SSR."
+  },
+  {
+    "content": "[Offscreen Layer Caching] Use helper API: createOffscreenLayer, drawToLayer, composeLayers, getCacheKeyFromDeps, buildCachedLayer(prefix,deps,cache,builder), clearLayerCache. Key prefixes: galaxy:grid, galaxy:regions, region:grid, system:background."
+  },
+  {
+    "content": "[Interactive Canvas Architecture] No JSX in draw loops. Guarded requestAnimationFrame with cleanup; layers: background → content → overlays; event pipeline must match draw transforms for click parity."
+  },
+  {
+    "content": "[Tabular Build UI Standard] Columns: Structures (Structure|Credits|Energy|Economy|Population|Area|Advanced|Requires|Time|Build). Disabled action shows tooltip with reasons.join('; '). Default sort by credits ascending."
+  }
+]

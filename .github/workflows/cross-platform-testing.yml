@@ -1,0 +1,744 @@
+name: Cross-Platform and Accessibility Testing
+
+on:
+  push:
+    branches: [ main, develop, 'release/**' ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run comprehensive tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Test suite to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - macos
+          - linux
+          - dpi
+          - accessibility
+          - internationalization
+      test_environment:
+        description: 'Test environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+          - local
+
+env:
+  NODE_VERSION: '20.x'
+  TESTING_ENVIRONMENT: ${{ github.event.inputs.test_environment || 'staging' }}
+
+jobs:
+  setup:
+    name: Test Environment Setup
+    runs-on: ubuntu-latest
+    outputs:
+      test-matrix: ${{ steps.matrix.outputs.test-matrix }}
+      should-run-macos: ${{ steps.conditions.outputs.should-run-macos }}
+      should-run-linux: ${{ steps.conditions.outputs.should-run-linux }}
+      should-run-windows: ${{ steps.conditions.outputs.should-run-windows }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine test conditions
+        id: conditions
+        run: |
+          TEST_SUITE="${{ github.event.inputs.test_suite || 'all' }}"
+          
+          # Determine which platforms to test
+          if [[ "$TEST_SUITE" == "all" || "$TEST_SUITE" == "macos" ]]; then
+            echo "should-run-macos=true" >> $GITHUB_OUTPUT
+          else
+            echo "should-run-macos=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if [[ "$TEST_SUITE" == "all" || "$TEST_SUITE" == "linux" ]]; then
+            echo "should-run-linux=true" >> $GITHUB_OUTPUT
+          else
+            echo "should-run-linux=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Windows testing is always enabled for DPI and accessibility tests
+          if [[ "$TEST_SUITE" == "all" || "$TEST_SUITE" == "dpi" || "$TEST_SUITE" == "accessibility" ]]; then
+            echo "should-run-windows=true" >> $GITHUB_OUTPUT
+          else
+            echo "should-run-windows=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate test matrix
+        id: matrix
+        run: |
+          echo "test-matrix={
+            \"include\": [
+              {
+                \"name\": \"macOS\",
+                \"os\": \"macos-14\",
+                \"browser\": \"webkit\",
+                \"test-path\": \"e2e/platform-testing/macos-platform.spec.ts\"
+              },
+              {
+                \"name\": \"Linux\",
+                \"os\": \"ubuntu-22.04\",
+                \"browser\": \"chromium\",
+                \"test-path\": \"e2e/platform-testing/linux-platform.spec.ts\"
+              },
+              {
+                \"name\": \"Windows-DPI\",
+                \"os\": \"windows-2022\",
+                \"browser\": \"chromium\",
+                \"test-path\": \"e2e/platform-testing/dpi-multimonitor.spec.ts\"
+              },
+              {
+                \"name\": \"Accessibility\",
+                \"os\": \"ubuntu-22.04\",
+                \"browser\": \"chromium\",
+                \"test-path\": \"e2e/platform-testing/input-accessibility.spec.ts\"
+              },
+              {
+                \"name\": \"Internationalization\",
+                \"os\": \"ubuntu-22.04\",
+                \"browser\": \"firefox\",
+                \"test-path\": \"e2e/platform-testing/internationalization.spec.ts\"
+              }
+            ]
+          }" | jq -c . >> $GITHUB_OUTPUT
+
+  # macOS Platform Testing
+  macos-testing:
+    name: macOS Platform Testing
+    runs-on: macos-14
+    needs: setup
+    if: needs.setup.outputs.should-run-macos == 'true'
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [webkit, chromium]
+        node-version: ['20.x']
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install ${{ matrix.browser }}
+          npx playwright install-deps
+
+      - name: macOS System Information
+        run: |
+          echo "=== macOS System Information ==="
+          sw_vers
+          uname -a
+          sysctl -n machdep.cpu.brand_string
+          echo "Architecture: $(uname -m)"
+          echo "Available memory: $(sysctl -n hw.memsize | awk '{print int($1/1024/1024/1024) " GB"}')"
+          
+      - name: Build application
+        run: |
+          npm run build
+          npm run build:desktop
+        env:
+          NODE_ENV: test
+
+      - name: Start test server
+        run: |
+          npm run serve:test &
+          npx wait-on http://localhost:3000 --timeout 30000
+
+      - name: Run macOS platform tests
+        run: |
+          npx playwright test e2e/platform-testing/macos-platform.spec.ts \
+            --project=${{ matrix.browser }} \
+            --reporter=html,json \
+            --output-dir=test-results/macos
+        env:
+          PLAYWRIGHT_HTML_REPORT: test-results/macos/playwright-report
+          CI: true
+          TEST_ENVIRONMENT: ${{ env.TESTING_ENVIRONMENT }}
+
+      - name: Upload macOS test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-test-results-${{ matrix.browser }}
+          path: |
+            test-results/macos/
+            testing-data/platform-results/macos/
+          retention-days: 30
+
+      - name: Upload macOS test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-playwright-report-${{ matrix.browser }}
+          path: test-results/macos/playwright-report/
+          retention-days: 30
+
+  # Linux Platform Testing
+  linux-testing:
+    name: Linux Platform Testing
+    runs-on: ubuntu-22.04
+    needs: setup
+    if: needs.setup.outputs.should-run-linux == 'true'
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox]
+        desktop-env: [gnome, kde, xfce]
+        include:
+          - desktop-env: gnome
+            display-server: wayland
+          - desktop-env: kde
+            display-server: x11
+          - desktop-env: xfce
+            display-server: x11
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Linux desktop environment
+        run: |
+          echo "=== Setting up Linux desktop environment ==="
+          sudo apt-get update
+          
+          # Install desktop environment packages
+          if [[ "${{ matrix.desktop-env }}" == "gnome" ]]; then
+            sudo apt-get install -y ubuntu-desktop-minimal gnome-session
+            echo "DESKTOP_SESSION=gnome" >> $GITHUB_ENV
+            echo "XDG_CURRENT_DESKTOP=GNOME" >> $GITHUB_ENV
+          elif [[ "${{ matrix.desktop-env }}" == "kde" ]]; then
+            sudo apt-get install -y kde-plasma-desktop
+            echo "DESKTOP_SESSION=kde-plasma" >> $GITHUB_ENV
+            echo "XDG_CURRENT_DESKTOP=KDE" >> $GITHUB_ENV
+          elif [[ "${{ matrix.desktop-env }}" == "xfce" ]]; then
+            sudo apt-get install -y xfce4
+            echo "DESKTOP_SESSION=xfce" >> $GITHUB_ENV
+            echo "XDG_CURRENT_DESKTOP=XFCE" >> $GITHUB_ENV
+          fi
+          
+          # Setup display server
+          if [[ "${{ matrix.display-server }}" == "wayland" ]]; then
+            echo "XDG_SESSION_TYPE=wayland" >> $GITHUB_ENV
+            echo "WAYLAND_DISPLAY=wayland-0" >> $GITHUB_ENV
+          else
+            echo "XDG_SESSION_TYPE=x11" >> $GITHUB_ENV
+            echo "DISPLAY=:99" >> $GITHUB_ENV
+          fi
+
+      - name: Linux System Information
+        run: |
+          echo "=== Linux System Information ==="
+          lsb_release -a
+          uname -a
+          cat /etc/os-release
+          echo "Desktop Environment: $XDG_CURRENT_DESKTOP"
+          echo "Display Server: $XDG_SESSION_TYPE"
+          echo "CPU: $(lscpu | grep 'Model name' | cut -d: -f2 | xargs)"
+          echo "Memory: $(free -h | grep '^Mem:' | awk '{print $2}')"
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install ${{ matrix.browser }}
+          npx playwright install-deps
+
+      - name: Start Xvfb display server
+        if: matrix.display-server == 'x11'
+        run: |
+          sudo apt-get install -y xvfb
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
+      - name: Build application
+        run: |
+          npm run build
+          npm run build:desktop
+        env:
+          NODE_ENV: test
+
+      - name: Start test server
+        run: |
+          npm run serve:test &
+          npx wait-on http://localhost:3000 --timeout 30000
+
+      - name: Run Linux platform tests
+        run: |
+          npx playwright test e2e/platform-testing/linux-platform.spec.ts \
+            --project=${{ matrix.browser }} \
+            --reporter=html,json \
+            --output-dir=test-results/linux-${{ matrix.desktop-env }}
+        env:
+          PLAYWRIGHT_HTML_REPORT: test-results/linux-${{ matrix.desktop-env }}/playwright-report
+          CI: true
+          TEST_ENVIRONMENT: ${{ env.TESTING_ENVIRONMENT }}
+
+      - name: Upload Linux test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-test-results-${{ matrix.browser }}-${{ matrix.desktop-env }}
+          path: |
+            test-results/linux-${{ matrix.desktop-env }}/
+            testing-data/platform-results/linux/
+          retention-days: 30
+
+  # DPI and Multi-Monitor Testing
+  dpi-testing:
+    name: DPI and Multi-Monitor Testing
+    runs-on: windows-2022
+    needs: setup
+    if: needs.setup.outputs.should-run-windows == 'true'
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, edge]
+        dpi-scale: [100, 125, 150, 200]
+        resolution: ['1920x1080', '2560x1440', '3840x2160']
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Windows System Information
+        run: |
+          echo "=== Windows System Information ==="
+          Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, WindowsBuildLabEx
+          Get-WmiObject -Class Win32_VideoController | Select-Object Name, VideoModeDescription, CurrentHorizontalResolution, CurrentVerticalResolution
+          Get-WmiObject -Class Win32_ComputerSystem | Select-Object TotalPhysicalMemory
+
+      - name: Configure Windows DPI
+        run: |
+          # Set DPI scaling for test
+          $dpiScale = ${{ matrix.dpi-scale }}
+          $regPath = "HKCU:\Control Panel\Desktop"
+          Set-ItemProperty -Path $regPath -Name "LogPixels" -Value ([int]($dpiScale * 96 / 100))
+          
+          # Set display resolution
+          $resolution = "${{ matrix.resolution }}"
+          $width, $height = $resolution -split 'x'
+          Write-Host "Setting resolution to ${width}x${height}"
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install ${{ matrix.browser }}
+          npx playwright install-deps
+
+      - name: Build application
+        run: |
+          npm run build
+          npm run build:desktop
+        env:
+          NODE_ENV: test
+
+      - name: Start test server
+        run: |
+          Start-Process npm -ArgumentList "run", "serve:test" -NoNewWindow
+          npx wait-on http://localhost:3000 --timeout 30000
+
+      - name: Run DPI and multi-monitor tests
+        run: |
+          npx playwright test e2e/platform-testing/dpi-multimonitor.spec.ts `
+            --project=${{ matrix.browser }} `
+            --reporter=html,json `
+            --output-dir=test-results/dpi-${{ matrix.dpi-scale }}-${{ matrix.resolution }}
+        env:
+          PLAYWRIGHT_HTML_REPORT: test-results/dpi-${{ matrix.dpi-scale }}-${{ matrix.resolution }}/playwright-report
+          CI: true
+          TEST_ENVIRONMENT: ${{ env.TESTING_ENVIRONMENT }}
+          DPI_SCALE: ${{ matrix.dpi-scale }}
+          SCREEN_RESOLUTION: ${{ matrix.resolution }}
+
+      - name: Upload DPI test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dpi-test-results-${{ matrix.browser }}-${{ matrix.dpi-scale }}-${{ matrix.resolution }}
+          path: |
+            test-results/dpi-${{ matrix.dpi-scale }}-${{ matrix.resolution }}/
+            testing-data/platform-results/dpi/
+          retention-days: 30
+
+  # Accessibility Testing
+  accessibility-testing:
+    name: Accessibility Testing
+    runs-on: ${{ matrix.os }}
+    needs: setup
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022, macos-14]
+        browser: [chromium, firefox, webkit]
+        exclude:
+          # WebKit only available on macOS
+          - os: ubuntu-22.04
+            browser: webkit
+          - os: windows-2022
+            browser: webkit
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install accessibility testing tools
+        run: |
+          npm install -g @axe-core/cli pa11y
+          
+      - name: Setup platform-specific accessibility tools
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y espeak-ng speech-dispatcher orca
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            # macOS VoiceOver is built-in
+            echo "macOS accessibility tools available"
+          elif [[ "$RUNNER_OS" == "Windows" ]]; then
+            # Windows Narrator is built-in
+            echo "Windows accessibility tools available"
+          fi
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install ${{ matrix.browser }}
+          npx playwright install-deps
+
+      - name: Build application
+        run: |
+          npm run build
+        env:
+          NODE_ENV: test
+
+      - name: Start test server
+        shell: bash
+        run: |
+          npm run serve:test &
+          npx wait-on http://localhost:3000 --timeout 30000
+
+      - name: Run accessibility tests
+        run: |
+          npx playwright test e2e/platform-testing/input-accessibility.spec.ts \
+            --project=${{ matrix.browser }} \
+            --reporter=html,json \
+            --output-dir=test-results/accessibility-${{ runner.os }}-${{ matrix.browser }}
+        env:
+          PLAYWRIGHT_HTML_REPORT: test-results/accessibility-${{ runner.os }}-${{ matrix.browser }}/playwright-report
+          CI: true
+          TEST_ENVIRONMENT: ${{ env.TESTING_ENVIRONMENT }}
+
+      - name: Run axe-core accessibility audit
+        continue-on-error: true
+        run: |
+          axe http://localhost:3000 --save test-results/accessibility-${{ runner.os }}-${{ matrix.browser }}/axe-results.json
+
+      - name: Run pa11y accessibility audit
+        continue-on-error: true
+        run: |
+          pa11y http://localhost:3000 --reporter json > test-results/accessibility-${{ runner.os }}-${{ matrix.browser }}/pa11y-results.json
+
+      - name: Upload accessibility test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: accessibility-test-results-${{ runner.os }}-${{ matrix.browser }}
+          path: |
+            test-results/accessibility-${{ runner.os }}-${{ matrix.browser }}/
+            testing-data/platform-results/accessibility/
+          retention-days: 30
+
+  # Internationalization Testing
+  internationalization-testing:
+    name: Internationalization Testing
+    runs-on: ubuntu-22.04
+    needs: setup
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox]
+        locale-group:
+          - name: western
+            locales: "en-US,de-DE,fr-FR,es-ES,pt-BR"
+          - name: cjk
+            locales: "ja-JP,ko-KR,zh-CN,zh-TW"
+          - name: rtl
+            locales: "ar-SA,he-IL"
+          - name: complex
+            locales: "hi-IN,th-TH,tr-TR,ru-RU"
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install locale and font packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            locales-all \
+            fonts-noto \
+            fonts-noto-cjk \
+            fonts-noto-color-emoji \
+            fonts-liberation \
+            fonts-dejavu-core \
+            fonts-arabic \
+            fonts-thai-tlwg \
+            fonts-indic
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install ${{ matrix.browser }}
+          npx playwright install-deps
+
+      - name: Build application
+        run: |
+          npm run build
+        env:
+          NODE_ENV: test
+
+      - name: Start test server
+        run: |
+          npm run serve:test &
+          npx wait-on http://localhost:3000 --timeout 30000
+
+      - name: Run internationalization tests
+        run: |
+          npx playwright test e2e/platform-testing/internationalization.spec.ts \
+            --project=${{ matrix.browser }} \
+            --reporter=html,json \
+            --output-dir=test-results/i18n-${{ matrix.locale-group.name }}-${{ matrix.browser }}
+        env:
+          PLAYWRIGHT_HTML_REPORT: test-results/i18n-${{ matrix.locale-group.name }}-${{ matrix.browser }}/playwright-report
+          CI: true
+          TEST_ENVIRONMENT: ${{ env.TESTING_ENVIRONMENT }}
+          TEST_LOCALES: ${{ matrix.locale-group.locales }}
+
+      - name: Upload i18n test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: i18n-test-results-${{ matrix.locale-group.name }}-${{ matrix.browser }}
+          path: |
+            test-results/i18n-${{ matrix.locale-group.name }}-${{ matrix.browser }}/
+            testing-data/platform-results/i18n/
+          retention-days: 30
+
+  # Results aggregation and reporting
+  results-summary:
+    name: Test Results Summary
+    runs-on: ubuntu-latest
+    needs: [macos-testing, linux-testing, dpi-testing, accessibility-testing, internationalization-testing]
+    if: always()
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Download all test artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-test-results/
+
+      - name: Install dependencies
+        run: |
+          npm ci
+
+      - name: Generate comprehensive test report
+        run: |
+          # Create comprehensive test report
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+          
+          const resultsDir = 'all-test-results';
+          const report = {
+            timestamp: new Date().toISOString(),
+            workflow: '${{ github.workflow }}',
+            commit: '${{ github.sha }}',
+            branch: '${{ github.ref }}',
+            testSuites: {
+              macos: { total: 0, passed: 0, failed: 0, skipped: 0 },
+              linux: { total: 0, passed: 0, failed: 0, skipped: 0 },
+              dpi: { total: 0, passed: 0, failed: 0, skipped: 0 },
+              accessibility: { total: 0, passed: 0, failed: 0, skipped: 0 },
+              internationalization: { total: 0, passed: 0, failed: 0, skipped: 0 }
+            },
+            summary: { total: 0, passed: 0, failed: 0, skipped: 0 }
+          };
+          
+          // Process all test result artifacts
+          if (fs.existsSync(resultsDir)) {
+            const artifacts = fs.readdirSync(resultsDir);
+            artifacts.forEach(artifact => {
+              const artifactPath = path.join(resultsDir, artifact);
+              if (fs.statSync(artifactPath).isDirectory()) {
+                // Look for JSON test results
+                const files = fs.readdirSync(artifactPath, { recursive: true });
+                files.forEach(file => {
+                  if (file.endsWith('.json') && (file.includes('results') || file.includes('report'))) {
+                    try {
+                      const content = JSON.parse(fs.readFileSync(path.join(artifactPath, file), 'utf8'));
+                      // Process test results based on structure
+                      if (content.suites || content.tests) {
+                        // Update suite-specific counts
+                        let suite = 'unknown';
+                        if (artifact.includes('macos')) suite = 'macos';
+                        else if (artifact.includes('linux')) suite = 'linux';
+                        else if (artifact.includes('dpi')) suite = 'dpi';
+                        else if (artifact.includes('accessibility')) suite = 'accessibility';
+                        else if (artifact.includes('i18n')) suite = 'internationalization';
+                        
+                        if (report.testSuites[suite]) {
+                          report.testSuites[suite].total += (content.stats?.tests || 0);
+                          report.testSuites[suite].passed += (content.stats?.passes || 0);
+                          report.testSuites[suite].failed += (content.stats?.failures || 0);
+                          report.testSuites[suite].skipped += (content.stats?.skipped || 0);
+                        }
+                      }
+                    } catch (e) {
+                      console.log(\`Could not parse \${file}: \${e.message}\`);
+                    }
+                  }
+                });
+              }
+            });
+          }
+          
+          // Calculate summary
+          Object.values(report.testSuites).forEach(suite => {
+            report.summary.total += suite.total;
+            report.summary.passed += suite.passed;
+            report.summary.failed += suite.failed;
+            report.summary.skipped += suite.skipped;
+          });
+          
+          // Write comprehensive report
+          fs.writeFileSync('cross-platform-test-report.json', JSON.stringify(report, null, 2));
+          
+          // Generate markdown summary
+          const passRate = report.summary.total > 0 ? ((report.summary.passed / report.summary.total) * 100).toFixed(1) : '0';
+          const markdown = \`
+          # Cross-Platform Testing Report
+          
+          **Overall Results:** \${report.summary.passed}/\${report.summary.total} tests passed (\${passRate}%)
+          
+          ## Test Suite Breakdown
+          
+          | Suite | Total | Passed | Failed | Skipped | Pass Rate |
+          |-------|-------|--------|--------|---------|-----------|
+          \${Object.entries(report.testSuites).map(([name, stats]) => {
+            const rate = stats.total > 0 ? ((stats.passed / stats.total) * 100).toFixed(1) : '0';
+            return \`| \${name} | \${stats.total} | \${stats.passed} | \${stats.failed} | \${stats.skipped} | \${rate}% |\`;
+          }).join('\\n')}
+          
+          **Generated:** \${report.timestamp}  
+          **Commit:** \${report.commit}  
+          **Branch:** \${report.branch}
+          \`;
+          
+          fs.writeFileSync('cross-platform-test-summary.md', markdown);
+          
+          console.log('Cross-platform test report generated successfully');
+          "
+
+      - name: Upload comprehensive test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-platform-test-report
+          path: |
+            cross-platform-test-report.json
+            cross-platform-test-summary.md
+            all-test-results/
+          retention-days: 90
+
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            if (fs.existsSync('cross-platform-test-summary.md')) {
+              const summary = fs.readFileSync('cross-platform-test-summary.md', 'utf8');
+              
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: summary
+              });
+            }
+
+      - name: Set job status based on test results
+        run: |
+          # Check if any critical tests failed
+          if [ -f "cross-platform-test-report.json" ]; then
+            FAILED_TESTS=$(node -e "
+              const report = JSON.parse(require('fs').readFileSync('cross-platform-test-report.json'));
+              console.log(report.summary.failed);
+            ")
+            
+            if [ "$FAILED_TESTS" -gt "0" ]; then
+              echo "❌ $FAILED_TESTS tests failed"
+              exit 1
+            else
+              echo "✅ All tests passed!"
+            fi
+          else
+            echo "⚠️ No test report generated"
+            exit 1
+          fi

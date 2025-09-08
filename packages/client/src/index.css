@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: dark light;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Full-viewport layout reset */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: initial;
+}
+
+/* Custom game styles */
+.game-container {
+  @apply min-h-screen bg-gray-900 text-white;
+}
+
+.game-card {
+  @apply bg-gray-800 border border-gray-700 rounded-lg p-6 shadow-lg;
+}
+
+.game-button {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors;
+}
+
+.game-button:disabled {
+  @apply bg-gray-600 cursor-not-allowed;
+}
+
+.game-input {
+  @apply bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 focus:outline-none focus:border-blue-500;
+}
+
+.game-nav {
+  @apply bg-gray-800 border-b border-gray-700 px-6 py-4;
+}
+
+.game-sidebar {
+  @apply bg-gray-800 border-r border-gray-700 w-64 min-h-screen p-4;
+}
+
+.game-main {
+  @apply flex-1 p-6;
+}
+
+.resource-display {
+  @apply flex items-center space-x-2 text-sm;
+}
+
+.status-online {
+  @apply text-green-400;
+}
+
+.status-offline {
+  @apply text-red-400;
+}
+
+.status-warning {
+  @apply text-yellow-400;
+}

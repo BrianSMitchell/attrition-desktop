@@ -1,0 +1,21 @@
+export const PHOTON_LEVEL_ROWS = [
+  { level: 0, credits: 0, photonWeaponsAttackPct: 100 },
+  { level: 1, credits: 1024, photonWeaponsAttackPct: 105 },
+  { level: 2, credits: 1536, photonWeaponsAttackPct: 110 },
+  { level: 3, credits: 2304, photonWeaponsAttackPct: 115 },
+  { level: 4, credits: 3456, photonWeaponsAttackPct: 120 },
+  { level: 5, credits: 5184, photonWeaponsAttackPct: 125 },
+  { level: 6, credits: 7776, photonWeaponsAttackPct: 130 },
+  { level: 7, credits: 11664, photonWeaponsAttackPct: 135 },
+  { level: 8, credits: 17496, photonWeaponsAttackPct: 140 },
+  { level: 9, credits: 26244, photonWeaponsAttackPct: 145 },
+  { level: 10, credits: 39366, photonWeaponsAttackPct: 150 },
+  { level: 11, credits: 59049, photonWeaponsAttackPct: 155 },
+  { level: 12, credits: 88574, photonWeaponsAttackPct: 160 },
+  { level: 13, credits: 132861, photonWeaponsAttackPct: 165 },
+  { level: 14, credits: 199291, photonWeaponsAttackPct: 170 },
+  { level: 15, credits: 298936, photonWeaponsAttackPct: 175 },
+  { level: 16, credits: 448404, photonWeaponsAttackPct: 180 },
+  { level: 17, credits: 672606, photonWeaponsAttackPct: 185 },
+  { level: 18, credits: 1008908, photonWeaponsAttackPct: 190 }
+] as const;

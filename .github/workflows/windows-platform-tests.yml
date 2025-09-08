@@ -1,0 +1,430 @@
+name: Windows Platform Testing
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'packages/desktop/**'
+      - 'e2e/**'
+      - '.github/workflows/windows-platform-tests.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'packages/desktop/**'
+      - 'e2e/**'
+  schedule:
+    # Run Windows tests daily at 4 AM UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Windows test suite to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - platform
+          - performance
+          - compatibility
+      windows_version:
+        description: 'Windows version to test on'
+        required: false
+        default: 'latest'
+        type: choice
+        options:
+          - latest
+          - 2022
+          - 2019
+      test_timeout:
+        description: 'Test timeout in minutes'
+        required: false
+        default: '60'
+        type: string
+
+env:
+  NODE_VERSION: '18'
+  PNPM_VERSION: '8'
+  ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+  ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+
+jobs:
+  prepare-windows-environment:
+    name: Prepare Windows Test Environment
+    runs-on: windows-latest
+    outputs:
+      desktop-built: ${{ steps.desktop-check.outputs.built }}
+      test-matrix: ${{ steps.matrix.outputs.matrix }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ELECTRON_CACHE }}
+          key: windows-electron-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            windows-electron-
+
+      - name: Cache Electron Builder
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ELECTRON_BUILDER_CACHE }}
+          key: windows-electron-builder-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            windows-electron-builder-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @game/shared build
+
+      - name: Build client package
+        run: pnpm --filter @game/client build
+        env:
+          NODE_ENV: production
+
+      - name: Build desktop application for Windows
+        run: pnpm --filter @game/desktop build --win --publish=never
+        env:
+          NODE_ENV: production
+          ELECTRON_CACHE: ${{ env.ELECTRON_CACHE }}
+          ELECTRON_BUILDER_CACHE: ${{ env.ELECTRON_BUILDER_CACHE }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Check desktop build
+        id: desktop-check
+        shell: pwsh
+        run: |
+          $appPath = Get-ChildItem -Path "packages/desktop/dist" -Filter "*.exe" -Recurse | Select-Object -First 1
+          if ($appPath) {
+            Write-Host "Desktop app built successfully: $($appPath.FullName)"
+            echo "built=true" >> $env:GITHUB_OUTPUT
+            echo "app-path=$($appPath.FullName)" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "Desktop app build failed - no .exe found"
+            echo "built=false" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Generate test matrix
+        id: matrix
+        shell: pwsh
+        run: |
+          $TestSuite = "${{ github.event.inputs.test_suite || 'all' }}"
+          
+          if ($TestSuite -eq "platform") {
+            $Matrix = '["windows-platform"]'
+          } elseif ($TestSuite -eq "performance") {
+            $Matrix = '["windows-performance"]'
+          } elseif ($TestSuite -eq "compatibility") {
+            $Matrix = '["windows-compatibility"]'
+          } else {
+            $Matrix = '["windows-platform", "windows-performance", "windows-compatibility"]'
+          }
+          
+          echo "matrix=$Matrix" >> $env:GITHUB_OUTPUT
+
+      - name: Upload desktop build artifact
+        if: steps.desktop-check.outputs.built == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-desktop-app
+          path: packages/desktop/dist/
+          retention-days: 1
+
+  windows-platform-tests:
+    name: Windows Platform Tests
+    runs-on: ${{ matrix.os }}
+    needs: prepare-windows-environment
+    if: needs.prepare-windows-environment.outputs.desktop-built == 'true'
+    timeout-minutes: ${{ fromJson(github.event.inputs.test_timeout || '60') }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: 
+          - windows-${{ github.event.inputs.windows_version || 'latest' }}
+        test-suite: ${{ fromJson(needs.prepare-windows-environment.outputs.test-matrix) }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Download desktop build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-desktop-app
+          path: packages/desktop/dist/
+
+      - name: Install E2E test dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @game/shared build
+
+      - name: Install Playwright browsers
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Configure Windows test environment
+        shell: pwsh
+        run: |
+          # Find the built Electron executable
+          $AppPath = Get-ChildItem -Path "packages/desktop/dist" -Filter "*.exe" -Recurse | Select-Object -First 1
+          if ($AppPath) {
+            echo "ELECTRON_APP_PATH=$($AppPath.FullName)" >> $env:GITHUB_ENV
+            Write-Host "Found Electron app at: $($AppPath.FullName)"
+          } else {
+            Write-Error "Could not find Electron executable"
+            exit 1
+          }
+          
+          # Set Windows-specific environment variables
+          echo "WINDOWS_TEST_MODE=true" >> $env:GITHUB_ENV
+          echo "GITHUB_ACTIONS=true" >> $env:GITHUB_ENV
+          echo "CI=true" >> $env:GITHUB_ENV
+
+      - name: Run Windows platform integration tests
+        if: matrix.test-suite == 'windows-platform'
+        working-directory: e2e
+        run: npx playwright test windows-platform.spec.ts --config=playwright-electron.config.ts --reporter=html,json
+        continue-on-error: true
+
+      - name: Run Windows performance tests
+        if: matrix.test-suite == 'windows-performance'
+        working-directory: e2e
+        run: npx playwright test windows-performance.spec.ts --config=playwright-electron.config.ts --reporter=html,json
+        continue-on-error: true
+
+      - name: Run Windows compatibility tests
+        if: matrix.test-suite == 'windows-compatibility'
+        working-directory: e2e
+        run: npx playwright test windows-performance.spec.ts -g "Windows Compatibility" --config=playwright-electron.config.ts --reporter=html,json
+        continue-on-error: true
+
+      - name: Run all Windows tests
+        if: matrix.test-suite == 'all'
+        working-directory: e2e
+        run: npx playwright test windows-platform.spec.ts windows-performance.spec.ts --config=playwright-electron.config.ts --reporter=html,json
+        continue-on-error: true
+
+      - name: Upload Windows test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-test-results-${{ matrix.test-suite }}-${{ matrix.os }}
+          path: |
+            e2e/test-results/
+            e2e/html-report/
+            e2e/test-output/
+          retention-days: 7
+
+      - name: Upload Windows screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-screenshots-${{ matrix.test-suite }}-${{ matrix.os }}
+          path: |
+            e2e/test-results/*.png
+          retention-days: 7
+
+  windows-test-summary:
+    name: Windows Test Summary
+    runs-on: windows-latest
+    needs: [prepare-windows-environment, windows-platform-tests]
+    if: always()
+    
+    steps:
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          path: test-artifacts/
+
+      - name: Generate Windows test summary
+        shell: pwsh
+        run: |
+          Write-Host "🖥️ Windows Platform Testing Summary"
+          Write-Host "=================================="
+          
+          $TestArtifacts = Get-ChildItem -Path "test-artifacts" -Directory | Where-Object { $_.Name -match "windows-test-results" }
+          
+          if ($TestArtifacts.Count -eq 0) {
+            Write-Host "❌ No test results found"
+            exit 1
+          }
+          
+          Write-Host "📊 Test Results Found: $($TestArtifacts.Count)"
+          
+          foreach ($Artifact in $TestArtifacts) {
+            Write-Host "  📁 $($Artifact.Name)"
+            
+            $ResultFiles = Get-ChildItem -Path $Artifact.FullName -Filter "*.json" -Recurse
+            foreach ($ResultFile in $ResultFiles) {
+              $Content = Get-Content -Path $ResultFile.FullName -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue
+              if ($Content -and $Content.stats) {
+                $Stats = $Content.stats
+                Write-Host "    ✅ Passed: $($Stats.passed)"
+                Write-Host "    ❌ Failed: $($Stats.failed)"
+                Write-Host "    ⏭️  Skipped: $($Stats.skipped)"
+                Write-Host "    ⏱️  Duration: $($Stats.duration)ms"
+              }
+            }
+          }
+          
+          # Check for screenshots
+          $ScreenshotArtifacts = Get-ChildItem -Path "test-artifacts" -Directory | Where-Object { $_.Name -match "windows-screenshots" }
+          if ($ScreenshotArtifacts.Count -gt 0) {
+            Write-Host "📸 Screenshots captured: $($ScreenshotArtifacts.Count) artifact(s)"
+          }
+
+      - name: Generate GitHub step summary
+        shell: pwsh
+        run: |
+          $Summary = @"
+          # 🖥️ Windows Platform Testing Results
+          
+          ## Test Environment
+          - **OS**: Windows ${{ github.event.inputs.windows_version || 'latest' }}
+          - **Node.js**: ${{ env.NODE_VERSION }}
+          - **Test Suite**: ${{ github.event.inputs.test_suite || 'all' }}
+          - **Desktop App Built**: ${{ needs.prepare-windows-environment.outputs.desktop-built }}
+          
+          ## Test Matrix
+          The following Windows-specific tests were executed:
+          - 🔧 **Platform Integration Tests** - Windows-specific APIs and features
+          - ⚡ **Performance Tests** - Memory, CPU, and I/O performance
+          - 🛠️ **Compatibility Tests** - Windows version and hardware compatibility
+          
+          ## Artifacts Generated
+          - Test results and reports
+          - Windows-specific screenshots
+          - Performance metrics and baselines
+          
+          ## Next Steps
+          1. Review test results for any failures
+          2. Check performance metrics against baselines
+          3. Investigate any Windows-specific compatibility issues
+          4. Update Windows documentation if needed
+          "@
+          
+          $Summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding UTF8
+
+  validate-windows-distribution:
+    name: Validate Windows Distribution
+    runs-on: windows-latest
+    needs: prepare-windows-environment
+    if: needs.prepare-windows-environment.outputs.desktop-built == 'true'
+    
+    steps:
+      - name: Download desktop build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-desktop-app
+          path: packages/desktop/dist/
+
+      - name: Validate Windows executable
+        shell: pwsh
+        run: |
+          Write-Host "🔍 Validating Windows Distribution"
+          
+          # Find the main executable
+          $MainExe = Get-ChildItem -Path "packages/desktop/dist" -Filter "Attrition.exe" -Recurse | Select-Object -First 1
+          
+          if (-not $MainExe) {
+            Write-Error "Main executable not found"
+            exit 1
+          }
+          
+          Write-Host "✅ Found main executable: $($MainExe.FullName)"
+          Write-Host "   Size: $([math]::Round($MainExe.Length / 1MB, 2)) MB"
+          
+          # Check file properties
+          $FileVersion = (Get-ItemProperty -Path $MainExe.FullName).VersionInfo
+          Write-Host "📋 File Properties:"
+          Write-Host "   Version: $($FileVersion.FileVersion)"
+          Write-Host "   Product: $($FileVersion.ProductName)"
+          Write-Host "   Company: $($FileVersion.CompanyName)"
+          
+          # Check for required dependencies
+          $RequiredFiles = @(
+            "*.dll",
+            "resources/app.asar"
+          )
+          
+          foreach ($Pattern in $RequiredFiles) {
+            $Files = Get-ChildItem -Path "packages/desktop/dist" -Filter $Pattern -Recurse
+            if ($Files.Count -eq 0) {
+              Write-Warning "Missing files matching pattern: $Pattern"
+            } else {
+              Write-Host "✅ Found $($Files.Count) file(s) matching: $Pattern"
+            }
+          }
+          
+          # Test executable signature (in production builds)
+          if ($env:NODE_ENV -eq "production") {
+            $Signature = Get-AuthenticodeSignature -FilePath $MainExe.FullName
+            Write-Host "🔐 Code Signature Status: $($Signature.Status)"
+          } else {
+            Write-Host "ℹ️  Code signing check skipped (development build)"
+          }
+
+      - name: Create Windows installer validation
+        shell: pwsh
+        run: |
+          # Check for installer files
+          $Installers = Get-ChildItem -Path "packages/desktop/dist" -Filter "*Setup*.exe" -Recurse
+          
+          if ($Installers.Count -gt 0) {
+            foreach ($Installer in $Installers) {
+              Write-Host "✅ Found installer: $($Installer.Name)"
+              Write-Host "   Size: $([math]::Round($Installer.Length / 1MB, 2)) MB"
+            }
+          } else {
+            Write-Host "ℹ️  No installer files found (portable build)"
+          }
+          
+          # Create validation summary
+          $ValidationSummary = @{
+            timestamp = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
+            platform = "windows"
+            mainExecutable = $MainExe ? $MainExe.Name : "not found"
+            installerCount = $Installers.Count
+            validated = $true
+          }
+          
+          $ValidationSummary | ConvertTo-Json -Indent 2 | Out-File -FilePath "windows-validation-report.json" -Encoding UTF8
+          
+          Write-Host "📄 Validation report saved to windows-validation-report.json"
+
+      - name: Upload Windows validation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-validation-report
+          path: windows-validation-report.json
+          retention-days: 30

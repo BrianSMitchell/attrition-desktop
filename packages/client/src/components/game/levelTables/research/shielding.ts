@@ -1,0 +1,23 @@
+export const SHIELDING_LEVEL_ROWS = [
+  { level: 0, credits: 0, unitsShieldStrengthPct: 100 },
+  { level: 1, credits: 128, unitsShieldStrengthPct: 105 },
+  { level: 2, credits: 192, unitsShieldStrengthPct: 110 },
+  { level: 3, credits: 288, unitsShieldStrengthPct: 115 },
+  { level: 4, credits: 432, unitsShieldStrengthPct: 120 },
+  { level: 5, credits: 648, unitsShieldStrengthPct: 125 },
+  { level: 6, credits: 972, unitsShieldStrengthPct: 130 },
+  { level: 7, credits: 1458, unitsShieldStrengthPct: 135 },
+  { level: 8, credits: 2187, unitsShieldStrengthPct: 140 },
+  { level: 9, credits: 3281, unitsShieldStrengthPct: 145 },
+  { level: 10, credits: 4921, unitsShieldStrengthPct: 150 },
+  { level: 11, credits: 7382, unitsShieldStrengthPct: 155 },
+  { level: 12, credits: 11072, unitsShieldStrengthPct: 160 },
+  { level: 13, credits: 16608, unitsShieldStrengthPct: 165 },
+  { level: 14, credits: 24912, unitsShieldStrengthPct: 170 },
+  { level: 15, credits: 37367, unitsShieldStrengthPct: 175 },
+  { level: 16, credits: 56051, unitsShieldStrengthPct: 180 },
+  { level: 17, credits: 84076, unitsShieldStrengthPct: 185 },
+  { level: 18, credits: 126114, unitsShieldStrengthPct: 190 },
+  { level: 19, credits: 189171, unitsShieldStrengthPct: 195 },
+  { level: 20, credits: 283756, unitsShieldStrengthPct: 200 }
+] as const;

@@ -1,0 +1,131 @@
+{
+  "name": "attrition",
+  "version": "1.0.0",
+  "description": "Text-based space empire MMO game",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter @game/server dev\" \"pnpm --filter @game/client dev\"",
+    "build": "pnpm --filter @game/shared build && pnpm --filter @game/server build && pnpm --filter @game/client build",
+    "test": "pnpm --filter \"@game/*\" test",
+    "test:unit": "pnpm --filter \"@game/*\" run test:unit",
+    "test:integration": "pnpm --filter \"@game/*\" run test:integration",
+    "test:e2e": "pnpm --filter \"@game/*\" run test:e2e",
+    "test:watch": "pnpm --filter \"@game/*\" run test:watch",
+    "test:coverage": "pnpm --filter \"@game/*\" run test:coverage",
+    "test:multiplayer": "pnpm --filter @game/server run test:multiplayer",
+    "test:game-simulation": "pnpm --filter @game/server run test:game-simulation",
+    "test:performance": "pnpm --filter \"@game/*\" run test:performance",
+    "test:ci": "pnpm run test:coverage && pnpm run test:e2e:ci",
+    "test:pre-commit": "pnpm run lint:fix && pnpm run test:unit && pnpm run type-check",
+    "test:pre-push": "pnpm run test:ci && pnpm run test:multiplayer && pnpm run build",
+    
+    "lint": "pnpm --filter \"@game/*\" lint",
+    "lint:fix": "pnpm --filter \"@game/*\" run lint:fix",
+    "lint:staged": "lint-staged",
+    
+    "type-check": "pnpm --filter \"@game/*\" run type-check",
+    "type-check:watch": "pnpm --filter \"@game/*\" run type-check:watch",
+    
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    
+    "clean": "pnpm --filter \"@game/*\" clean",
+    "clean:all": "pnpm run clean && rimraf node_modules **/node_modules",
+    
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:headed": "playwright test --headed",
+    "e2e:ci": "playwright test --reporter=html,json,junit",
+    "e2e:install": "playwright install",
+    
+    "hooks:install": "husky install",
+    "hooks:prepare": "husky install && pnpm run hooks:setup",
+    "hooks:setup": "node scripts/setup-git-hooks.js",
+    
+    "ci:install": "pnpm install --frozen-lockfile",
+    "ci:build": "pnpm run build",
+    "ci:test": "pnpm run test:ci",
+    "ci:lint": "pnpm run lint && pnpm run format:check",
+    "ci:type-check": "pnpm run type-check",
+    "ci:e2e": "pnpm run e2e:ci",
+    "ci:performance": "pnpm run test:performance",
+    
+    "dev:full": "concurrently \"pnpm run dev\" \"pnpm run test:watch\"",
+    "dev:test": "pnpm run test:watch",
+    "dev:lint": "pnpm run lint -- --watch",
+    
+    "validate": "pnpm run lint && pnpm run type-check && pnpm run test:unit && pnpm run build",
+    "validate:full": "pnpm run validate && pnpm run test:integration && pnpm run test:e2e",
+    
+    "reflect:quick": "node tools/reflect.mjs quick",
+    "reflect:one": "node tools/reflect.mjs one",
+    "supermemory:add": "node tools/supermemory-ingest.mjs add",
+    "supermemory:add:nugget": "node tools/supermemory-ingest.mjs add --content",
+    "supermemory:search": "node tools/supermemory-ingest.mjs search",
+    "supermemory:search:q": "node tools/supermemory-ingest.mjs search --q",
+    "supermemory:seed:dry": "node tools/supermemory-ingest.mjs seed --dry-run",
+    "supermemory:seed": "node tools/supermemory-ingest.mjs seed",
+    "supermemory:ingest:audit:dry": "node tools/supermemory-ingest-refactor.mjs --dry-run",
+    "supermemory:ingest:audit": "node tools/supermemory-ingest-refactor.mjs --live",
+    "supermemory:ingest:audit:file:dry": "node tools/supermemory-ingest-refactor.mjs --file docs/refactor-audit.md --dry-run",
+    "supermemory:ingest:audit:file": "node tools/supermemory-ingest-refactor.mjs --file docs/refactor-audit.md --live",
+    "dev:desktop": "pnpm --filter @game/desktop dev",
+    
+    "postinstall": "pnpm run hooks:prepare"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/seedrandom": "^3.0.8",
+    "concurrently": "^8.2.2",
+    "electron": "^31.7.7",
+    "eslint": "^8.57.0",
+    "playwright": "^1.55.0",
+    "prettier": "^3.2.5",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "rimraf": "^5.0.5",
+    "@commitlint/cli": "^19.2.1",
+    "@commitlint/config-conventional": "^19.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "dependencies": {
+    "glob": "^11.0.3",
+    "seedrandom": "^3.0.5"
+  },
+  "pnpm": {
+    "allowedBuiltDependencies": [
+      "electron"
+    ]
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ],
+    "packages/server/src/**/*.{ts,tsx}": [
+      "pnpm --filter @game/server run test:related"
+    ]
+  },
+  "commitlint": {
+    "extends": ["@commitlint/config-conventional"],
+    "rules": {
+      "type-enum": [2, "always", [
+        "feat", "fix", "docs", "style", "refactor", 
+        "test", "perf", "build", "ci", "chore", "revert"
+      ]],
+      "scope-enum": [1, "always", [
+        "client", "server", "shared", "e2e", "ci", "docs",
+        "game", "auth", "ui", "api", "db", "config"
+      ]]
+    }
+  }
+}

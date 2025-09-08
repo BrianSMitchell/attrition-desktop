@@ -1,0 +1,54 @@
+{
+  "name": "attrition",
+  "version": "1.0.0",
+  "description": "Desktop space empire strategy game",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter @game/server dev\" \"pnpm --filter @game/desktop dev\"",
+    "build": "pnpm --filter @game/shared build && pnpm --filter @game/server build && pnpm --filter @game/desktop build",
+    "test": "pnpm --filter \"@game/*\" test",
+    "lint": "pnpm --filter \"@game/*\" lint",
+    "clean": "pnpm --filter \"@game/*\" clean",
+    "reflect:quick": "node tools/reflect.mjs quick",
+    "reflect:one": "node tools/reflect.mjs one",
+    "supermemory:add": "node tools/supermemory-ingest.mjs add",
+    "supermemory:add:nugget": "node tools/supermemory-ingest.mjs add --content",
+    "supermemory:search": "node tools/supermemory-ingest.mjs search",
+    "supermemory:search:q": "node tools/supermemory-ingest.mjs search --q",
+    "supermemory:seed:dry": "node tools/supermemory-ingest.mjs seed --dry-run",
+    "supermemory:seed": "node tools/supermemory-ingest.mjs seed",
+    "supermemory:ingest:audit:dry": "node tools/supermemory-ingest-refactor.mjs --dry-run",
+    "supermemory:ingest:audit": "node tools/supermemory-ingest-refactor.mjs --live",
+    "supermemory:ingest:audit:file:dry": "node tools/supermemory-ingest-refactor.mjs --file docs/refactor-audit.md --dry-run",
+    "supermemory:ingest:audit:file": "node tools/supermemory-ingest-refactor.mjs --file docs/refactor-audit.md --live",
+    "test:balance": "pnpm --filter @game/server test:balance",
+    "test:performance": "pnpm --filter @game/server test:performance",
+    "test:game-simulation": "pnpm --filter @game/server test:game-simulation",
+    "test:multiplayer": "pnpm --filter @game/server test:multiplayer",
+    "start": "pnpm --filter @game/desktop start"
+  },
+  "devDependencies": {
+    "@types/seedrandom": "^3.0.8",
+    "concurrently": "^8.2.2",
+    "electron": "^31.7.7",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5",
+    "terser": "^5.44.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "dependencies": {
+    "glob": "^11.0.3",
+    "seedrandom": "^3.0.5"
+  },
+  "pnpm": {
+    "allowedBuiltDependencies": [
+      "electron"
+    ]
+  }
+}

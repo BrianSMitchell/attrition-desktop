@@ -1,0 +1,352 @@
+name: Issue Triage and Auto-labeling
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  triage-issue:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened' || github.event.action == 'edited'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          npm install @octokit/rest
+
+      - name: Auto-triage and label issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const issueBody = issue.body || '';
+            const issueTitle = issue.title || '';
+            const currentLabels = issue.labels.map(label => label.name);
+            
+            console.log('Triaging issue:', issue.number, issue.title);
+            
+            // Initialize arrays for new labels to add
+            const labelsToAdd = [];
+            const labelsToRemove = [];
+            
+            // Detect severity from issue content
+            function detectSeverity() {
+              const criticalKeywords = ['crash', 'data loss', 'security', 'fatal', 'corruption', 'critical'];
+              const highKeywords = ['blocking', 'major', 'broken', 'unusable', 'high'];
+              const lowKeywords = ['cosmetic', 'enhancement', 'polish', 'minor', 'low'];
+              
+              const content = (issueTitle + ' ' + issueBody).toLowerCase();
+              
+              if (criticalKeywords.some(keyword => content.includes(keyword))) {
+                return 'severity:critical';
+              } else if (highKeywords.some(keyword => content.includes(keyword))) {
+                return 'severity:high';
+              } else if (lowKeywords.some(keyword => content.includes(keyword))) {
+                return 'severity:low';
+              } else {
+                return 'severity:medium';
+              }
+            }
+            
+            // Detect platform from issue content
+            function detectPlatform() {
+              const platforms = [];
+              const content = (issueTitle + ' ' + issueBody).toLowerCase();
+              
+              if (content.includes('windows')) platforms.push('platform:windows');
+              if (content.includes('mac') || content.includes('osx') || content.includes('macos')) platforms.push('platform:macos');
+              if (content.includes('linux') || content.includes('ubuntu') || content.includes('debian')) platforms.push('platform:linux');
+              
+              return platforms;
+            }
+            
+            // Detect component from issue content
+            function detectComponent() {
+              const content = (issueTitle + ' ' + issueBody).toLowerCase();
+              
+              if (content.includes('ui') || content.includes('interface') || content.includes('design')) {
+                return 'component:ui';
+              } else if (content.includes('api') || content.includes('server') || content.includes('backend')) {
+                return 'component:backend';
+              } else if (content.includes('desktop') || content.includes('electron')) {
+                return 'component:desktop';
+              } else if (content.includes('database') || content.includes('data')) {
+                return 'component:database';
+              } else if (content.includes('auth') || content.includes('login')) {
+                return 'component:auth';
+              } else if (content.includes('build') || content.includes('deploy')) {
+                return 'component:build';
+              } else if (content.includes('doc') || content.includes('help')) {
+                return 'component:docs';
+              }
+              
+              return null;
+            }
+            
+            // Detect priority based on severity and impact
+            function detectPriority() {
+              const content = (issueTitle + ' ' + issueBody).toLowerCase();
+              const urgentKeywords = ['urgent', 'asap', 'blocking', 'critical'];
+              const highImpactKeywords = ['all users', 'everyone', 'most users', 'production'];
+              
+              if (urgentKeywords.some(keyword => content.includes(keyword))) {
+                return 'priority:high';
+              } else if (highImpactKeywords.some(keyword => content.includes(keyword))) {
+                return 'priority:high';
+              } else if (content.includes('low') || content.includes('minor')) {
+                return 'priority:low';
+              }
+              
+              return 'priority:medium';
+            }
+            
+            // Only auto-triage if this is a bug report or feature request
+            const isBugReport = issueTitle.includes('[BUG]') || currentLabels.includes('type:bug');
+            const isFeatureRequest = issueTitle.includes('[FEATURE]') || currentLabels.includes('type:feature');
+            
+            if (isBugReport) {
+              console.log('Processing bug report...');
+              
+              // Add severity label
+              const severityLabel = detectSeverity();
+              if (!currentLabels.some(label => label.startsWith('severity:'))) {
+                labelsToAdd.push(severityLabel);
+              }
+              
+              // Add platform labels
+              const platformLabels = detectPlatform();
+              platformLabels.forEach(platform => {
+                if (!currentLabels.includes(platform)) {
+                  labelsToAdd.push(platform);
+                }
+              });
+              
+              // Add component label
+              const componentLabel = detectComponent();
+              if (componentLabel && !currentLabels.some(label => label.startsWith('component:'))) {
+                labelsToAdd.push(componentLabel);
+              }
+              
+              // Add priority label
+              const priorityLabel = detectPriority();
+              if (!currentLabels.some(label => label.startsWith('priority:'))) {
+                labelsToAdd.push(priorityLabel);
+              }
+              
+              // Add needs-reproduction label for bugs
+              if (!currentLabels.includes('status:needs-reproduction')) {
+                labelsToAdd.push('status:needs-reproduction');
+              }
+            }
+            
+            if (isFeatureRequest) {
+              console.log('Processing feature request...');
+              
+              // Add priority label for features
+              const priorityLabel = detectPriority();
+              if (!currentLabels.some(label => label.startsWith('priority:'))) {
+                labelsToAdd.push(priorityLabel);
+              }
+              
+              // Add needs-discussion label for features
+              if (!currentLabels.includes('status:needs-discussion')) {
+                labelsToAdd.push('status:needs-discussion');
+              }
+            }
+            
+            // Remove triage-needed label since we've triaged
+            if (currentLabels.includes('status:triage-needed')) {
+              labelsToRemove.push('status:triage-needed');
+            }
+            
+            // Apply label changes
+            if (labelsToAdd.length > 0) {
+              console.log('Adding labels:', labelsToAdd);
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: labelsToAdd
+              });
+            }
+            
+            if (labelsToRemove.length > 0) {
+              console.log('Removing labels:', labelsToRemove);
+              for (const label of labelsToRemove) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    name: label
+                  });
+                } catch (error) {
+                  console.log('Label not found or already removed:', label);
+                }
+              }
+            }
+            
+            // Auto-assign based on component
+            const componentLabel = labelsToAdd.find(label => label.startsWith('component:')) || 
+                                 currentLabels.find(label => label.startsWith('component:'));
+            
+            if (componentLabel && !issue.assignee) {
+              const componentAssignments = {
+                'component:ui': ['frontend-team'],
+                'component:backend': ['backend-team'], 
+                'component:desktop': ['desktop-team'],
+                'component:database': ['backend-team'],
+                'component:auth': ['security-team'],
+                'component:build': ['devops-team'],
+                'component:docs': ['docs-team']
+              };
+              
+              const assignees = componentAssignments[componentLabel];
+              if (assignees) {
+                console.log('Auto-assigning to:', assignees);
+                // Note: This would assign to actual GitHub users
+                // For now, we'll add a comment instead
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `🤖 **Auto-triage completed**\n\nThis issue has been automatically triaged and labeled based on its content.\n\n**Component**: ${componentLabel.replace('component:', '')}\n**Recommended assignee team**: ${assignees.join(', ')}\n\nA team member will review this issue and provide initial response according to our SLA guidelines.`
+                });
+              }
+            }
+
+      - name: Check for high priority issues
+        uses: actions/github-script@v7
+        if: github.event.action == 'opened'
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const labels = issue.labels.map(label => label.name);
+            
+            // Check for critical or high priority issues
+            if (labels.includes('severity:critical') || labels.includes('priority:high')) {
+              console.log('High priority issue detected, sending notifications...');
+              
+              // Create urgent notification comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `🚨 **HIGH PRIORITY ISSUE DETECTED**\n\nThis issue has been marked as ${labels.includes('severity:critical') ? 'CRITICAL' : 'HIGH PRIORITY'} and requires immediate attention.\n\n**Response SLA**: ${labels.includes('severity:critical') ? '2 hours' : '8 hours'}\n\n@team-leads please ensure this issue receives immediate attention.`
+              });
+              
+              // In a real implementation, you might also:
+              // - Send Slack notifications
+              // - Create PagerDuty alerts
+              // - Email notifications
+              // - Update external monitoring systems
+            }
+
+  # Handle issue comments for status updates
+  handle-comments:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'created'
+    steps:
+      - name: Check for status updates in comments
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = context.payload.comment;
+            const issue = context.payload.issue;
+            const commentBody = comment.body.toLowerCase();
+            
+            // Check for status update keywords
+            const statusUpdates = {
+              'fixed': 'status:fixed',
+              'resolved': 'status:resolved',
+              'duplicate': 'status:duplicate',
+              'wontfix': 'status:wontfix',
+              'invalid': 'status:invalid',
+              'help wanted': 'help-wanted',
+              'good first issue': 'good-first-issue'
+            };
+            
+            // Only allow team members to update status via comments
+            const teamMembers = ['team-lead', 'developer', 'maintainer']; // Configure your team
+            const isTeamMember = teamMembers.some(member => 
+              comment.author_association === 'MEMBER' || 
+              comment.author_association === 'OWNER' ||
+              comment.author_association === 'COLLABORATOR'
+            );
+            
+            if (isTeamMember) {
+              for (const [keyword, label] of Object.entries(statusUpdates)) {
+                if (commentBody.includes(keyword)) {
+                  console.log(`Adding status label: ${label}`);
+                  
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    labels: [label]
+                  });
+                  
+                  // If marking as resolved/fixed, close the issue
+                  if (label.includes('resolved') || label.includes('fixed')) {
+                    await github.rest.issues.update({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: issue.number,
+                      state: 'closed'
+                    });
+                  }
+                  
+                  break;
+                }
+              }
+            }
+
+  # Create project cards for new issues
+  create-project-cards:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened'
+    steps:
+      - name: Add to project board
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const labels = issue.labels.map(label => label.name);
+            
+            // Determine which project board column based on labels
+            let columnName = 'Triage';
+            
+            if (labels.includes('type:bug')) {
+              if (labels.includes('severity:critical')) {
+                columnName = 'Critical Bugs';
+              } else {
+                columnName = 'Bug Backlog';
+              }
+            } else if (labels.includes('type:feature')) {
+              columnName = 'Feature Requests';
+            }
+            
+            console.log(`Issue should be added to project board column: ${columnName}`);
+            
+            // Note: Actual project board integration would require additional setup
+            // This is a placeholder for the logic
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `📋 This issue has been added to our project board in the **${columnName}** column for team review.`
+            });

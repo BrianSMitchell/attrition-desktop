@@ -1,0 +1,201 @@
+// Defenses catalog and helpers for Phase A (tech-gated, credits cost, energy consumption)
+import type { TechnologyKey } from './tech';
+
+export type DefenseKey =
+  | 'barracks'
+  | 'laser_turrets'
+  | 'missile_turrets'
+  | 'plasma_turrets'
+  | 'ion_turrets'
+  | 'photon_turrets'
+  | 'disruptor_turrets'
+  | 'deflection_shields'
+  | 'planetary_shield'
+  | 'planetary_ring';
+
+export interface DefenseTechPrereq {
+  key: TechnologyKey;
+  level: number;
+}
+
+export interface DefenseSpec {
+  key: DefenseKey;
+  name: string;
+  // Phase A: credits-only cost to construct
+  creditsCost: number;
+  // Energy delta while active (negative = consumes energy)
+  energyDelta: number;
+  // Tech prerequisites required empire-wide
+  techPrereqs: DefenseTechPrereq[];
+  // Mapped server Building.type for construction routing
+  mappedType: 'defense_station';
+  // Optional display-only combat fields (not enforced in Phase A)
+  weapon?: 'laser' | 'missiles' | 'plasma' | 'ion' | 'photon' | 'disruptor';
+  attack?: number;
+  armour?: number;
+  shield?: number;
+  // Area required per level (displayed as negative in UI; 0 means no area cost)
+  areaRequired?: number;
+}
+
+export const defensesCatalog: Record<DefenseKey, DefenseSpec> = {
+  barracks: {
+    key: 'barracks',
+    name: 'Barracks',
+    creditsCost: 5,
+    energyDelta: -1,
+    techPrereqs: [],
+    mappedType: 'defense_station',
+    weapon: 'laser',
+    attack: 4,
+    armour: 4,
+    shield: 0,
+    areaRequired: 1,
+  },
+  laser_turrets: {
+    key: 'laser_turrets',
+    name: 'Laser Turrets',
+    creditsCost: 10,
+    energyDelta: -1,
+    techPrereqs: [{ key: 'laser', level: 1 }],
+    mappedType: 'defense_station',
+    weapon: 'laser',
+    attack: 8,
+    armour: 8,
+    shield: 0,
+    areaRequired: 1,
+  },
+  missile_turrets: {
+    key: 'missile_turrets',
+    name: 'Missile Turrets',
+    creditsCost: 20,
+    energyDelta: -1,
+    techPrereqs: [{ key: 'missiles', level: 1 }],
+    mappedType: 'defense_station',
+    weapon: 'missiles',
+    attack: 16,
+    armour: 16,
+    shield: 0,
+    areaRequired: 1,
+  },
+  plasma_turrets: {
+    key: 'plasma_turrets',
+    name: 'Plasma Turrets',
+    creditsCost: 100,
+    energyDelta: -2,
+    techPrereqs: [
+      { key: 'plasma', level: 1 },
+      { key: 'armour', level: 6 },
+    ],
+    mappedType: 'defense_station',
+    weapon: 'plasma',
+    attack: 24,
+    armour: 24,
+    shield: 0,
+    areaRequired: 1,
+  },
+  ion_turrets: {
+    key: 'ion_turrets',
+    name: 'Ion Turrets',
+    creditsCost: 250,
+    energyDelta: -3,
+    techPrereqs: [
+      { key: 'ion', level: 1 },
+      { key: 'armour', level: 10 },
+      { key: 'shielding', level: 2 },
+    ],
+    mappedType: 'defense_station',
+    weapon: 'ion',
+    attack: 40,
+    armour: 40,
+    shield: 2,
+    areaRequired: 1,
+  },
+  photon_turrets: {
+    key: 'photon_turrets',
+    name: 'Photon Turrets',
+    creditsCost: 1000,
+    energyDelta: -4,
+    techPrereqs: [
+      { key: 'photon', level: 1 },
+      { key: 'armour', level: 14 },
+      { key: 'shielding', level: 6 },
+    ],
+    mappedType: 'defense_station',
+    weapon: 'photon',
+    attack: 80,
+    armour: 80,
+    shield: 6,
+    areaRequired: 1,
+  },
+  disruptor_turrets: {
+    key: 'disruptor_turrets',
+    name: 'Disruptor Turrets',
+    creditsCost: 4000,
+    energyDelta: -8,
+    techPrereqs: [
+      { key: 'disruptor', level: 1 },
+      { key: 'armour', level: 18 },
+      { key: 'shielding', level: 8 },
+    ],
+    mappedType: 'defense_station',
+    weapon: 'disruptor',
+    attack: 320,
+    armour: 320,
+    shield: 8,
+    areaRequired: 1,
+  },
+  deflection_shields: {
+    key: 'deflection_shields',
+    name: 'Deflection Shields',
+    creditsCost: 4000,
+    energyDelta: -8,
+    techPrereqs: [
+      { key: 'ion', level: 6 },
+      { key: 'shielding', level: 10 },
+    ],
+    mappedType: 'defense_station',
+    weapon: 'ion',
+    attack: 2,
+    armour: 640,
+    shield: 16,
+    areaRequired: 1,
+  },
+  planetary_shield: {
+    key: 'planetary_shield',
+    name: 'Planetary Shield',
+    creditsCost: 25000,
+    energyDelta: -16,
+    techPrereqs: [
+      { key: 'ion', level: 10 },
+      { key: 'shielding', level: 14 },
+    ],
+    mappedType: 'defense_station',
+    weapon: 'ion',
+    attack: 4,
+    armour: 2000,
+    shield: 20,
+    areaRequired: 1,
+  },
+  planetary_ring: {
+    key: 'planetary_ring',
+    name: 'Planetary Ring',
+    creditsCost: 50000,
+    energyDelta: -24,
+    techPrereqs: [
+      { key: 'photon', level: 10 },
+      { key: 'armour', level: 22 },
+      { key: 'shielding', level: 12 },
+    ],
+    mappedType: 'defense_station',
+    weapon: 'photon',
+    attack: 1600,
+    armour: 1000,
+    shield: 12,
+    areaRequired: 1,
+  },
+};
+
+export function getDefensesList(): DefenseSpec[] {
+  return Object.values(defensesCatalog);
+}

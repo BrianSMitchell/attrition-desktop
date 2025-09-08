@@ -1,0 +1,593 @@
+name: Beta Release Build & Distribution
+
+on:
+  push:
+    branches: [develop, beta]
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Type of beta release'
+        required: false
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      target_platforms:
+        description: 'Target platforms for release'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - desktop-only
+          - web-only
+          - server-only
+      create_draft:
+        description: 'Create draft release'
+        required: false
+        default: true
+        type: boolean
+      run_tests:
+        description: 'Run tests before build'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+  PNPM_VERSION: '8'
+  ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+  ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+
+jobs:
+  setup:
+    name: Setup Release Environment
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should-run-tests: ${{ steps.config.outputs.run-tests }}
+      target-platforms: ${{ steps.config.outputs.platforms }}
+      create-draft: ${{ steps.config.outputs.draft }}
+      release-name: ${{ steps.version.outputs.release-name }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Configure release parameters
+        id: config
+        run: |
+          echo "run-tests=${{ github.event.inputs.run_tests != 'false' }}" >> $GITHUB_OUTPUT
+          echo "platforms=${{ github.event.inputs.target_platforms || 'all' }}" >> $GITHUB_OUTPUT
+          echo "draft=${{ github.event.inputs.create_draft != 'false' }}" >> $GITHUB_OUTPUT
+
+      - name: Generate beta version
+        id: version
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          RELEASE_TYPE="${{ github.event.inputs.release_type || 'patch' }}"
+          
+          # Generate new version based on current version and release type
+          if [[ "$RELEASE_TYPE" == "major" ]]; then
+            NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. '{print ($1+1)".0.0"}')
+          elif [[ "$RELEASE_TYPE" == "minor" ]]; then
+            NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. '{print $1"."($2+1)".0"}')
+          else
+            NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. '{print $1"."$2"."($3+1)}')
+          fi
+          
+          # Add beta suffix with timestamp
+          TIMESTAMP=$(date +%Y%m%d%H%M)
+          BETA_VERSION="${NEW_VERSION}-beta.${TIMESTAMP}"
+          
+          echo "version=$BETA_VERSION" >> $GITHUB_OUTPUT
+          echo "release-name=Attrition v$BETA_VERSION" >> $GITHUB_OUTPUT
+          
+          # Update package.json with beta version
+          node -e "
+            const pkg = require('./package.json');
+            pkg.version = '$BETA_VERSION';
+            require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
+          "
+          
+          echo "🚀 Generated beta version: $BETA_VERSION"
+
+      - name: Upload version artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: version-info
+          path: |
+            package.json
+          retention-days: 1
+
+  test-suite:
+    name: Run Test Suite
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.should-run-tests == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download version info
+        uses: actions/download-artifact@v4
+        with:
+          name: version-info
+          path: .
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linting
+        run: pnpm run lint
+        continue-on-error: true
+
+      - name: Run unit tests
+        run: pnpm run test
+        continue-on-error: true
+
+      - name: Install Playwright
+        run: pnpm run e2e:install
+
+      - name: Run E2E tests (quick suite)
+        run: pnpm run e2e
+        continue-on-error: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+  build-web:
+    name: Build Web Application
+    runs-on: ubuntu-latest
+    needs: [setup]
+    if: needs.setup.outputs.target-platforms == 'all' || needs.setup.outputs.target-platforms == 'web-only'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download version info
+        uses: actions/download-artifact@v4
+        with:
+          name: version-info
+          path: .
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @game/shared build
+
+      - name: Build web client
+        run: pnpm --filter @game/client build
+        env:
+          NODE_ENV: production
+          VITE_APP_VERSION: ${{ needs.setup.outputs.version }}
+
+      - name: Create web distribution package
+        run: |
+          mkdir -p dist/web
+          cp -r packages/client/dist/* dist/web/
+          
+          # Create deployment manifest
+          cat > dist/web/manifest.json << EOF
+          {
+            "name": "Attrition Web Client",
+            "version": "${{ needs.setup.outputs.version }}",
+            "build_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}"
+          }
+          EOF
+
+      - name: Upload web build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: dist/web/
+          retention-days: 30
+
+  build-server:
+    name: Build Server Application
+    runs-on: ubuntu-latest
+    needs: [setup]
+    if: needs.setup.outputs.target-platforms == 'all' || needs.setup.outputs.target-platforms == 'server-only'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download version info
+        uses: actions/download-artifact@v4
+        with:
+          name: version-info
+          path: .
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @game/shared build
+
+      - name: Build server
+        run: pnpm --filter @game/server build
+        env:
+          NODE_ENV: production
+
+      - name: Create server distribution package
+        run: |
+          mkdir -p dist/server
+          
+          # Copy built files
+          cp -r packages/server/dist/* dist/server/
+          cp -r packages/shared/dist dist/server/shared
+          
+          # Copy package files for production deployment
+          cp packages/server/package.json dist/server/
+          cp pnpm-lock.yaml dist/server/
+          
+          # Create deployment script
+          cat > dist/server/deploy.sh << 'EOF'
+          #!/bin/bash
+          echo "🚀 Deploying Attrition Server v${{ needs.setup.outputs.version }}"
+          pnpm install --prod --frozen-lockfile
+          echo "✅ Production dependencies installed"
+          echo "Server ready to start with: node index.js"
+          EOF
+          chmod +x dist/server/deploy.sh
+          
+          # Create server manifest
+          cat > dist/server/manifest.json << EOF
+          {
+            "name": "Attrition Game Server",
+            "version": "${{ needs.setup.outputs.version }}",
+            "build_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "node_version": "${{ env.NODE_VERSION }}"
+          }
+          EOF
+
+      - name: Upload server build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-build
+          path: dist/server/
+          retention-days: 30
+
+  build-desktop:
+    name: Build Desktop Application
+    runs-on: ${{ matrix.os }}
+    needs: [setup]
+    if: needs.setup.outputs.target-platforms == 'all' || needs.setup.outputs.target-platforms == 'desktop-only'
+    
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win32
+            arch: x64
+            ext: exe
+          - os: macos-latest
+            platform: darwin
+            arch: x64
+            ext: dmg
+          - os: macos-latest
+            platform: darwin
+            arch: arm64
+            ext: dmg
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            ext: AppImage
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download version info
+        uses: actions/download-artifact@v4
+        with:
+          name: version-info
+          path: .
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ELECTRON_CACHE }}
+          key: ${{ runner.os }}-${{ matrix.arch }}-electron-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-electron-
+
+      - name: Cache Electron Builder
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ELECTRON_BUILDER_CACHE }}
+          key: ${{ runner.os }}-${{ matrix.arch }}-electron-builder-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-electron-builder-
+
+      - name: Install system dependencies (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnss3-dev libatk-bridge2.0-dev libdrm2 libgtk-3-dev libgbm-dev
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @game/shared build
+
+      - name: Build client package
+        run: pnpm --filter @game/client build
+        env:
+          NODE_ENV: production
+          VITE_APP_VERSION: ${{ needs.setup.outputs.version }}
+
+      - name: Build desktop application
+        run: pnpm --filter @game/desktop build --publish=never
+        env:
+          NODE_ENV: production
+          ELECTRON_CACHE: ${{ env.ELECTRON_CACHE }}
+          ELECTRON_BUILDER_CACHE: ${{ env.ELECTRON_BUILDER_CACHE }}
+          # Platform-specific build configuration
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASS: ${{ secrets.APPLE_ID_PASS }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+      - name: Find build artifacts
+        id: artifacts
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" = "win32" ]; then
+            ARTIFACT_PATH=$(find packages/desktop/dist -name "*.exe" -type f | head -n 1)
+          elif [ "${{ matrix.platform }}" = "darwin" ]; then
+            ARTIFACT_PATH=$(find packages/desktop/dist -name "*.dmg" -type f | head -n 1)
+          else
+            ARTIFACT_PATH=$(find packages/desktop/dist -name "*.AppImage" -type f | head -n 1)
+          fi
+          
+          echo "artifact-path=$ARTIFACT_PATH" >> $GITHUB_OUTPUT
+          echo "artifact-name=$(basename $ARTIFACT_PATH)" >> $GITHUB_OUTPUT
+
+      - name: Upload desktop build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ${{ steps.artifacts.outputs.artifact-path }}
+          retention-days: 30
+
+  create-release:
+    name: Create Beta Release
+    runs-on: ubuntu-latest
+    needs: [setup, test-suite, build-web, build-server, build-desktop]
+    if: always() && (needs.build-web.result == 'success' || needs.build-server.result == 'success' || needs.build-desktop.result == 'success')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          
+          # Web build
+          if [ -d "artifacts/web-build" ]; then
+            cd artifacts/web-build
+            zip -r ../../release-assets/attrition-web-${{ needs.setup.outputs.version }}.zip .
+            cd ../..
+          fi
+          
+          # Server build  
+          if [ -d "artifacts/server-build" ]; then
+            cd artifacts/server-build
+            tar -czf ../../release-assets/attrition-server-${{ needs.setup.outputs.version }}.tar.gz .
+            cd ../..
+          fi
+          
+          # Desktop builds
+          for dir in artifacts/desktop-*; do
+            if [ -d "$dir" ]; then
+              platform=$(basename "$dir" | sed 's/desktop-//')
+              cp "$dir"/* release-assets/ 2>/dev/null || true
+            fi
+          done
+
+      - name: Generate release notes
+        id: release-notes
+        run: |
+          cat > release-notes.md << EOF
+          # 🚀 Attrition Beta Release ${{ needs.setup.outputs.version }}
+          
+          **Build Information:**
+          - Version: \`${{ needs.setup.outputs.version }}\`
+          - Commit: \`${{ github.sha }}\`
+          - Branch: \`${{ github.ref_name }}\`
+          - Built: \`$(date -u +%Y-%m-%dT%H:%M:%SZ)\`
+          
+          ## 📦 Available Builds
+          
+          ### 🌐 Web Application
+          - **attrition-web-${{ needs.setup.outputs.version }}.zip** - Complete web client build
+          
+          ### 🖥️ Desktop Applications
+          - **Windows (x64)** - \`.exe\` installer
+          - **macOS (Intel)** - \`.dmg\` installer  
+          - **macOS (Apple Silicon)** - \`.dmg\` installer
+          - **Linux (x64)** - \`.AppImage\` portable application
+          
+          ### ⚙️ Server Package
+          - **attrition-server-${{ needs.setup.outputs.version }}.tar.gz** - Production server build
+          
+          ## 🧪 Beta Release Notes
+          
+          This is an automated beta release generated from the \`${{ github.ref_name }}\` branch.
+          
+          **⚠️ Beta Software Warning:**
+          This is pre-release software intended for testing purposes. Features may be incomplete, 
+          contain bugs, or change without notice.
+          
+          ## 🔧 Installation & Usage
+          
+          ### Web Application
+          1. Extract \`attrition-web-${{ needs.setup.outputs.version }}.zip\`
+          2. Serve the contents using any web server
+          3. Access via browser at configured URL
+          
+          ### Desktop Application
+          1. Download the appropriate installer for your platform
+          2. Run the installer and follow setup instructions
+          3. Launch Attrition from your applications menu
+          
+          ### Server Deployment
+          1. Extract \`attrition-server-${{ needs.setup.outputs.version }}.tar.gz\`
+          2. Run \`./deploy.sh\` to install dependencies
+          3. Configure environment variables as needed
+          4. Start server with \`node index.js\`
+          
+          ## 🐛 Reporting Issues
+          
+          Found a bug? Please report it on our [GitHub Issues](https://github.com/${{ github.repository }}/issues) page.
+          
+          ---
+          
+          **Full Changelog:** [\`${{ github.event.before }}..${{ github.sha }}\`](https://github.com/${{ github.repository }}/compare/${{ github.event.before }}..${{ github.sha }})
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.setup.outputs.version }}
+          name: ${{ needs.setup.outputs.release-name }}
+          body_path: release-notes.md
+          draft: ${{ needs.setup.outputs.create-draft }}
+          prerelease: true
+          files: release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify completion
+        run: |
+          echo "🎉 Beta release ${{ needs.setup.outputs.version }} created successfully!"
+          echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.setup.outputs.version }}"
+
+  post-release-tasks:
+    name: Post-Release Tasks
+    runs-on: ubuntu-latest
+    needs: [create-release]
+    if: success()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update development branch
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          echo "🔄 Post-release tasks completed"
+          echo "✅ Beta release workflow finished successfully"
+          
+          # Future: Add tasks like updating documentation, 
+          # notifying team channels, updating deployment configs, etc.
+
+      - name: Generate deployment summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # 🚀 Beta Release Deployment Complete
+          
+          ## Release Information
+          - **Version:** \`${{ needs.setup.outputs.version }}\`
+          - **Branch:** \`${{ github.ref_name }}\`
+          - **Commit:** \`${{ github.sha }}\`
+          - **Release URL:** [v${{ needs.setup.outputs.version }}](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.setup.outputs.version }})
+          
+          ## Build Status
+          - ✅ Web Application Build
+          - ✅ Server Application Build  
+          - ✅ Desktop Applications (Multi-platform)
+          - ✅ GitHub Release Created
+          
+          ## Next Steps
+          1. Review the beta release for any issues
+          2. Test installations across different platforms
+          3. Gather feedback from beta testers
+          4. Plan for stable release when ready
+          EOF

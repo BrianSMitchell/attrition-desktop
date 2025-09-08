@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attrition Beta Portal</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <meta name="description" content="Access the Attrition Desktop Beta - Download exclusive beta builds with your access key.">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <img src="assets/logo-beta.png" alt="Pokemon Tracker Beta" class="logo-img">
+                <span class="logo-text">Attrition <span class="beta-tag">BETA</span></span>
+            </div>
+            <nav class="nav">
+                <a href="#about" class="nav-link">About</a>
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#support" class="nav-link">Support</a>
+                <a href="https://discord.gg/pokemon-tracker-beta" class="nav-link discord-link" target="_blank">
+                    <span class="discord-icon">💬</span> Discord
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="container">
+                <div class="hero-content">
+                    <h1 class="hero-title">Welcome to Attrition Beta</h1>
+                    <p class="hero-subtitle">Experience the cutting-edge Attrition application with exclusive desktop beta access.</p>
+                    
+                    <!-- Access Key Form -->
+                    <div class="access-form-container">
+                        <div class="access-form" id="accessForm">
+                            <h2>Enter Your Beta Access Key</h2>
+                            <form id="keyValidationForm">
+                                <div class="input-group">
+                                    <input 
+                                        type="text" 
+                                        id="accessKey" 
+                                        placeholder="BETA-XX-XXXXXXXX-XXXXXXXX" 
+                                        class="access-input"
+                                        maxlength="32"
+                                        pattern="BETA-[A-Z]{2}-[A-Z0-9]{8,12}-[A-Z0-9]{8,16}"
+                                        required
+                                    >
+                                    <button type="submit" class="validate-btn" id="validateBtn">
+                                        <span class="btn-text">Validate Key</span>
+                                        <span class="btn-spinner" id="spinner"></span>
+                                    </button>
+                                </div>
+                                <p class="form-help">Don't have an access key? <a href="#request-access">Request beta access</a></p>
+                            </form>
+                        </div>
+
+                        <!-- Download Section (Hidden initially) -->
+                        <div class="download-section hidden" id="downloadSection">
+                            <div class="user-info" id="userInfo">
+                                <!-- User info will be populated here -->
+                            </div>
+                            
+                            <div class="download-grid">
+                                <div class="download-card">
+                                    <div class="platform-icon">🪟</div>
+                                    <h3>Windows</h3>
+                                    <p>Windows 10/11 (x64)</p>
+                                    <div class="download-options">
+                                        <button class="download-btn primary" data-platform="windows" data-arch="x64">
+                                            Download .exe
+                                        </button>
+                                        <span class="file-size">~85 MB</span>
+                                    </div>
+                                </div>
+
+                                <div class="download-card">
+                                    <div class="platform-icon">🍎</div>
+                                    <h3>macOS</h3>
+                                    <p>macOS 10.15+ (Universal)</p>
+                                    <div class="download-options">
+                                        <button class="download-btn primary" data-platform="macos" data-arch="universal">
+                                            Download .dmg
+                                        </button>
+                                        <span class="file-size">~92 MB</span>
+                                    </div>
+                                </div>
+
+                                <div class="download-card">
+                                    <div class="platform-icon">🐧</div>
+                                    <h3>Linux</h3>
+                                    <p>Ubuntu/Fedora/Arch (x64)</p>
+                                    <div class="download-options">
+                                        <button class="download-btn primary" data-platform="linux" data-arch="x64" data-format="appimage">
+                                            AppImage
+                                        </button>
+                                        <div class="secondary-options">
+                                            <button class="download-btn secondary" data-platform="linux" data-arch="x64" data-format="deb">
+                                                .deb
+                                            </button>
+                                            <button class="download-btn secondary" data-platform="linux" data-arch="x64" data-format="rpm">
+                                                .rpm
+                                            </button>
+                                        </div>
+                                        <span class="file-size">~88 MB</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="next-steps">
+                                <h3>Next Steps</h3>
+                                <ol>
+                                    <li>Download the appropriate version for your platform</li>
+                                    <li>Follow the <a href="docs/installation-guide.html" target="_blank">installation guide</a></li>
+                                    <li>Join our <a href="https://discord.gg/pokemon-tracker-beta" target="_blank">Discord community</a></li>
+                                    <li>Start testing and <a href="docs/testing-guide.html" target="_blank">provide feedback</a></li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="features" id="features">
+            <div class="container">
+                <h2 class="section-title">Beta Features</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3>Native Performance</h3>
+                        <p>Desktop-optimized interface with faster loading and smoother interactions.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔄</div>
+                        <h3>Real-time Sync</h3>
+                        <p>Seamlessly synchronize your collection across all devices with instant updates.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎨</div>
+                        <h3>Enhanced UI</h3>
+                        <p>Beautiful new interface with dark mode, customizable themes, and improved accessibility.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3>Advanced Analytics</h3>
+                        <p>Detailed collection insights, progress tracking, and completion statistics.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <h3>Offline Mode</h3>
+                        <p>Full functionality without internet connection, with smart sync when online.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🚀</div>
+                        <h3>Beta Exclusive</h3>
+                        <p>Access to experimental features and direct input on future development.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Beta Info Section -->
+        <section class="beta-info" id="about">
+            <div class="container">
+                <div class="info-content">
+                    <div class="info-text">
+                        <h2>About the Beta Program</h2>
+                        <p>Help shape the future of Pokemon Tracker by testing our desktop application before public release. Beta testers get exclusive access to new features, direct communication with developers, and the opportunity to influence the final product.</p>
+                        
+                        <div class="beta-phases">
+                            <div class="phase phase-internal">
+                                <h4>🔹 Internal (5-10 users)</h4>
+                                <p>Core team and stakeholder testing</p>
+                            </div>
+                            <div class="phase phase-closed-alpha">
+                                <h4>🔸 Closed Alpha (10-50 users)</h4>
+                                <p>Invited power users and community leaders</p>
+                            </div>
+                            <div class="phase phase-closed-beta">
+                                <h4>🔶 Closed Beta (50-200 users)</h4>
+                                <p>Selected community members</p>
+                            </div>
+                            <div class="phase phase-open-beta">
+                                <h4>🔷 Open Beta (200+ users)</h4>
+                                <p>Public beta access</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="info-visual">
+                        <div class="beta-stats" id="betaStats">
+                            <div class="stat">
+                                <span class="stat-number" id="totalUsers">-</span>
+                                <span class="stat-label">Beta Testers</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-number" id="currentPhase">-</span>
+                                <span class="stat-label">Current Phase</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-number" id="feedbackCount">-</span>
+                                <span class="stat-label">Feedback Reports</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Request Access Section -->
+        <section class="request-access" id="request-access">
+            <div class="container">
+                <div class="request-content">
+                    <h2>Request Beta Access</h2>
+                    <p>Interested in joining the beta program? We're selectively inviting users for the best testing experience.</p>
+                    
+                    <form class="request-form" id="requestForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="requestName">Name</label>
+                                <input type="text" id="requestName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="requestEmail">Email</label>
+                                <input type="email" id="requestEmail" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="experience">Pokemon Experience</label>
+                            <select id="experience" required>
+                                <option value="">Select your experience level</option>
+                                <option value="casual">Casual Player</option>
+                                <option value="competitive">Competitive Player</option>
+                                <option value="collector">Serious Collector</option>
+                                <option value="developer">Developer/Technical</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="platform">Primary Platform</label>
+                            <select id="platform" required>
+                                <option value="">Select your platform</option>
+                                <option value="windows">Windows</option>
+                                <option value="macos">macOS</option>
+                                <option value="linux">Linux</option>
+                                <option value="multiple">Multiple Platforms</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="motivation">Why do you want to join the beta?</label>
+                            <textarea id="motivation" rows="3" placeholder="Tell us about your interest in testing Pokemon Tracker..." required></textarea>
+                        </div>
+                        
+                        <button type="submit" class="submit-btn">Request Beta Access</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Support Section -->
+    <section class="support" id="support">
+        <div class="container">
+            <h2 class="section-title">Support & Resources</h2>
+            <div class="support-grid">
+                <div class="support-card">
+                    <h3>📖 Documentation</h3>
+                    <ul>
+                        <li><a href="docs/installation-guide.html">Installation Guide</a></li>
+                        <li><a href="docs/testing-guide.html">Testing Guide</a></li>
+                        <li><a href="docs/known-issues.html">Known Issues</a></li>
+                        <li><a href="docs/changelog.html">Changelog</a></li>
+                    </ul>
+                </div>
+                <div class="support-card">
+                    <h3>💬 Community</h3>
+                    <ul>
+                        <li><a href="https://discord.gg/pokemon-tracker-beta" target="_blank">Discord Server</a></li>
+                        <li><a href="https://forum.pokemon-tracker.app/beta" target="_blank">Beta Forum</a></li>
+                        <li><a href="mailto:beta-support@pokemon-tracker.app">Email Support</a></li>
+                    </ul>
+                </div>
+                <div class="support-card">
+                    <h3>🐛 Bug Reports</h3>
+                    <ul>
+                        <li><a href="#" onclick="showFeedbackForm()">In-App Feedback</a></li>
+                        <li><a href="https://github.com/pokemon-tracker/issues" target="_blank">GitHub Issues</a></li>
+                        <li><a href="mailto:beta-support@pokemon-tracker.app">Critical Issues</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-text">
+                    <p>&copy; 2025 Pokemon Tracker. Beta Version - Not for Production Use.</p>
+                    <p>Pokemon is a trademark of Nintendo/Creatures Inc./GAME FREAK inc.</p>
+                </div>
+                <div class="footer-links">
+                    <a href="privacy.html">Privacy Policy</a>
+                    <a href="terms.html">Terms of Service</a>
+                    <a href="https://pokemon-tracker.app" target="_blank">Main Website</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Loading Modal -->
+    <div class="modal hidden" id="loadingModal">
+        <div class="modal-content">
+            <div class="loading-spinner"></div>
+            <p>Processing download...</p>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="modal hidden" id="errorModal">
+        <div class="modal-content">
+            <h3>Error</h3>
+            <p id="errorMessage">An error occurred. Please try again.</p>
+            <button class="modal-btn" onclick="hideModal('errorModal')">OK</button>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal hidden" id="successModal">
+        <div class="modal-content">
+            <h3>Success!</h3>
+            <p id="successMessage">Your download will begin shortly.</p>
+            <button class="modal-btn" onclick="hideModal('successModal')">OK</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

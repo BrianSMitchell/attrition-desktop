@@ -1,0 +1,80 @@
+{
+  "name": "@game/server",
+  "version": "1.0.0",
+  "description": "Backend server for Attrition",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "nodemon",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "clean": "rimraf dist",
+    "test": "jest",
+    "migrate:remove-legacy-pop": "ts-node src/scripts/migrations/removeLegacyPopulation.ts",
+    "backfill:starter-urban": "ts-node src/scripts/backfillStarterUrban.ts",
+    "backfill:starter-credits": "ts-node src/scripts/backfillStarterCredits.ts",
+    "backfill:tech-identity": "ts-node src/scripts/migrations/backfillTechIdentityKey.ts",
+    "test:unit": "jest --testPathPattern=__tests__ --testPathIgnorePatterns=game-balance,game-performance,integration,e2e",
+    "test:integration": "jest --testPathPattern=integration",
+    "test:game-simulation": "jest --testPathPattern=game-simulation",
+    "test:multiplayer": "jest --testPathPattern=multiplayer-scenarios",
+    "test:balance": "jest --config jest.config.balance-performance.js --testPathPattern=game-balance",
+    "test:performance": "jest --config jest.config.balance-performance.js --testPathPattern=game-performance",
+    "dashboard:init": "ts-node src/scripts/testing-dashboard-cli.ts init",
+    "dashboard:generate": "ts-node src/scripts/testing-dashboard-cli.ts dashboard generate",
+    "dashboard:serve": "ts-node src/scripts/testing-dashboard-cli.ts dashboard serve",
+    "metrics:health": "ts-node src/scripts/testing-dashboard-cli.ts metrics health",
+    "metrics:trends": "ts-node src/scripts/testing-dashboard-cli.ts metrics trends",
+    "metrics:export": "ts-node src/scripts/testing-dashboard-cli.ts metrics export",
+    "report:daily": "ts-node src/scripts/testing-dashboard-cli.ts report daily",
+    "report:weekly": "ts-node src/scripts/testing-dashboard-cli.ts report weekly",
+    "testing:status": "ts-node src/scripts/testing-dashboard-cli.ts status"
+  },
+  "dependencies": {
+    "@game/shared": "workspace:*",
+    "@types/uuid": "^10.0.0",
+    "@types/winston": "^2.4.4",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.1.1",
+    "socket.io": "^4.7.4",
+    "uuid": "^11.1.0",
+    "winston": "^3.17.0",
+    "commander": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.12",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.11.17",
+    "@types/supertest": "^6.0.3",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.3",
+    "rimraf": "^5.0.5",
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.4.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/src"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.test.ts"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.ts",
+      "!src/**/*.d.ts",
+      "!src/__tests__/**"
+    ]
+  }
+}

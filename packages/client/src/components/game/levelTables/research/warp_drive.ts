@@ -1,0 +1,23 @@
+export const WARP_DRIVE_LEVEL_ROWS = [
+  { level: 0, credits: 0, warpUnitsSpeedPct: 100 },
+  { level: 1, credits: 64, warpUnitsSpeedPct: 105 },
+  { level: 2, credits: 96, warpUnitsSpeedPct: 110 },
+  { level: 3, credits: 144, warpUnitsSpeedPct: 115 },
+  { level: 4, credits: 216, warpUnitsSpeedPct: 120 },
+  { level: 5, credits: 324, warpUnitsSpeedPct: 125 },
+  { level: 6, credits: 486, warpUnitsSpeedPct: 130 },
+  { level: 7, credits: 729, warpUnitsSpeedPct: 135 },
+  { level: 8, credits: 1094, warpUnitsSpeedPct: 140 },
+  { level: 9, credits: 1641, warpUnitsSpeedPct: 145 },
+  { level: 10, credits: 2461, warpUnitsSpeedPct: 150 },
+  { level: 11, credits: 3691, warpUnitsSpeedPct: 155 },
+  { level: 12, credits: 5536, warpUnitsSpeedPct: 160 },
+  { level: 13, credits: 8304, warpUnitsSpeedPct: 165 },
+  { level: 14, credits: 12456, warpUnitsSpeedPct: 170 },
+  { level: 15, credits: 18684, warpUnitsSpeedPct: 175 },
+  { level: 16, credits: 28026, warpUnitsSpeedPct: 180 },
+  { level: 17, credits: 42038, warpUnitsSpeedPct: 185 },
+  { level: 18, credits: 63057, warpUnitsSpeedPct: 190 },
+  { level: 19, credits: 94586, warpUnitsSpeedPct: 195 },
+  { level: 20, credits: 141878, warpUnitsSpeedPct: 200 }
+] as const;

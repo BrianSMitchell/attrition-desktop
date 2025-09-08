@@ -1,0 +1,204 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for Attrition
+title: "[FEATURE] "
+labels: ["type:feature", "status:triage-needed", "priority:medium"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ✨ Feature Request
+        
+        Thank you for suggesting a new feature! Your ideas help shape the future of Attrition.
+        
+        **Before submitting:** Please check if this feature has already been requested in our [issue tracker](../../../issues).
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature Summary
+      description: A clear and concise description of the feature you'd like to see
+      placeholder: Briefly describe the feature you're requesting...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: Which area of Attrition does this feature relate to?
+      options:
+        - User Interface / UX
+        - Core Functionality
+        - Performance
+        - Integration / API
+        - Security
+        - Accessibility
+        - Documentation
+        - Developer Tools
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Description
+      description: What problem does this feature solve?
+      placeholder: |
+        Describe the problem or limitation you're facing:
+        - What are you trying to achieve?
+        - What currently prevents you from doing this?
+        - How does this impact your workflow?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your proposed solution in detail
+      placeholder: |
+        How would you like this feature to work?
+        - What would the user experience look like?
+        - How should it behave?
+        - Any specific implementation details?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions
+      description: Have you considered any alternative approaches?
+      placeholder: |
+        What other solutions have you considered?
+        - Workarounds you're currently using
+        - Alternative approaches to solving this problem
+        - Why the proposed solution is better
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Critical (Blocking my use of Attrition)
+        - High (Important for my workflow)
+        - Medium (Would be nice to have)
+        - Low (Minor improvement)
+      default: 2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: users
+    attributes:
+      label: User Impact
+      description: Who would benefit from this feature?
+      options:
+        - All users
+        - Most users
+        - Power users
+        - Specific user group
+        - Just me
+      default: 1
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-cases
+    attributes:
+      label: Use Cases
+      description: Describe specific scenarios where this feature would be useful
+      placeholder: |
+        Example use cases:
+        1. When I'm doing X, I need to Y
+        2. In scenario Z, this would help by...
+        3. Users who work with A would benefit because...
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups / Examples
+      description: Any visual mockups, sketches, or examples from other applications
+      placeholder: |
+        If you have visual ideas, mockups, or examples from other apps, please share them here.
+        You can drag and drop images or provide links.
+
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: Implementation Complexity (Your Estimate)
+      description: How complex do you think this feature would be to implement?
+      options:
+        - Simple (Small UI change or minor feature)
+        - Medium (New feature with moderate complexity)
+        - Complex (Major feature requiring significant changes)
+        - Very Complex (Fundamental changes to architecture)
+        - Not sure
+      default: 4
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: How would you know this feature is complete and working correctly?
+      placeholder: |
+        What criteria would indicate this feature is successfully implemented?
+        - Feature should do X when Y happens
+        - Users should be able to Z
+        - Performance should meet A requirements
+        - Should work on platforms B, C, D
+
+  - type: checkboxes
+    id: platforms
+    attributes:
+      label: Target Platforms
+      description: Which platforms should support this feature?
+      options:
+        - label: Windows
+        - label: macOS
+        - label: Linux
+        - label: All platforms
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other information that might be helpful
+      placeholder: |
+        Additional context, research, links, or information:
+        - Links to related features in other applications
+        - Research or documentation
+        - Technical considerations you're aware of
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Submission Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched for existing feature requests
+          required: true
+        - label: I have clearly described the problem this feature solves
+          required: true
+        - label: I have provided specific use cases
+          required: true
+        - label: I understand this is a request, not a guarantee of implementation
+          required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        
+        **Thank you for your feature request!** 
+        
+        Our team will review this request during our regular planning cycles. Feature requests are prioritized based on:
+        - User impact and demand
+        - Alignment with product roadmap  
+        - Implementation complexity
+        - Available development resources
+        
+        We'll update this issue with our assessment and any questions we might have.

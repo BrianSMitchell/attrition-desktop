@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "supermemory": {
+      "transport": "sse",
+      "url": "https://mcp.supermemory.ai/YOUR_PRIVATE_ENDPOINT",
+      "autoApprove": {
+        "all": false,
+        "tools": []
+      },
+      "timeoutMs": 15000
+    }
+  }
+}
