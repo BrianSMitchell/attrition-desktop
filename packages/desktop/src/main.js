@@ -7,8 +7,7 @@ import desktopDb from './db.js';
 import errorLogger from './services/errorLoggingService.js';
 import performanceMonitoringService from './services/performanceMonitoringService.js';
 import { httpRequest } from './services/httpClient.js';
-import ipcSecurityService from './services/ipcSecurityService.js';
-import ipcPermissionService from './services/ipcPermissionService.js';
+// Security services removed - too restrictive for small game
 import { UpdateService } from './services/updateService.js';
 
 /**
@@ -95,7 +94,7 @@ function getApiBaseUrl() {
   
   // In packaged production builds, default to HTTPS
   if (!isDev) {
-    const productionHost = process.env.PRODUCTION_API_HOST || 'api.yourgame.com';
+    const productionHost = process.env.PRODUCTION_API_HOST || 'attrition-game.onrender.com';
     return `https://${productionHost}/api`;
   }
   
@@ -139,208 +138,19 @@ process.on('unhandledRejection', (reason, promise) => {
   errorLogger.error('Unhandled Promise Rejection in main process', reason);
 });
 
-/**
- * Secure IPC handler wrapper with rate limiting, audit logging, and circuit breaker support
- * @param {string} channel - IPC channel name
- * @param {function} handler - Original handler function
- * @param {object} options - Security options
- * @returns {function} Wrapped handler function
- */
-function secureIpcHandler(channel, handler, options = {}) {
-  const {
-    rateLimited = true,
-    circuitBreaker = false,
-    auditLog = false,
-    sanitizeParams = false
-  } = options;
-  
-  return async (event, ...args) => {
-    const correlationId = ipcSecurityService.generateCorrelationId();
-    const processId = event.processId || 'unknown';
-    
-    try {
-      // Rate limiting check
-      if (rateLimited) {
-        const rateLimitResult = ipcSecurityService.checkRateLimit(channel, processId);
-        if (!rateLimitResult.allowed) {
-          const error = {
-            success: false,
-            error: 'rate_limit_exceeded',
-            message: 'Too many requests. Please slow down.',
-            resetTime: rateLimitResult.resetTime,
-            remaining: rateLimitResult.remaining
-          };
-          
-          // Log rate limit violation
-          ipcSecurityService.logSecurityEvent('ipc_rate_limit_violation', {
-            channel,
-            processId,
-            correlationId,
-            resetTime: rateLimitResult.resetTime
-          }, 'high');
-          
-          return error;
-        }
-      }
-      
-      // Input validation and sanitization
-      const inputData = args.length === 1 ? args[0] : (args.length > 1 ? args : {});
-      const validationResult = ipcSecurityService.validateInput(channel, inputData);
-      
-      if (!validationResult.valid) {
-        const error = {
-          success: false,
-          error: 'invalid_input',
-          message: validationResult.error,
-          correlationId
-        };
-        
-        // Log additional details for suspicious inputs
-        if (validationResult.suspicious) {
-          ipcSecurityService.logSecurityEvent('suspicious_input_blocked', {
-            channel,
-            processId,
-            correlationId,
-            error: validationResult.error
-          }, 'high');
-        }
-        
-        return error;
-      }
-      
-      // Update args with validated data
-      if (args.length === 1) {
-        args[0] = validationResult.data;
-      } else if (args.length > 1) {
-        // For multiple args, we validated them as an array
-        args = validationResult.data;
-      }
-      
-      // Permission checking for restricted operations
-      const permissionResult = ipcPermissionService.checkPermission(channel, processId);
-      if (!permissionResult.allowed) {
-        const error = {
-          success: false,
-          error: 'permission_denied',
-          message: permissionResult.reason || 'Insufficient permissions for this operation',
-          correlationId
-        };
-        
-        // Log permission denial
-        ipcSecurityService.logSecurityEvent('ipc_permission_denied', {
-          channel,
-          processId,
-          correlationId,
-          reason: permissionResult.reason
-        }, 'high');
-        
-        return error;
-      }
-      
-      // Circuit breaker check for external operations
-      if (circuitBreaker) {
-        const circuitResult = ipcSecurityService.checkCircuitBreaker(channel);
-        if (!circuitResult.allowed) {
-          const error = {
-            success: false,
-            error: 'circuit_breaker_open',
-            message: 'Service temporarily unavailable. Please try again later.',
-            state: circuitResult.state
-          };
-          
-          ipcSecurityService.logSecurityEvent('ipc_circuit_breaker_blocked', {
-            channel,
-            processId,
-            correlationId,
-            state: circuitResult.state
-          }, 'medium');
-          
-          return error;
-        }
-      }
-      
-      // Sanitize parameters for audit logging
-      const sanitizedArgs = sanitizeParams ? 
-        args.map(arg => ipcSecurityService.sanitizeInput(arg, { maxLength: 500 })) : 
-        args;
-      
-      // Audit logging for sensitive operations
-      if (auditLog) {
-        ipcSecurityService.logSecurityEvent('ipc_handler_invocation', {
-          channel,
-          processId,
-          correlationId,
-          paramCount: args.length,
-          sanitizedParams: sanitizedArgs
-        }, 'low');
-      }
-      
-      // Execute original handler
-      const startTime = Date.now();
-      const result = await handler(event, ...args);
-      const duration = Date.now() - startTime;
-      
-      // Record success for circuit breaker
-      if (circuitBreaker && result && result.success !== false) {
-        ipcSecurityService.recordSuccess(channel);
-      }
-      
-      // Log completion for sensitive operations
-      if (auditLog) {
-        ipcSecurityService.logSecurityEvent('ipc_handler_completion', {
-          channel,
-          processId,
-          correlationId,
-          duration,
-          success: result && result.success !== false
-        }, 'low');
-      }
-      
-      return result;
-      
-    } catch (error) {
-      // Record failure for circuit breaker
-      if (circuitBreaker) {
-        ipcSecurityService.recordFailure(channel, error);
-      }
-      
-      // Log error with correlation ID
-      errorLogger.error(`IPC handler error [${channel}]`, error, {
-        correlationId,
-        processId,
-        channel
-      });
-      
-      // Security audit for handler failures
-      ipcSecurityService.logSecurityEvent('ipc_handler_error', {
-        channel,
-        processId,
-        correlationId,
-        error: error.message,
-        stack: error.stack?.substring(0, 500)
-      }, 'medium');
-      
-      return {
-        success: false,
-        error: 'internal_error',
-        message: 'An internal error occurred',
-        correlationId
-      };
-    }
-  };
-}
+// All security middleware removed - too restrictive for small private game
 
 // IPC handlers exposed to the preload bridge
-ipcMain.handle('app:getVersion', secureIpcHandler('app:getVersion', () => {
+ipcMain.handle('app:getVersion', () => {
   try {
     return app.getVersion();
   } catch (error) {
     errorLogger.error('Failed to get app version', error);
     return 'unknown';
   }
-}));
+});
 
-ipcMain.handle('app:openExternal', secureIpcHandler('app:openExternal', async (_event, url) => {
+ipcMain.handle('app:openExternal', async (_event, url) => {
   try {
     // Security: Validate URL format and protocol allowlist
     if (!url || typeof url !== 'string' || url.length > 2000) {
@@ -370,7 +180,7 @@ ipcMain.handle('app:openExternal', secureIpcHandler('app:openExternal', async (_
     errorLogger.error('Failed to open external URL', error, { url: typeof url === 'string' ? url.substring(0, 100) : 'invalid' });
     return false;
   }
-}, { auditLog: true, sanitizeParams: true }));
+});
 
 // Network status IPC handlers - REMOVED
 // These were not exposed in preload bridge and unused by renderer
@@ -403,7 +213,7 @@ function getOrCreateDeviceId() {
  * Refresh token secure storage (OS keychain via keytar)
  * We intentionally do NOT expose a getter to avoid leaking the raw refresh token to the renderer.
  */
-ipcMain.handle('tokens:saveRefresh', secureIpcHandler('tokens:saveRefresh', async (_event, refreshToken) => {
+ipcMain.handle('tokens:saveRefresh', async (_event, refreshToken) => {
   try {
     await keytar.setPassword(APP_ID, 'refresh', String(refreshToken ?? ''));
     return { ok: true };
@@ -411,9 +221,9 @@ ipcMain.handle('tokens:saveRefresh', secureIpcHandler('tokens:saveRefresh', asyn
     errorLogger.error('Failed to save refresh token', error);
     return { ok: false };
   }
-}, { rateLimited: true, auditLog: true, sanitizeParams: true }));
+});
 
-ipcMain.handle('tokens:deleteRefresh', secureIpcHandler('tokens:deleteRefresh', async () => {
+ipcMain.handle('tokens:deleteRefresh', async () => {
   try {
     await keytar.deletePassword(APP_ID, 'refresh');
     return { ok: true };
@@ -421,7 +231,7 @@ ipcMain.handle('tokens:deleteRefresh', secureIpcHandler('tokens:deleteRefresh', 
     errorLogger.error('Failed to delete refresh token', error);
     return { ok: false };
   }
-}, { auditLog: true }));
+});
 
 ipcMain.handle('tokens:hasRefresh', async () => {
   try {
@@ -437,7 +247,7 @@ ipcMain.handle('tokens:hasRefresh', async () => {
  * Perform a refresh using the stored refresh token without exposing it to the renderer.
  * Returns: { ok: boolean, token?: string }
  */
-ipcMain.handle('auth:refresh', secureIpcHandler('auth:refresh', async () => {
+ipcMain.handle('auth:refresh', async () => {
   try {
     const refreshToken = await keytar.getPassword(APP_ID, 'refresh');
     if (!refreshToken) {
@@ -480,15 +290,23 @@ ipcMain.handle('auth:refresh', secureIpcHandler('auth:refresh', async () => {
     errorLogger.error('Auth refresh exception', error);
     return { ok: false, error: 'exception' };
   }
-}, { circuitBreaker: true, auditLog: true }));
+});
 
 /**
  * Perform login/register in main so refresh token never touches the renderer.
  * On success: store refreshToken to OS keychain and return sanitized payload without it.
  */
-ipcMain.handle('auth:login', secureIpcHandler('auth:login', async (_event, { email, password }) => {
+ipcMain.handle('auth:login', async (_event, { email, password }) => {
+  console.log('[AUTH] Login attempt via IPC:', { email, password: password ? '[PRESENT]' : '[MISSING]' });
+  
+  // Basic input validation
+  if (!email || !password) {
+    console.log('[AUTH] Login validation failed - missing email or password');
+    return { success: false, error: 'Email and password are required', message: 'Email and password are required' };
+  }
   try {
     const url = `${API_BASE_URL.replace(/\/$/, '')}/auth/login`;
+    console.log('[AUTH] Making login request to:', url);
     const result = await httpRequest({
       url,
       method: 'POST',
@@ -499,6 +317,8 @@ ipcMain.handle('auth:login', secureIpcHandler('auth:login', async (_event, { ema
     });
 
     const json = result.json ?? {};
+    console.log('[AUTH] Login response:', { ok: result.ok, status: result.status, json: json ? 'Present' : 'Missing', success: json?.success });
+    console.log('[AUTH] Full server response:', json);
     if (json && json.success && json.data) {
       const { refreshToken, token, user, empire } = json.data || {};
       if (refreshToken) {
@@ -508,12 +328,15 @@ ipcMain.handle('auth:login', secureIpcHandler('auth:login', async (_event, { ema
           errorLogger.error('Failed to save refresh token on login', error);
         }
       }
+      console.log('[AUTH] Login successful, returning user data');
       return { success: true, data: { token, user, empire }, message: json.message };
     }
 
     // Pass through server error shape when available (add canonical fields)
+    console.log('[AUTH] Login failed, processing error response');
     if (!result.ok) {
       if (json && typeof json === 'object') {
+        console.log('[AUTH] Returning server error JSON:', json);
         return json;
       }
       const code = (result.error?.code || (result.status ? `HTTP_${result.status}` : 'NETWORK_UNAVAILABLE'));
@@ -535,9 +358,61 @@ ipcMain.handle('auth:login', secureIpcHandler('auth:login', async (_event, { ema
     errorLogger.error('Auth login exception', error);
     return { success: false, error: 'exception' };
   }
-}, { circuitBreaker: true, auditLog: true, sanitizeParams: true }));
+});
 
-ipcMain.handle('auth:register', secureIpcHandler('auth:register', async (_event, { email, username, password }) => {
+// SIMPLE DIRECT REGISTRATION - No security middleware, just works
+ipcMain.handle('auth:register', async (_event, { email, username, password }) => {
+  console.log('[AUTH] Direct registration attempt:', { email, username });
+  try {
+    const url = `${API_BASE_URL.replace(/\/$/, '')}/auth/register`;
+    const result = await httpRequest({
+      url,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, username, password }),
+      timeoutMs: 10000,
+      tag: 'auth:register'
+    });
+
+    const json = result.json ?? {};
+    if (json && json.success && json.data) {
+      const { refreshToken, token, user, empire } = json.data || {};
+      if (refreshToken) {
+        try {
+          await keytar.setPassword(APP_ID, 'refresh', String(refreshToken));
+        } catch (error) {
+          errorLogger.error('Failed to save refresh token on register', error);
+        }
+      }
+      return { success: true, data: { token, user, empire }, message: json.message };
+    }
+
+    // Pass through server error shape when available
+    if (!result.ok) {
+      if (json && typeof json === 'object') {
+        return json;
+      }
+      const code = (result.error?.code || (result.status ? `HTTP_${result.status}` : 'NETWORK_UNAVAILABLE'));
+      const message = (json && (json.message || json.error)) || (result.status ? `HTTP ${result.status}` : 'Network error');
+      return {
+        success: false,
+        code,
+        message,
+        error: code,
+        status: result.status
+      };
+    }
+
+    return json || { success: false, code: 'INVALID_RESPONSE', message: 'Invalid response', error: 'INVALID_RESPONSE' };
+  } catch (error) {
+    errorLogger.error('Auth register exception', error);
+    return { success: false, error: 'Network error', message: 'Could not connect to server' };
+  }
+});
+
+// OLD SECURE VERSION - DISABLED
+/*
+ipcMain.handle('auth:register-secure', secureIpcHandler('auth:register', async (_event, { email, username, password }) => {
   try {
     const url = `${API_BASE_URL.replace(/\/$/, '')}/auth/register`;
     const result = await httpRequest({
@@ -587,6 +462,7 @@ ipcMain.handle('auth:register', secureIpcHandler('auth:register', async (_event,
     return { success: false, error: 'exception' };
   }
 }, { circuitBreaker: true, auditLog: true, sanitizeParams: true }));
+*/
 
 // ===== DATABASE IPC HANDLERS =====
 
@@ -983,7 +859,7 @@ ipcMain.handle('db:sync:get', async (_event, key) => {
 });
 
 // Bootstrap Operations
-ipcMain.handle('db:bootstrap:fetchAndCache', secureIpcHandler('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => {
+ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => {
   try {
     errorLogger.info('Starting bootstrap fetch and cache');
     
@@ -1325,7 +1201,7 @@ ipcMain.handle('db:bootstrap:fetchAndCache', secureIpcHandler('db:bootstrap:fetc
     
     return { success: false, error: 'exception', details: error.message };
   }
-}, { circuitBreaker: true, auditLog: true, sanitizeParams: true }));
+});
 
 // Database Health
 ipcMain.handle('db:health', async () => {
@@ -1374,7 +1250,7 @@ ipcMain.handle('error:getRecent', async (_event, hours = 24) => {
   }
 });
 
-ipcMain.handle('error:clear', secureIpcHandler('error:clear', async () => {
+ipcMain.handle('error:clear', async () => {
   try {
     errorLogger.clearStoredLogs();
     return { success: true };
@@ -1382,9 +1258,9 @@ ipcMain.handle('error:clear', secureIpcHandler('error:clear', async () => {
     errorLogger.error('Failed to clear stored logs', error);
     return { success: false, error: error.message };
   }
-}, { auditLog: true, sanitizeParams: true }));
+});
 
-ipcMain.handle('error:export', secureIpcHandler('error:export', async (_event, { format = 'json', hours = 24 } = {}) => {
+ipcMain.handle('error:export', async (_event, { format = 'json', hours = 24 } = {}) => {
   try {
     const data = errorLogger.exportErrors(format, hours);
     return { success: true, data };
@@ -1392,7 +1268,7 @@ ipcMain.handle('error:export', secureIpcHandler('error:export', async (_event, {
     errorLogger.error('Failed to export errors', error);
     return { success: false, error: error.message };
   }
-}, { auditLog: true, sanitizeParams: true }));
+});
 
 ipcMain.handle('error:getStats', async (_event, hours = 24) => {
   try {
@@ -1404,28 +1280,7 @@ ipcMain.handle('error:getStats', async (_event, hours = 24) => {
   }
 });
 
-// ===== Security Monitoring IPC Handlers =====
-ipcMain.handle('security:getStats', secureIpcHandler('security:getStats', async () => {
-  try {
-    const stats = ipcSecurityService.getSecurityStats();
-    return { success: true, stats };
-  } catch (error) {
-    errorLogger.error('security:getStats failed', error);
-    return { success: false, error: error.message };
-  }
-}));
-
-ipcMain.handle('security:getAuditLog', secureIpcHandler('security:getAuditLog', async (_event, hours = 24) => {
-  try {
-    const h = Number(hours);
-    const windowHours = Number.isFinite(h) && h > 0 ? h : 24;
-    const auditLog = ipcSecurityService.getAuditLog(windowHours);
-    return { success: true, auditLog };
-  } catch (error) {
-    errorLogger.error('security:getAuditLog failed', error, { hours });
-    return { success: false, error: error.message };
-  }
-}, { auditLog: true }));
+// Security monitoring handlers removed - no longer needed
 
  // ===== Performance Monitoring IPC Handlers =====
 ipcMain.handle('perf:getMetrics', async (_event, hours = 24) => {
@@ -1452,7 +1307,7 @@ ipcMain.handle('perf:getStats', async (_event, hours = 24) => {
   }
 });
 
-ipcMain.handle('perf:export', secureIpcHandler('perf:export', async (_event, { format = 'json', hours = 24 } = {}) => {
+ipcMain.handle('perf:export', async (_event, { format = 'json', hours = 24 } = {}) => {
   try {
     const fmt = (typeof format === 'string' && (format === 'csv' || format === 'json')) ? format : 'json';
     const h = Number(hours);
@@ -1463,9 +1318,9 @@ ipcMain.handle('perf:export', secureIpcHandler('perf:export', async (_event, { f
     errorLogger.error('perf:export failed', error, { format, hours });
     return { success: false, error: error.message };
   }
-}, { auditLog: true, sanitizeParams: true }));
+});
 
-ipcMain.handle('perf:clear', secureIpcHandler('perf:clear', async () => {
+ipcMain.handle('perf:clear', async () => {
   try {
     const deleted = performanceMonitoringService.clear();
     return { success: true, deleted };
@@ -1473,7 +1328,7 @@ ipcMain.handle('perf:clear', secureIpcHandler('perf:clear', async () => {
     errorLogger.error('perf:clear failed', error);
     return { success: false, error: error.message };
   }
-}, { auditLog: true, sanitizeParams: true }));
+});
 
 ipcMain.handle('perf:getThresholds', async () => {
   try {
@@ -1783,6 +1638,10 @@ app.on('ready', async () => {
   try {
     updateService = new UpdateService();
     updateService.startPeriodicChecks(60); // Check every hour
+    // Kick off a silent check shortly after startup
+    setTimeout(() => {
+      try { updateService.checkForUpdates(true); } catch {}
+    }, 5000);
     errorLogger.info('UpdateService initialized');
   } catch (error) {
     errorLogger.error('Failed to initialize UpdateService', error);
@@ -1808,12 +1667,7 @@ app.on('activate', () => {
 app.on('before-quit', () => {
   errorLogger.info('Application shutting down');
   
-  // Cleanup security service
-  try {
-    ipcSecurityService.destroy();
-  } catch (error) {
-    errorLogger.warn('Failed to cleanup security service', error);
-  }
+  // Security service cleanup removed - no longer needed
   
   errorLogger.close();
   desktopDb.close();

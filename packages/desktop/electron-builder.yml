@@ -2,6 +2,9 @@ appId: com.attrition.game
 productName: Attrition
 copyright: Copyright © 2025 ${author}
 
+# Disable code signing globally
+forceCodeSigning: false
+
 directories:
   output: dist
   buildResources: build
@@ -28,12 +31,11 @@ asarUnpack:
 
 win:
   executableName: Attrition
-  icon: build/icon.png
+  # icon: build/icon.png  # Temporarily disabled for testing
   publisherName: Attrition Game Studio
-  sign: false
+  sign: null
   signAndEditExecutable: false
   signDlls: false
-  verifyUpdateCodeSignature: false
   target:
     - target: nsis
       arch:
@@ -50,7 +52,7 @@ nsis:
   displayLanguageSelector: true
 
 mac:
-  icon: build/icon.png
+  # icon: build/icon.png  # Temporarily disabled for testing
   category: public.app-category.games
   target:
     - target: dmg
@@ -74,7 +76,7 @@ dmg:
       type: file
 
 linux:
-  icon: build/icon.png
+  # icon: build/icon.png  # Temporarily disabled for testing
   category: Game
   target:
     - target: AppImage
@@ -100,7 +102,7 @@ deb:
 
 publish:
   provider: github
-  owner: attrition-game
+  owner: BrianSMitchell
   repo: attrition-desktop
   publishAutoUpdate: true
 

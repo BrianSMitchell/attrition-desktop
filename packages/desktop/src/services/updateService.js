@@ -117,7 +117,7 @@ class UpdateService {
 
   configureUpdater() {
     // Configure auto-updater settings
-    this.autoUpdater.autoDownload = false; // Manual download control
+    this.autoUpdater.autoDownload = true; // Download updates automatically in background
     this.autoUpdater.autoInstallOnAppQuit = true;
     
     // Only check for updates in production
