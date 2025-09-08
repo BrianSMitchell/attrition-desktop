@@ -109,7 +109,7 @@ if (RATE_LIMIT_ENABLED && process.env.NODE_ENV !== 'development') {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-const serverStart = Date.now(); // nodemon:restart v3 - DB connection added
+const serverStart = Date.now(); // nodemon:restart v4 - admin endpoint added
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -384,4 +384,5 @@ process.on('SIGINT', () => {
 startServer();
 
 export { app, io };
+
 
