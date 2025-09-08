@@ -16,10 +16,10 @@ setInterval(() => {
   }
 }, 15 * 60 * 1000);
 
-// General rate limiter for auth endpoints
+// General rate limiter for auth endpoints (relaxed for private game)
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 20 : 100, // Limit each IP to 20 requests per windowMs in production
+  max: process.env.NODE_ENV === 'production' ? 100 : 200, // More lenient for private game - 100 per 15min in production
   message: {
     success: false,
     error: 'Too many requests from this IP, please try again later.',
@@ -28,10 +28,10 @@ export const authRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-// Strict rate limiter for login attempts
+// Login rate limiter (relaxed for private game)
 export const loginRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 5 : 20, // Limit each IP to 5 login attempts per 15 minutes in production
+  max: process.env.NODE_ENV === 'production' ? 30 : 50, // More lenient for private game - 30 per 15min in production
   message: {
     success: false,
     error: 'Too many login attempts from this IP, please try again later.',
@@ -88,10 +88,10 @@ export const clearFailedAttempts = (req: Request) => {
   loginAttempts.delete(ip);
 };
 
-// Registration rate limiter (more restrictive)
+// Registration rate limiter (relaxed for private game usage)
 export const registerRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: process.env.NODE_ENV === 'production' ? 3 : 10, // Limit each IP to 3 registrations per hour in production
+  max: process.env.NODE_ENV === 'production' ? 20 : 30, // More lenient for private game - 20 per hour in production
   message: {
     success: false,
     error: 'Too many registration attempts from this IP, please try again later.',
