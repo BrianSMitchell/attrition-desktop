@@ -198,55 +198,92 @@ async function startServer() {
       // ignore sync errors in dev/test
     }
 
-    // In production, HTTPS is mandatory - fail fast if SSL config is not available
+    // In production, check if we need to handle SSL ourselves or if it's handled by reverse proxy (like Render)
     if (process.env.NODE_ENV === 'production') {
       console.log('🔐 Production mode: HTTPS enforcement enabled');
       
-      // Load SSL configuration - this will throw if not available in production
-      const sslConfig = await getSSLConfigFromEnvironment();
+      // Check if SSL is handled by reverse proxy (Render, CloudFlare, etc.)
+      const useReverseProxySSL = process.env.USE_REVERSE_PROXY_SSL === 'true' || process.env.RENDER === 'true';
       
-      if (!sslConfig) {
-        const errorMessage = 'HTTPS is mandatory in production but SSL configuration is not available. ' +
-          'Please provide SSL certificates via environment variables (SSL_CERTIFICATE, SSL_PRIVATE_KEY) ' +
-          'or file paths (SSL_CERT_PATH, SSL_KEY_PATH).';
-        console.error('❌ PRODUCTION STARTUP FAILED:', errorMessage);
-        throw new Error(errorMessage);
+      if (useReverseProxySSL) {
+        console.log('🔒 Using reverse proxy SSL termination (Render/CloudFlare/etc.)');
+        console.log('✅ Server will run HTTP - SSL handled by reverse proxy');
+      } else {
+        // Load SSL configuration - this will throw if not available in production
+        const sslConfig = await getSSLConfigFromEnvironment();
+        
+        if (!sslConfig) {
+          const errorMessage = 'HTTPS is mandatory in production but SSL configuration is not available. ' +
+            'Please provide SSL certificates via environment variables (SSL_CERTIFICATE, SSL_PRIVATE_KEY) ' +
+            'or file paths (SSL_CERT_PATH, SSL_KEY_PATH). Or set USE_REVERSE_PROXY_SSL=true if using a reverse proxy.';
+          console.error('❌ PRODUCTION STARTUP FAILED:', errorMessage);
+          throw new Error(errorMessage);
+        }
       }
       
-      // Production: Start HTTPS server only
-      const httpsServer = createHttpsServer(app, sslConfig, HTTPS_PORT);
-      
-      // Create Socket.IO instance for HTTPS server
-      io = new Server(httpsServer, {
-        cors: {
-          origin: allowedOrigins,
-          methods: ["GET", "POST"]
-        }
-      });
-      
-      // Create HTTP server ONLY for HTTPS redirects - no actual HTTP content served
-      const httpRedirectServer = createServer(app);
-      httpRedirectServer.listen(PORT, () => {
-        console.log(`🔒 HTTP redirect server on port ${PORT} (redirects all traffic to HTTPS)`);
-        console.log(`⚠️  HTTP server serves NO content - all requests redirected to HTTPS`);
-      });
-      
-      // HTTPS server startup with enhanced logging
-      httpsServer.listen(HTTPS_PORT, () => {
-        console.log(`🚀 PRODUCTION HTTPS server running on port ${HTTPS_PORT}`);
-        console.log(`📊 Health check: https://localhost:${HTTPS_PORT}/health`);
-        console.log(`🎮 Game API: https://localhost:${HTTPS_PORT}/api`);
-        console.log(`🔔 Socket.IO ready for secure connections`);
-        console.log(`🔐 SSL/TLS: ${sslConfig.minVersion} to ${sslConfig.maxVersion}`);
-        console.log(`✅ HTTPS ENFORCEMENT: All HTTP requests redirected to HTTPS`);
-        console.log(`✅ SECURITY: Production server running in HTTPS-only mode`);
+      if (useReverseProxySSL) {
+        // Production with reverse proxy SSL: Run HTTP server, SSL handled by reverse proxy
+        io = new Server(server, {
+          cors: {
+            origin: allowedOrigins,
+            methods: ["GET", "POST"]
+          }
+        });
         
-        // Start game loop with configurable interval
-        const gameLoopInterval = parseInt(process.env.GAME_LOOP_INTERVAL_MS || '60000', 10);
-        console.log(`🎮 Starting game loop with ${gameLoopInterval}ms interval`);
-        console.log(`💰 Credit payouts every ${process.env.CREDIT_PAYOUT_PERIOD_MINUTES || '1'} minute(s)`);
-        gameLoop.start(gameLoopInterval);
-      });
+        server.listen(PORT, () => {
+          console.log(`🚀 PRODUCTION server running on port ${PORT}`);
+          console.log(`📊 Health check: http://localhost:${PORT}/health`);
+          console.log(`🎮 Game API: http://localhost:${PORT}/api`);
+          console.log(`🔔 Socket.IO ready for connections`);
+          console.log(`🔒 SSL/TLS: Handled by reverse proxy (Render/CloudFlare/etc.)`);
+          console.log(`✅ SECURITY: HTTPS enforced at reverse proxy level`);
+          
+          // Start game loop with configurable interval
+          const gameLoopInterval = parseInt(process.env.GAME_LOOP_INTERVAL_MS || '60000', 10);
+          console.log(`🎮 Starting game loop with ${gameLoopInterval}ms interval`);
+          console.log(`💰 Credit payouts every ${process.env.CREDIT_PAYOUT_PERIOD_MINUTES || '1'} minute(s)`);
+          gameLoop.start(gameLoopInterval);
+        });
+        
+        setupSocketIO(io);
+        
+      } else {
+        // Production with direct SSL: Start HTTPS server only
+        const sslConfig = await getSSLConfigFromEnvironment();
+        const httpsServer = createHttpsServer(app, sslConfig!, HTTPS_PORT);
+        
+        // Create Socket.IO instance for HTTPS server
+        io = new Server(httpsServer, {
+          cors: {
+            origin: allowedOrigins,
+            methods: ["GET", "POST"]
+          }
+        });
+        
+        // Create HTTP server ONLY for HTTPS redirects - no actual HTTP content served
+        const httpRedirectServer = createServer(app);
+        httpRedirectServer.listen(PORT, () => {
+          console.log(`🔒 HTTP redirect server on port ${PORT} (redirects all traffic to HTTPS)`);
+          console.log(`⚠️  HTTP server serves NO content - all requests redirected to HTTPS`);
+        });
+        
+        // HTTPS server startup with enhanced logging
+        httpsServer.listen(HTTPS_PORT, () => {
+          console.log(`🚀 PRODUCTION HTTPS server running on port ${HTTPS_PORT}`);
+          console.log(`📊 Health check: https://localhost:${HTTPS_PORT}/health`);
+          console.log(`🎮 Game API: https://localhost:${HTTPS_PORT}/api`);
+          console.log(`🔔 Socket.IO ready for secure connections`);
+          console.log(`🔐 SSL/TLS: ${sslConfig!.minVersion} to ${sslConfig!.maxVersion}`);
+          console.log(`✅ HTTPS ENFORCEMENT: All HTTP requests redirected to HTTPS`);
+          console.log(`✅ SECURITY: Production server running in HTTPS-only mode`);
+          
+          // Start game loop with configurable interval
+          const gameLoopInterval = parseInt(process.env.GAME_LOOP_INTERVAL_MS || '60000', 10);
+          console.log(`🎮 Starting game loop with ${gameLoopInterval}ms interval`);
+          console.log(`💰 Credit payouts every ${process.env.CREDIT_PAYOUT_PERIOD_MINUTES || '1'} minute(s)`);
+          gameLoop.start(gameLoopInterval);
+        });
+      }
       
       // Setup Socket.IO on HTTPS server
       setupSocketIO(io);
