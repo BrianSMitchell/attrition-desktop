@@ -8,8 +8,12 @@ async function getAutoUpdater() {
   if (autoUpdater) return autoUpdater;
   
   try {
-    const electronUpdaterModule = await import('electron-updater');
-    autoUpdater = electronUpdaterModule.default.autoUpdater;
+    const m = await import('electron-updater');
+    // Support both ESM and CJS shapes
+    autoUpdater = m.autoUpdater || (m.default && m.default.autoUpdater) || null;
+    if (!autoUpdater) {
+      throw new Error('autoUpdater export not found');
+    }
     return autoUpdater;
   } catch (error) {
     log.error('Failed to load electron-updater:', error);
