@@ -462,6 +462,52 @@ router.post('/logout', authenticate, asyncHandler(async (req: AuthRequest, res: 
   });
 }));
 
+// TEMPORARY: Admin setup endpoint to create admin user on server
+router.post('/setup-admin', asyncHandler(async (req: Request, res: Response) => {
+  const { setupKey } = req.body;
+  
+  // Simple setup key to prevent unauthorized admin creation
+  if (setupKey !== 'setup-admin-2025') {
+    return res.status(401).json({ success: false, error: 'Invalid setup key' });
+  }
+  
+  try {
+    // Check if admin already exists
+    const existingAdmin = await User.findOne({ email: 'admin@attrition.com' });
+    if (existingAdmin) {
+      return res.json({ success: true, message: 'Admin user already exists', existing: true });
+    }
+    
+    // Create admin user
+    const adminUser = new User({
+      email: 'admin@attrition.com',
+      username: 'AdminCommander',
+      passwordHash: 'AdminPassword123!', // Will be hashed by pre-save middleware
+      role: 'admin',
+      gameProfile: {
+        credits: 100,
+        experience: 0
+      }
+    });
+    
+    await adminUser.save();
+    
+    res.json({
+      success: true,
+      message: 'Admin user created successfully on server',
+      admin: {
+        email: adminUser.email,
+        username: adminUser.username,
+        role: adminUser.role,
+        id: adminUser._id
+      }
+    });
+    
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: 'Failed to create admin user', details: error.message });
+  }
+}));
+
 // TEMPORARY: Simple admin login bypass for universe generation
 router.post('/admin-login', asyncHandler(async (req: Request, res: Response) => {
   const { password } = req.body;
