@@ -462,4 +462,35 @@ router.post('/logout', authenticate, asyncHandler(async (req: AuthRequest, res: 
   });
 }));
 
+// TEMPORARY: Simple admin login bypass for universe generation
+router.post('/admin-login', asyncHandler(async (req: Request, res: Response) => {
+  const { password } = req.body;
+  
+  // Simple password check for admin account
+  if (password !== 'AdminPassword123!') {
+    return res.status(401).json({ success: false, error: 'Invalid admin password' });
+  }
+  
+  // Find admin user
+  const adminUser = await User.findOne({ email: 'admin@attrition.com' });
+  if (!adminUser || adminUser.role !== 'admin') {
+    return res.status(404).json({ success: false, error: 'Admin user not found' });
+  }
+  
+  // Generate tokens for admin
+  const accessToken = generateAccessToken((adminUser._id as mongoose.Types.ObjectId).toString(), req);
+  const refreshToken = generateRefreshToken((adminUser._id as mongoose.Types.ObjectId).toString());
+  
+  res.json({
+    success: true,
+    data: {
+      user: adminUser.toJSON(),
+      token: accessToken,
+      refreshToken,
+      empire: null // Admin has no empire
+    },
+    message: 'Admin login successful'
+  });
+}));
+
 export default router;
