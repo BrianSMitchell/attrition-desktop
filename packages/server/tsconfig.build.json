@@ -1,0 +1,30 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": [
+    "src/index.ts",
+    "src/routes/**/*.ts",
+    "src/services/**/*.ts",
+    "src/models/**/*.ts",
+    "src/middleware/**/*.ts",
+    "src/utils/**/*.ts",
+    "src/config/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "src/__tests__/**/*",
+    "src/**/__tests__/**/*",
+    "src/**/test/**/*",
+    "src/**/tests/**/*",
+    "src/test-utils/**/*"
+  ]
+}
