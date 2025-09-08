@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "concurrently \"pnpm --filter @game/server dev\" \"pnpm --filter @game/desktop dev\"",
     "build": "pnpm --filter @game/shared build && pnpm --filter @game/server build && pnpm --filter @game/desktop build",
+    "build:server": "pnpm --filter @game/shared build && pnpm --filter @game/server build",
+    "start:server": "pnpm --filter @game/server start",
     "test": "pnpm --filter \"@game/*\" test",
     "lint": "pnpm --filter \"@game/*\" lint",
     "clean": "pnpm --filter \"@game/*\" clean",
