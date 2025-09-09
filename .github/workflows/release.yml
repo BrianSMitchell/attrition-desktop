@@ -1,0 +1,68 @@
+name: Automated Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+        
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+      
+    - name: Build application
+      run: pnpm build
+      
+    - name: Get version from tag
+      id: version
+      run: |
+        $VERSION = $env:GITHUB_REF -replace 'refs/tags/', ''
+        echo "version=$VERSION" >> $env:GITHUB_OUTPUT
+      shell: pwsh
+      
+    - name: Create GitHub Release in attrition-desktop repo
+      uses: softprops/action-gh-release@v1
+      with:
+        repository: BrianSMitchell/attrition-desktop
+        tag_name: ${{ steps.version.outputs.version }}
+        name: Attrition Desktop ${{ steps.version.outputs.version }}
+        body: |
+          ## Attrition Desktop ${{ steps.version.outputs.version }}
+          
+          Automated release of Attrition Desktop.
+          
+          ### Installation
+          1. Download `Attrition-Setup-${{ steps.version.outputs.version }}.exe`
+          2. Run the installer and follow the setup wizard
+          3. Launch the game from your desktop or start menu
+          
+          ### System Requirements
+          - Windows 10 or later
+          - 4GB RAM minimum
+          - 500MB free disk space
+          
+          This release includes automatic updates for future versions.
+        files: |
+          packages/releases/Attrition Setup *.exe
+          packages/releases/Attrition Setup *.exe.blockmap
+          packages/releases/latest.yml
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
