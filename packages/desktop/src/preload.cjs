@@ -19,8 +19,9 @@ contextBridge.exposeInMainWorld('desktop', {
 
   // Auth helpers (do not expose raw refresh token)
   auth: {
-    login: (email, password) => ipcRenderer.invoke('auth:login', email, password),
-    register: (email, username, password) => ipcRenderer.invoke('auth:register', email, username, password),
+    // Pass structured objects to match main process handlers
+    login: (email, password) => ipcRenderer.invoke('auth:login', { email, password }),
+    register: (email, username, password) => ipcRenderer.invoke('auth:register', { email, username, password }),
     refresh: () => ipcRenderer.invoke('auth:refresh'),
   },
 

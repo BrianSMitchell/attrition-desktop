@@ -1,45 +1,5 @@
-import axios from 'axios';
+import api from './api';
 import { ApiResponse } from '@game/shared';
-import { attachMetrics } from './httpInstrumentation';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-// Create axios instance with default config (mirrors authService)
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-attachMetrics(api, 'universe');
-
-// Add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth-storage');
-  if (token) {
-    try {
-      const parsed = JSON.parse(token);
-      if (parsed.state?.token) {
-        (config.headers as any).Authorization = `Bearer ${parsed.state.token}`;
-      }
-    } catch (error) {
-      console.error('Error parsing auth token:', error);
-    }
-  }
-  return config;
-});
-
-// Handle auth errors
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('auth-storage');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
 
 // Types for universe API
 export interface UniverseLocationData {
@@ -183,9 +143,16 @@ async function getWithDedupe<T>(url: string): Promise<ApiResponse<T>> {
         resultCache.set(url, { ts: Date.now(), data });
       }
       return data;
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.response) {
-        return error.response.data as ApiResponse<T>;
+    } catch (error: any) {
+      // api.ts normalizes errors as ApiError objects; map to ApiResponse shape
+      if (error && typeof error === 'object' && typeof error.code === 'string') {
+        return {
+          success: false,
+          code: error.code,
+          message: error.message || 'Request failed',
+          details: error.details,
+          status: error.status,
+        } as ApiResponse<T> as any;
       }
       throw new Error('Network error occurred');
     } finally {

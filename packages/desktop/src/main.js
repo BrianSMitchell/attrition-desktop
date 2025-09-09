@@ -614,11 +614,14 @@ let updateService;
 // Update service IPC handlers
 ipcMain.handle('update:check', async () => {
   try {
+    errorLogger.info('IPC update:check called', { hasUpdateService: !!updateService });
     if (!updateService) {
+      errorLogger.warn('Update service not initialized');
       return { success: false, error: 'Update service not initialized' };
     }
-    await updateService.checkForUpdates();
-    return { success: true };
+    const result = await updateService.checkForUpdates();
+    errorLogger.info('Update check completed', result);
+    return result || { success: true };
   } catch (error) {
     errorLogger.error('Update check failed', error);
     return { success: false, error: error.message };
@@ -627,7 +630,9 @@ ipcMain.handle('update:check', async () => {
 
 ipcMain.handle('update:download', async () => {
   try {
+    errorLogger.info('IPC update:download called', { hasUpdateService: !!updateService });
     if (!updateService) {
+      errorLogger.warn('Update service not initialized');
       return { success: false, error: 'Update service not initialized' };
     }
     await updateService.downloadUpdate();
@@ -640,7 +645,9 @@ ipcMain.handle('update:download', async () => {
 
 ipcMain.handle('update:install', async () => {
   try {
+    errorLogger.info('IPC update:install called', { hasUpdateService: !!updateService });
     if (!updateService) {
+      errorLogger.warn('Update service not initialized');
       return { success: false, error: 'Update service not initialized' };
     }
     updateService.quitAndInstall();
@@ -653,10 +660,13 @@ ipcMain.handle('update:install', async () => {
 
 ipcMain.handle('update:status', async () => {
   try {
+    errorLogger.info('IPC update:status called', { hasUpdateService: !!updateService });
     if (!updateService) {
+      errorLogger.warn('Update service not initialized');
       return { success: false, error: 'Update service not initialized' };
     }
     const status = updateService.getStatus();
+    errorLogger.info('Update status retrieved', status);
     return { success: true, status };
   } catch (error) {
     errorLogger.error('Update status check failed', error);
@@ -1636,15 +1646,27 @@ app.on('ready', async () => {
 
   // Initialize auto-updater service
   try {
+    errorLogger.info('Initializing UpdateService...');
     updateService = new UpdateService();
+    errorLogger.info('UpdateService instance created');
+    
     updateService.startPeriodicChecks(60); // Check every hour
+    errorLogger.info('UpdateService periodic checks started');
+    
     // Kick off a silent check shortly after startup
     setTimeout(() => {
-      try { updateService.checkForUpdates(true); } catch {}
+      try { 
+        errorLogger.info('Running delayed silent update check');
+        updateService.checkForUpdates(true); 
+      } catch (e) {
+        errorLogger.error('Delayed update check failed', e);
+      }
     }, 5000);
-    errorLogger.info('UpdateService initialized');
+    
+    errorLogger.info('UpdateService initialization completed successfully');
   } catch (error) {
     errorLogger.error('Failed to initialize UpdateService', error);
+    updateService = null;
   }
   
   createMainWindow();

@@ -20,8 +20,10 @@ export default defineConfig(({ mode }) => ({
     }
   },
   define: {
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || mode || 'development'),
     'import.meta.env.DESKTOP_MODE': 'true',
-    'import.meta.env.VITE_FORCE_DEV_MODE': JSON.stringify(mode === 'development' ? 'true' : 'false')
+    'import.meta.env.VITE_FORCE_DEV_MODE': JSON.stringify(mode === 'development' ? 'true' : 'false'),
+    'import.meta.env.MODE': JSON.stringify(mode),
+    'import.meta.env.PROD': JSON.stringify(mode === 'production')
   }
 }))

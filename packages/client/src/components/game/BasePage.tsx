@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
 import universeService from '../../services/universeService';
 import BaseDetail from './BaseDetail';
@@ -19,31 +19,6 @@ const StatItem: React.FC<{ label: string; main: React.ReactNode; sub?: React.Rea
   </div>
 );
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-// Axios with auth header
-function createAuthenticatedApi() {
-  const api = axios.create({
-    baseURL: API_BASE_URL,
-    headers: { 'Content-Type': 'application/json' },
-  });
-  api.interceptors.request.use((config) => {
-    try {
-      const raw = localStorage.getItem('auth-storage');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const token = parsed?.state?.token;
-        if (token) {
-          (config.headers as any).Authorization = `Bearer ${token}`;
-        }
-      }
-    } catch {
-      // ignore
-    }
-    return config;
-  });
-  return api;
-}
 
 type FetchedBuildings = Array<{
   _id: string;
@@ -88,7 +63,7 @@ const BasePage: React.FC = () => {
   const navigate = useNavigate();
   const { coord } = useParams<{ coord: string }>();
   const [searchParams] = useSearchParams();
-  const api = useMemo(() => createAuthenticatedApi(), []);
+  const apiInstance = api;
   const { user, empire } = useAuthStore();
 
   const tabParamRaw = searchParams.get('tab');
@@ -155,7 +130,7 @@ const BasePage: React.FC = () => {
 
         // 2) Fetch buildings: owner sees full BaseDetail, public view shows read-only structures
         if (user && locRes.data.owner?.id === user._id) {
-          const bRes = await api.get(`/game/buildings/location/${encodeURIComponent(coord)}`);
+          const bRes = await apiInstance.get(`/game/buildings/location/${encodeURIComponent(coord)}`);
           const buildingsRaw: FetchedBuildings = bRes.data?.data?.buildings || [];
 
           const constructionQueue = buildingsRaw.filter((b) => !b.isActive);

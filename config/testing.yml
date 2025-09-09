@@ -1,0 +1,78 @@
+# Testing Environment Configuration
+
+# Test Database Configuration
+database:
+  uri: "mongodb://localhost:27017/attrition-test"
+  options:
+    useNewUrlParser: true
+    useUnifiedTopology: true
+    maxPoolSize: 5
+    serverSelectionTimeoutMS: 5000
+    
+# Test Server Configuration  
+server:
+  port: 3002
+  host: "localhost"
+  
+# JWT Configuration for Tests
+jwt:
+  secret: "test-jwt-secret-key"
+  expires_in: "1h"
+  
+# Rate Limiting (Disabled for tests)
+rate_limiting:
+  enabled: false
+  
+# Logging (Minimal for tests)
+logging:
+  level: "error"
+  console: false
+  file: false
+  
+# Game Configuration (Fast for tests)
+game:
+  loop_interval_ms: 100
+  credit_payout_period_minutes: 1
+  
+# Test-specific Settings
+testing:
+  # Test database cleanup
+  auto_cleanup: true
+  cleanup_timeout: 5000
+  
+  # Test data seeding
+  seed_test_data: true
+  seed_users: 5
+  seed_empires: 3
+  
+  # Performance testing
+  performance_tests: false
+  load_test_users: 100
+  
+  # Integration testing
+  api_timeout: 10000
+  socket_timeout: 5000
+  
+  # Coverage requirements
+  coverage:
+    statements: 70
+    branches: 70
+    functions: 70
+    lines: 70
+    
+  # Parallel testing
+  max_workers: 4
+  
+# Mock Configuration
+mocks:
+  external_apis: true
+  email_service: true
+  payment_service: true
+  analytics: true
+  
+# Test Reporter Configuration
+reporters:
+  console: true
+  junit: true
+  coverage: true
+  html: true

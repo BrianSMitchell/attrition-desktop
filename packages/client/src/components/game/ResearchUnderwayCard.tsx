@@ -1,53 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import type { Empire, ResearchProject } from '@game/shared';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 interface ResearchUnderwayCardProps {
   empire: Empire;
 }
 
-const createAuthenticatedApi = () => {
-  const api = axios.create({
-    baseURL: API_BASE_URL,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  // Add auth token to requests
-  api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('auth-storage');
-    if (token) {
-      try {
-        const parsed = JSON.parse(token);
-        if (parsed.state?.token) {
-          (config.headers as any).Authorization = `Bearer ${parsed.state.token}`;
-        }
-      } catch (error) {
-        console.error('Error parsing auth token:', error);
-      }
-    }
-    return config;
-  });
-
-  // Handle auth errors
-  api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      if (error.response?.status === 401) {
-        localStorage.removeItem('auth-storage');
-        window.location.href = '/login';
-      }
-      return Promise.reject(error);
-    }
-  );
-
-  return api;
-};
-
-const api = createAuthenticatedApi();
+// Use shared API client
+const apiInstance = api;
 
 const getResearchIcon = (type: string) => {
   const icons: Record<string, string> = {
@@ -76,7 +36,7 @@ const ResearchUnderwayCard: React.FC<ResearchUnderwayCardProps> = ({ }) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get('/game/research');
+      const res = await apiInstance.get('/game/research');
       if (res.data?.success) {
         setProjects(res.data.data.researchProjects as ResearchProject[]);
       } else {

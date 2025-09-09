@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import baseStatsService from '../../services/baseStatsService';
 import { Link } from 'react-router-dom';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 type Economy = {
   metalPerHour: number;
@@ -28,44 +26,7 @@ interface BaseEventsTableProps {
   onRowClick?: (baseId: string) => void;
 }
 
-// Local axios instance with auth header injection (mirrors pattern in BaseManagement)
-const createAuthenticatedApi = () => {
-  const api = axios.create({
-    baseURL: API_BASE_URL,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('auth-storage');
-    if (token) {
-      try {
-        const parsed = JSON.parse(token);
-        if (parsed.state?.token) {
-          config.headers = config.headers || {};
-          (config.headers as any).Authorization = `Bearer ${parsed.state.token}`;
-        }
-      } catch (error) {
-        console.error('Error parsing auth token:', error);
-      }
-    }
-    return config;
-  });
-
-  api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      if (error.response?.status === 401) {
-        localStorage.removeItem('auth-storage');
-        window.location.href = '/login';
-      }
-      return Promise.reject(error);
-    }
-  );
-
-  return api;
-};
+// Use shared API client with centralized base URL and token handling
 
 /**
  * Formats a remaining duration in milliseconds into a compact H/M display:
@@ -113,13 +74,13 @@ const BaseEventsTable: React.FC<BaseEventsTableProps> = ({ onRowClick }) => {
   const [error, setError] = useState<string | null>(null);
   const [econMap, setEconMap] = useState<Record<string, BaseEcon>>({});
 
-  const api = createAuthenticatedApi();
+  const apiInstance = api;
 
   const fetchSummary = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get('/game/bases/summary');
+      const res = await apiInstance.get('/game/bases/summary');
       if (res.data?.success) {
         const bases: BaseSummary[] = res.data.data?.bases || [];
         setItems(bases);

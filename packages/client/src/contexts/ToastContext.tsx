@@ -1,6 +1,6 @@
 import * as React from "react";
 
-type ToastType = "success" | "info" | "error";
+type ToastType = "success" | "info" | "error" | "warning";
 
 export interface ToastItem {
   id: string;
@@ -73,11 +73,13 @@ export const ToastViewport: React.FC = () => {
             ? "bg-red-900/70 text-red-200 border border-red-700"
             : t.type === "success"
             ? "bg-green-900/70 text-green-200 border border-green-700"
+            : t.type === "warning"
+            ? "bg-yellow-900/70 text-yellow-200 border border-yellow-700"
             : "bg-gray-800/80 text-gray-200 border border-gray-700";
         const dotColor =
-          t.type === "error" ? "bg-red-400" : t.type === "success" ? "bg-green-400" : "bg-blue-400";
+          t.type === "error" ? "bg-red-400" : t.type === "success" ? "bg-green-400" : t.type === "warning" ? "bg-yellow-400" : "bg-blue-400";
         const title =
-          t.type === "error" ? "Error" : t.type === "success" ? "Success" : "Notice";
+          t.type === "error" ? "Error" : t.type === "success" ? "Success" : t.type === "warning" ? "Warning" : "Notice";
 
         return (
           <div

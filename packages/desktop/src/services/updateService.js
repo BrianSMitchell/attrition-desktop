@@ -5,18 +5,41 @@ import log from 'electron-log';
 let autoUpdater = null;
 
 async function getAutoUpdater() {
-  if (autoUpdater) return autoUpdater;
+  if (autoUpdater) {
+    log.info('getAutoUpdater: Returning cached autoUpdater instance');
+    return autoUpdater;
+  }
   
   try {
+    log.info('getAutoUpdater: Attempting to import electron-updater');
     const m = await import('electron-updater');
+    log.info('getAutoUpdater: electron-updater module imported', { 
+      hasAutoUpdater: !!m.autoUpdater, 
+      hasDefault: !!m.default, 
+      hasDefaultAutoUpdater: !!(m.default && m.default.autoUpdater),
+      moduleKeys: Object.keys(m)
+    });
+    
     // Support both ESM and CJS shapes
     autoUpdater = m.autoUpdater || (m.default && m.default.autoUpdater) || null;
+    
     if (!autoUpdater) {
+      log.error('getAutoUpdater: autoUpdater export not found in module', {
+        moduleKeys: Object.keys(m),
+        hasAutoUpdater: !!m.autoUpdater,
+        hasDefault: !!m.default
+      });
       throw new Error('autoUpdater export not found');
     }
+    
+    log.info('getAutoUpdater: autoUpdater successfully resolved');
     return autoUpdater;
   } catch (error) {
-    log.error('Failed to load electron-updater:', error);
+    log.error('Failed to load electron-updater:', error, {
+      errorMessage: error.message,
+      errorCode: error.code,
+      errorStack: error.stack
+    });
     return null;
   }
 }
@@ -40,16 +63,25 @@ class UpdateService {
   
   async initialize() {
     try {
+      log.info('UpdateService: Starting initialization');
       this.autoUpdater = await getAutoUpdater();
       
       if (!this.autoUpdater) {
         log.error('autoUpdater is not available - UpdateService will be disabled');
+        this.isValid = false;
         return;
       }
       
+      log.info('UpdateService: autoUpdater loaded successfully');
       this.setupLogger();
+      log.info('UpdateService: Logger configured');
+      
       this.setupEventHandlers();
+      log.info('UpdateService: Event handlers configured');
+      
       this.configureUpdater();
+      log.info('UpdateService: Updater configured');
+      
       this.isValid = true;
       log.info('UpdateService initialized successfully');
     } catch (error) {
@@ -121,7 +153,7 @@ class UpdateService {
 
   configureUpdater() {
     // Configure auto-updater settings
-    this.autoUpdater.autoDownload = true; // Download updates automatically in background
+    this.autoUpdater.autoDownload = false; // Let user decide when to download
     this.autoUpdater.autoInstallOnAppQuit = true;
     
     // Only check for updates in production
@@ -129,12 +161,20 @@ class UpdateService {
       this.autoUpdater.updateConfigPath = 'dev-app-update.yml';
     }
 
-    // Set update server URL if needed (defaults to GitHub Releases)
-    // this.autoUpdater.setFeedURL({
-    //   provider: 'github',
-    //   owner: 'attrition-game',
-    //   repo: 'attrition-desktop'
-    // });
+    // Explicitly set GitHub configuration for updates
+    log.info('Configuring GitHub update feed: BrianSMitchell/attrition-desktop');
+    this.autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: 'BrianSMitchell',
+      repo: 'attrition-desktop'
+    });
+    
+    // Log current configuration
+    log.info('UpdateService configuration:', {
+      autoDownload: this.autoUpdater.autoDownload,
+      autoInstallOnAppQuit: this.autoUpdater.autoInstallOnAppQuit,
+      isDevelopment: process.env.NODE_ENV === 'development'
+    });
   }
 
   /**
@@ -142,27 +182,54 @@ class UpdateService {
    * @param {boolean} silent - Whether to show "no updates" message
    */
   async checkForUpdates(silent = false) {
+    log.info(`UpdateService.checkForUpdates called`, { silent, isValid: this.isValid, checkingForUpdate: this.checkingForUpdate, isDev: process.env.NODE_ENV === 'development' });
+    
     if (!this.isValid) {
       log.warn('UpdateService is not valid - skipping update check');
-      return;
+      return { success: false, error: 'UpdateService not initialized' };
+    }
+    
+    // In development, simulate or warn instead of actual update check
+    if (process.env.NODE_ENV === 'development') {
+      log.info('Development mode detected - simulating update check');
+      if (!silent) {
+        this.notifyRenderer('update-checking');
+        // Simulate checking delay
+        setTimeout(() => {
+          this.notifyRenderer('update-not-available');
+        }, 2000);
+      }
+      return { success: true, isDevelopment: true, message: 'Development mode - no actual update check performed' };
     }
     
     if (this.checkingForUpdate) {
       log.info('Update check already in progress');
-      return;
+      return { success: false, error: 'Update check already in progress' };
     }
 
     try {
+      log.info('Starting update check...');
       if (!silent) {
+        log.info('Notifying renderer: update-checking');
         this.notifyRenderer('update-checking');
       }
       
-      await this.autoUpdater.checkForUpdatesAndNotify();
+      log.info('Calling autoUpdater.checkForUpdatesAndNotify()');
+      const result = await this.autoUpdater.checkForUpdatesAndNotify();
+      log.info('checkForUpdatesAndNotify completed', { result });
+      
+      return { success: true, result };
     } catch (error) {
-      log.error('Failed to check for updates:', error);
+      log.error('Failed to check for updates:', error, {
+        errorMessage: error.message,
+        errorCode: error.code,
+        errorStack: error.stack
+      });
       if (!silent) {
+        log.info('Notifying renderer: update-error');
         this.notifyRenderer('update-error', { message: error.message });
       }
+      return { success: false, error: error.message };
     }
   }
 
@@ -261,32 +328,18 @@ class UpdateService {
    * @returns {object} Status information
    */
   getStatus() {
-    return {
+    const status = {
       isValid: this.isValid,
       updateAvailable: this.updateAvailable,
       updateDownloaded: this.updateDownloaded,
       checkingForUpdate: this.checkingForUpdate,
       downloadProgress: this.downloadProgress
     };
+    
+    log.info('UpdateService.getStatus called', status);
+    return status;
   }
 
-  /**
-   * Notify renderer process about update events
-   * @param {string} event - Event type
-   * @param {object} data - Event data
-   */
-  notifyRenderer(event, data = {}) {
-    try {
-      const windows = BrowserWindow.getAllWindows();
-      windows.forEach(win => {
-        if (!win.isDestroyed()) {
-          win.webContents.send('update-event', { event, data, timestamp: Date.now() });
-        }
-      });
-    } catch (error) {
-      log.error('Failed to notify renderer about update event:', error);
-    }
-  }
 
   /**
    * Notify renderer process of update events
@@ -298,17 +351,6 @@ class UpdateService {
     });
   }
 
-  /**
-   * Get current update status
-   */
-  getStatus() {
-    return {
-      updateAvailable: this.updateAvailable,
-      updateDownloaded: this.updateDownloaded,
-      checkingForUpdate: this.checkingForUpdate,
-      downloadProgress: this.downloadProgress
-    };
-  }
 }
 
 export { UpdateService };

@@ -10,8 +10,8 @@ type Task = {
 
 type SetRegionDataFn = (key: string, data: { systemsWithStars: number[]; starColors?: Record<number, string> }) => void;
 
-const getApiBaseUrl = () =>
-  (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api';
+import { getCurrentApiConfig } from '../utils/apiConfig';
+const getApiBaseUrl = () => getCurrentApiConfig().apiUrl;
 
 function getAuthHeader(): Record<string, string> {
   try {

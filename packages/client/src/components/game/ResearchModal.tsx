@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Empire, ResearchProject } from '@game/shared';
-import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import api from '../../services/api';
 
 interface ResearchTemplate {
   type: 'military' | 'economic' | 'exploration';
@@ -147,39 +145,13 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
     }
   ];
 
-  // Create authenticated API instance
-  const createAuthenticatedApi = () => {
-    const api = axios.create({
-      baseURL: API_BASE_URL,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    api.interceptors.request.use((config) => {
-      const token = localStorage.getItem('auth-storage');
-      if (token) {
-        try {
-          const parsed = JSON.parse(token);
-          if (parsed.state?.token) {
-            config.headers.Authorization = `Bearer ${parsed.state.token}`;
-          }
-        } catch (error) {
-          console.error('Error parsing auth token:', error);
-        }
-      }
-      return config;
-    });
-
-    return api;
-  };
-
-  const api = createAuthenticatedApi();
+  // Use shared API client
+  const apiInstance = api;
 
   // Fetch research projects
   const fetchResearchProjects = async () => {
     try {
-      const response = await api.get('/game/research');
+      const response = await apiInstance.get('/game/research');
       if (response.data.success) {
         setResearchProjects(response.data.data.researchProjects);
       }
@@ -200,7 +172,7 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
     setError(null);
 
     try {
-      const response = await api.post('/game/research/start', {
+      const response = await apiInstance.post('/game/territories/colonize', {
         type: template.type,
         name: template.name,
         description: template.description,

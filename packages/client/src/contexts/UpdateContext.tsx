@@ -73,6 +73,7 @@ export const UpdateProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       cleanup = desktop.updater.onUpdateEvent((eventData: { type: string; data: any }) => {
         const { type, data } = eventData;
+        console.log('[UpdateContext] Received update event:', { type, data });
 
         switch (type) {
           case 'update-checking':
@@ -158,14 +159,20 @@ export const UpdateProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Load initial update status
   React.useEffect(() => {
-    if (!isDesktop) return;
+    if (!isDesktop) {
+      console.log('[UpdateContext] Not desktop environment, skipping status load');
+      return;
+    }
 
     const loadStatus = async () => {
       try {
+        console.log('[UpdateContext] Loading initial update status...');
         const desktop = (window as any).desktop;
         const response = await desktop.updater.getStatus();
+        console.log('[UpdateContext] Initial status response:', response);
         
         if (response.success) {
+          console.log('[UpdateContext] Setting initial state from status:', response.status);
           setState(prev => ({
             ...prev,
             updateAvailable: response.status.updateAvailable,
@@ -173,6 +180,8 @@ export const UpdateProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             checkingForUpdate: response.status.checkingForUpdate,
             downloadProgress: response.status.downloadProgress,
           }));
+        } else {
+          console.warn('[UpdateContext] Initial status load failed:', response.error);
         }
       } catch (error) {
         console.error('[UpdateContext] Failed to load initial update status:', error);
@@ -183,6 +192,8 @@ export const UpdateProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const checkForUpdates = React.useCallback(async () => {
+    console.log('[UpdateContext] checkForUpdates called', { isDesktop });
+    
     if (!isDesktop) {
       console.warn('[UpdateContext] checkForUpdates called in non-desktop environment');
       return;
@@ -190,10 +201,15 @@ export const UpdateProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     try {
       const desktop = (window as any).desktop;
+      console.log('[UpdateContext] Calling desktop.updater.checkForUpdates()');
       const response = await desktop.updater.checkForUpdates();
+      console.log('[UpdateContext] checkForUpdates response:', response);
       
       if (!response.success) {
+        console.warn('[UpdateContext] checkForUpdates failed:', response.error);
         setState(prev => ({ ...prev, error: response.error }));
+      } else {
+        console.log('[UpdateContext] checkForUpdates succeeded');
       }
     } catch (error) {
       console.error('[UpdateContext] Check for updates failed:', error);

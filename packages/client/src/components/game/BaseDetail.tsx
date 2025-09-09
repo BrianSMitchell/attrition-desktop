@@ -102,10 +102,9 @@ interface BaseDetailProps {
   onBack: () => void;
   initialActivePanel?: 'overview' | 'fleet' | 'defense' | 'research' | 'structures' | 'trade';
   onPanelChange?: (panel: 'overview' | 'fleet' | 'defense' | 'research' | 'structures' | 'trade') => void;
-  onStart?: (key: string) => Promise<void> | void;
 }
 
-const BaseDetail: React.FC<BaseDetailProps> = ({ base, onBack, initialActivePanel, onPanelChange, onStart }) => {
+const BaseDetail: React.FC<BaseDetailProps> = ({ base, onBack, initialActivePanel, onPanelChange }) => {
   const [activePanel, setActivePanel] = useState<
     'overview' | 'fleet' | 'defense' | 'research' | 'structures' | 'trade'
   >(initialActivePanel ?? 'overview');
@@ -421,7 +420,30 @@ const BaseDetail: React.FC<BaseDetailProps> = ({ base, onBack, initialActivePane
       }
       return;
     }
-    onStart?.(key);
+
+    // Online path: start structure via API and refresh state
+    try {
+      setStructuresLoading(true);
+      setStructuresError(null);
+      const result = await structuresService.start(base.locationCoord, key as BuildingKey);
+      if (!result.success) {
+        if (result.code === 'ALREADY_IN_PROGRESS' || result.code === 'HTTP_409') {
+          showNotice('Already in progress — refreshed.');
+        } else {
+          setStructuresError(result.error || result.message || 'Failed to start structure');
+        }
+      }
+      // Refresh budgets/status regardless so UI reflects server state
+      await Promise.all([checkAuth(true), refreshHeaderBudgets()]);
+      await loadStructuresData();
+      await loadCapacitiesData();
+      await loadBaseLevels();
+      await loadPlanetEnergyContext();
+    } catch {
+      setStructuresError('Network error');
+    } finally {
+      setStructuresLoading(false);
+    }
   };
 
   const handleQueue = async (s: BuildingSpec): Promise<{ success: boolean; eventId?: number }> => {

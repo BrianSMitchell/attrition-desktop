@@ -1,0 +1,49 @@
+# Development Environment Configuration
+# This file contains development-specific settings
+
+# Server Configuration
+server:
+  port: 3001
+  host: localhost
+  cors_origin: "http://localhost:3000"
+  
+# Database Configuration
+database:
+  uri: "mongodb://localhost:27017/attrition-dev"
+  options:
+    useNewUrlParser: true
+    useUnifiedTopology: true
+  
+# JWT Configuration
+jwt:
+  expires_in: "7d"
+  
+# Rate Limiting (Relaxed for development)
+rate_limiting:
+  enabled: false
+  window_ms: 60000
+  max_requests: 2000
+  skip_auth: true
+  skip_game: true
+  
+# Game Configuration
+game:
+  loop_interval_ms: 10000  # Faster for development
+  credit_payout_period_minutes: 1
+  
+# Logging
+logging:
+  level: "debug"
+  console: true
+  file: false
+  
+# Security (Relaxed for development)
+security:
+  https_enforce: false
+  certificate_pinning: false
+  
+# Features
+features:
+  auto_updates: true
+  beta_features: true
+  debug_mode: true

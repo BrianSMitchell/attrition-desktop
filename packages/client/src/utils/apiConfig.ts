@@ -63,7 +63,7 @@ function getApiBaseUrl(): string {
     baseUrl = import.meta.env.VITE_API_URL;
   } else if (isProduction) {
     // Production: Use HTTPS with configurable host
-    const productionHost = import.meta.env.VITE_PRODUCTION_HOST || 'api.attrition.game';
+    const productionHost = import.meta.env.VITE_PRODUCTION_HOST || 'attrition-game.onrender.com';
     baseUrl = `https://${productionHost}/api`;
     console.log(`🖥️ Desktop Production API: ${baseUrl}`);
   } else {

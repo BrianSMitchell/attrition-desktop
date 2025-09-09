@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Empire, getColonizationCost } from '@game/shared';
-import axios from 'axios';
+import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useModalStore } from '../../stores/modalStore';
 import universeService, { UniverseLocationData } from '../../services/universeService';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 
 interface Territory {
@@ -40,41 +38,15 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
   // Get progressive colonization cost based on empire base count
   const colonizationCostCredits = getColonizationCost(empire.baseCount || 0, empire.hasDeletedBase || false);
 
-  // Create authenticated API instance
-  const createAuthenticatedApi = () => {
-    const api = axios.create({
-      baseURL: API_BASE_URL,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    api.interceptors.request.use((config) => {
-      const token = localStorage.getItem('auth-storage');
-      if (token) {
-        try {
-          const parsed = JSON.parse(token);
-          if (parsed.state?.token) {
-            config.headers.Authorization = `Bearer ${parsed.state.token}`;
-          }
-        } catch (error) {
-          console.error('Error parsing auth token:', error);
-        }
-      }
-      return config;
-    });
-
-    return api;
-  };
-
-  const api = createAuthenticatedApi();
+  // Use shared API client
+  const apiInstance = api;
   const navigate = useNavigate();
   const { closeModal } = useModalStore();
 
   // Fetch empire territories
   const fetchTerritories = async () => {
     try {
-      const response = await api.get('/game/territories');
+      const response = await apiInstance.get('/game/territories');
       if (response.data.success) {
         setTerritories(response.data.data.territories);
       }
@@ -145,7 +117,7 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
     setError(null);
 
     try {
-      const response = await api.post('/game/territories/colonize', {
+      const response = await apiInstance.post('/game/territories/colonize', {
         locationCoord: locationData.coord,
         colonyName: colonyName.trim()
       });

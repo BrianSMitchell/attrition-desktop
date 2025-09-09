@@ -1,0 +1,49 @@
+# Production Environment Configuration
+# This file contains production-specific settings
+
+# Server Configuration
+server:
+  port: 3001
+  host: 0.0.0.0
+  cors_origin: "*"
+  
+# Database Configuration
+database:
+  uri: "{{DATABASE_URI}}"  # Injected via environment variables or deployment system
+  options:
+    useNewUrlParser: true
+    useUnifiedTopology: true
+  
+# JWT Configuration
+jwt:
+  expires_in: "7d"
+  
+# Rate Limiting (Strict for production)
+rate_limiting:
+  enabled: true
+  window_ms: 900000
+  max_requests: 100
+  skip_auth: false
+  skip_game: false
+  
+# Game Configuration
+game:
+  loop_interval_ms: 60000
+  credit_payout_period_minutes: 60
+  
+# Logging
+logging:
+  level: "info"
+  console: true
+  file: true
+  
+# Security
+security:
+  https_enforce: true
+  certificate_pinning: true
+  
+# Features
+features:
+  auto_updates: true
+  beta_features: false
+  debug_mode: false

@@ -7,6 +7,16 @@ node_modules/
 dist/
 build/
 
+# New directory structure - Build outputs
+packages/*/dist/
+packages/*/build/
+releases/
+
+# Temporary directories
+temp/
+temp-*/
+scripts/temp/
+
 # Environment variables
 .env
 .env.local
@@ -139,7 +149,24 @@ social_media.clierule
 # Desktop app build artifacts
 packages/desktop/out/
 packages/desktop/temp-extract/
+packages/desktop/AttritionPortable/
+packages/desktop/temp-electron/
 *.tsbuildinfo
+
+# Build and release artifacts
+releases/*.zip
+releases/*.exe
+releases/*.dmg
+releases/*.AppImage
+releases/*.deb
+releases/latest*.yml
+releases/RELEASES
+
+# Script outputs and temporary files
+scripts/temp/
+scripts/output/
+*.tmp
+*.temp
 
 # Personal/development tools
 supermemory-local/

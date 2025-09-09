@@ -6,11 +6,22 @@ A strategic desktop space empire game built with Electron, React, Node.js, and M
 
 ```
 attrition/
-├── packages/
+├── packages/            # Application packages
 │   ├── desktop/         # Electron desktop app (main process)
 │   ├── client/          # React UI (embedded in Electron)
 │   ├── server/          # Node.js game server (Express + MongoDB)
 │   └── shared/          # Shared types and utilities
+├── config/              # Configuration files
+│   ├── electron-builder.yml  # Build configuration
+│   ├── development.yml  # Development environment config
+│   ├── production.yml   # Production environment config
+│   └── test.yml         # Test environment config
+├── scripts/             # Development and maintenance scripts
+│   ├── dev/             # Development utilities
+│   ├── build/           # Build scripts
+│   └── maintenance/     # Database and admin scripts
+├── releases/            # Build artifacts and release files
+├── docs/                # Project documentation
 ├── package.json         # Workspace configuration
 └── README.md
 ```
@@ -145,6 +156,29 @@ pnpm --filter @game/shared build   # Build TypeScript
 pnpm --filter @game/shared dev     # Watch mode
 ```
 
+### Scripts and Utilities
+
+**Development Scripts**
+```bash
+node scripts/dev/test-feedback-system.js   # Test feedback system
+# Add more development utilities in scripts/dev/
+```
+
+**Maintenance Scripts**
+```bash
+node scripts/maintenance/create-admin.js   # Create admin user
+node scripts/maintenance/clean-database.js # Clean database
+node scripts/maintenance/inspect-db.js     # Inspect database
+# More maintenance tools available in scripts/maintenance/
+```
+
+**Build and Release**
+```bash
+pnpm run build              # Build all packages
+pnpm run release:prepare    # Build and create distribution
+pnpm run clean:all         # Clean all build artifacts
+```
+
 ## Features
 
 ### Phase 1: Authentication & Basic Framework ✅
@@ -247,8 +281,21 @@ pnpm --filter @game/shared dev     # Watch mode
 
 ### Production Build
 ```bash
-pnpm build
+pnpm run release:prepare
 ```
+
+This will:
+1. Build all packages
+2. Create distribution files in `releases/`
+3. Generate installers for all platforms
+
+### Configuration
+
+Environment-specific configurations are in `config/`:
+- `config/development.yml` - Development settings
+- `config/production.yml` - Production settings  
+- `config/test.yml` - Test environment settings
+- `config/electron-builder.yml` - Build configuration
 
 ### Environment Variables (Production)
 Ensure these are set in your production environment:

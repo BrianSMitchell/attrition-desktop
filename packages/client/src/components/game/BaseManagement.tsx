@@ -1,51 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useBaseStore } from '../../stores/baseStore';
 import { Empire } from '@game/shared';
-import axios from 'axios';
+import api from '../../services/api';
 import BaseOverview from './BaseOverview';
 import BaseDetail from './BaseDetail';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-// Create axios instance with auth token handling
-const createAuthenticatedApi = () => {
-  const api = axios.create({
-    baseURL: API_BASE_URL,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  // Add auth token to requests
-  api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('auth-storage');
-    if (token) {
-      try {
-        const parsed = JSON.parse(token);
-        if (parsed.state?.token) {
-          config.headers.Authorization = `Bearer ${parsed.state.token}`;
-        }
-      } catch (error) {
-        console.error('Error parsing auth token:', error);
-      }
-    }
-    return config;
-  });
-
-  // Handle auth errors
-  api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      if (error.response?.status === 401) {
-        localStorage.removeItem('auth-storage');
-        window.location.href = '/login';
-      }
-      return Promise.reject(error);
-    }
-  );
-
-  return api;
-};
 
 interface BaseManagementProps {
   empire: Empire;
@@ -66,7 +24,6 @@ const BaseManagement: React.FC<BaseManagementProps> = ({ empire }) => {
   } = useBaseStore();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'detail'>('overview');
-  const api = createAuthenticatedApi();
 
   // Fetch all bases for the empire
   const fetchBases = async () => {

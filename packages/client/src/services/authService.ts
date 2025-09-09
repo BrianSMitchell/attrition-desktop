@@ -2,8 +2,11 @@ import axios from 'axios';
 import { ApiResponse, AuthResponse } from '@game/shared';
 import { attachMetrics } from './httpInstrumentation';
 import { getToken as getMemToken, setToken as setMemToken, clearToken as clearMemToken } from './tokenProvider';
+import { getCurrentApiConfig } from '../utils/apiConfig';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Use the same API configuration as the main API service
+const apiConfig = getCurrentApiConfig();
+const API_BASE_URL = apiConfig.apiUrl;
 
 /* Create axios instance with default config */
 const api = axios.create({
@@ -176,10 +179,13 @@ const PROFILE_TTL_MS = 5000;
 
 export const authService = {
   async login(email: string, password: string): Promise<ApiResponse<AuthResponse>> {
+    console.log('[AUTH-SERVICE] Login called with:', { email, password: password ? '[PRESENT]' : '[MISSING]' });
     try {
       // Desktop path: perform login via main IPC so refresh token never touches renderer
       if (typeof window !== 'undefined' && window.desktop?.auth?.login) {
+        console.log('[AUTH-SERVICE] Using desktop IPC auth.login');
         const resp = await window.desktop.auth.login(email, password);
+        console.log('[AUTH-SERVICE] Desktop IPC response:', resp);
       if (resp?.success && (resp as any).data?.token) {
         setTokenWithScheduling((resp as any).data.token as string);
       }

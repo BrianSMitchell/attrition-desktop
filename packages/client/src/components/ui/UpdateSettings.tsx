@@ -28,24 +28,45 @@ const UpdateSettings: React.FC = () => {
   }
 
   const handleManualCheck = async () => {
+    console.log('[UpdateSettings] Manual check button clicked');
     setIsChecking(true);
     try {
+      console.log('[UpdateSettings] Starting manual check...');
       await checkForUpdates();
-      
-      // Show appropriate message based on result
-      setTimeout(() => {
-        if (state.updateAvailable) {
-          addToast({ type: "info", text: "Update found! Check the notification to download." });
-        } else if (!state.error) {
-          addToast({ type: "success", text: "You're running the latest version!" });
+      console.log('[UpdateSettings] checkForUpdates completed');
+
+      // Query status immediately to provide feedback without relying on stale state
+      try {
+        const desktop = (window as any).desktop;
+        console.log('[UpdateSettings] Querying update status...');
+        const statusResp = await desktop.updater.getStatus();
+        console.log('[UpdateSettings] Status response:', statusResp);
+        
+        if (statusResp?.success) {
+          const st = statusResp.status || {};
+          console.log('[UpdateSettings] Status details:', st);
+          
+          if (st.updateAvailable) {
+            addToast({ type: 'info', text: 'Update found! Check the notification to download.' });
+          } else if (!st.error) {
+            addToast({ type: 'success', text: "You're running the latest version!" });
+          }
+        } else {
+          console.warn('[UpdateSettings] Status check failed:', statusResp?.error);
+          addToast({ type: 'warning', text: statusResp?.error || 'Failed to get update status' });
         }
-      }, 1000); // Small delay to let the state update
+      } catch (e) {
+        console.warn('[UpdateSettings] Failed to read updater status after check', e);
+        addToast({ type: 'warning', text: 'Could not verify update status' });
+      }
     } catch (error) {
+      console.error('[UpdateSettings] Manual check failed:', error);
       addToast({ 
-        type: "error", 
+        type: 'error', 
         text: `Failed to check for updates: ${error instanceof Error ? error.message : 'Unknown error'}` 
       });
     } finally {
+      console.log('[UpdateSettings] Manual check completed, resetting checking state');
       setIsChecking(false);
     }
   };

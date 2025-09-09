@@ -1,0 +1,49 @@
+# Test Environment Configuration
+# This file contains test-specific settings
+
+# Server Configuration
+server:
+  port: 3002  # Different port to avoid conflicts
+  host: localhost
+  cors_origin: "*"
+  
+# Database Configuration
+database:
+  uri: "mongodb://localhost:27017/attrition-test"
+  options:
+    useNewUrlParser: true
+    useUnifiedTopology: true
+  
+# JWT Configuration
+jwt:
+  expires_in: "1h"  # Shorter for tests
+  
+# Rate Limiting (Disabled for tests)
+rate_limiting:
+  enabled: false
+  window_ms: 60000
+  max_requests: 10000
+  skip_auth: true
+  skip_game: true
+  
+# Game Configuration
+game:
+  loop_interval_ms: 1000  # Very fast for tests
+  credit_payout_period_minutes: 1
+  
+# Logging
+logging:
+  level: "error"  # Minimal logging for tests
+  console: false
+  file: false
+  
+# Security (Disabled for tests)
+security:
+  https_enforce: false
+  certificate_pinning: false
+  
+# Features
+features:
+  auto_updates: false
+  beta_features: true
+  debug_mode: true

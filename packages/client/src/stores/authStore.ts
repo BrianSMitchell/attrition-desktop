@@ -36,10 +36,13 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       // Actions
       login: async (email: string, password: string) => {
+        console.log('[AUTH-STORE] Login called with:', { email, password: password ? '[PRESENT]' : '[MISSING]' });
         try {
           set({ isLoading: true, error: null });
 
+          console.log('[AUTH-STORE] Calling authService.login...');
           const response = await authService.login(email, password);
+          console.log('[AUTH-STORE] AuthService response:', response);
 
           if (response.success && response.data) {
             set({
@@ -70,7 +73,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             }
           } else {
             set({
-              error: response.error || 'Login failed',
+              error: response.message || response.error || 'Login failed',
               isLoading: false,
             });
           }
@@ -117,7 +120,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             }
           } else {
             set({
-              error: response.error || 'Registration failed',
+              error: response.message || response.error || 'Registration failed',
               isLoading: false,
             });
           }

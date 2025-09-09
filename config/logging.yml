@@ -1,0 +1,57 @@
+# Logging Configuration
+
+# Log Levels: error, warn, info, debug, trace
+default_level: info
+
+# Output Destinations
+outputs:
+  console:
+    enabled: true
+    format: pretty
+    level: debug
+    
+  file:
+    enabled: true
+    path: logs/
+    format: json
+    level: info
+    rotation:
+      max_size: 10MB
+      max_files: 5
+      
+  electron_log:
+    enabled: true
+    path: logs/electron/
+    level: info
+
+# Environment-specific overrides
+environments:
+  development:
+    console:
+      enabled: true
+      level: debug
+    file:
+      enabled: false
+      
+  production:
+    console:
+      enabled: true
+      level: warn
+    file:
+      enabled: true
+      level: info
+      
+  test:
+    console:
+      enabled: false
+    file:
+      enabled: false
+
+# Component-specific logging
+components:
+  database: info
+  auth: info
+  game_logic: debug
+  ui: warn
+  network: info
+  updater: info
