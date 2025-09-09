@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { helpTopics, defaultTopicId, type HelpTopic, type HelpTopicId } from './helpData';
 import { faqTopics, defaultFaqTopicId, type FaqTopic, type FaqTopicId } from './faqData';
-import UpdateSettings from '../ui/UpdateSettings';
 
 type HelpTab = 'help' | 'faq' | 'ai' | 'settings';
 
@@ -188,7 +187,21 @@ const HelpPage: React.FC = () => {
             </p>
             
             <div className="space-y-6">
-              <UpdateSettings />
+              <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-blue-300 mb-3">🚀 Automatic Updates</h3>
+                <div className="space-y-2 text-sm text-gray-300">
+                  <p>
+                    <strong>Updates are now managed by the Attrition Launcher.</strong>
+                  </p>
+                  <p>
+                    The launcher automatically checks for updates every time you start the game and
+                    ensures you always have the latest version before allowing you to play.
+                  </p>
+                  <p className="text-blue-300">
+                    💡 <strong>No manual update checks needed!</strong> The launcher handles everything automatically.
+                  </p>
+                </div>
+              </div>
             </div>
           </section>
         </div>

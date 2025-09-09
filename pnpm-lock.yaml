@@ -147,6 +147,28 @@ importers:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.19.13)(ts-node@10.9.2)
 
+  packages/launcher:
+    dependencies:
+      '@game/shared':
+        specifier: workspace:*
+        version: link:../shared
+      axios:
+        specifier: ^1.7.7
+        version: 1.11.0
+      electron-log:
+        specifier: ^5.4.3
+        version: 5.4.3
+      semver:
+        specifier: ^7.6.3
+        version: 7.7.2
+    devDependencies:
+      electron:
+        specifier: ^31.2.0
+        version: 31.7.7
+      electron-builder:
+        specifier: ^24.13.3
+        version: 24.13.3(electron-builder-squirrel-windows@24.13.3)
+
   packages/server:
     dependencies:
       '@game/shared':

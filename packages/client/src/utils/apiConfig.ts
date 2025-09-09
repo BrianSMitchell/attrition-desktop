@@ -20,72 +20,45 @@ export interface ApiConfig {
   environment: string;
 }
 
-/**
- * Check if we're running in a packaged Electron app
- * Uses synchronous detection that works at module load time
- */
-function isPackagedElectronApp(): boolean {
-  try {
-    // Check if we're in an Electron context using file protocol
-    if (typeof window !== 'undefined' && window.location?.protocol === 'file:') {
-      // In a packaged Electron app, the location will be a file:// URL
-      // pointing to the app resources, not localhost
-      const pathname = window.location.pathname;
-      // Packaged apps typically have paths like /resources/app.asar/...
-      const isPackaged = pathname.includes('resources') || 
-                        pathname.includes('app.asar') ||
-                        !pathname.includes('packages/client');
-      
-      console.log(`📦 Electron app detected - packaged: ${isPackaged}`);
-      console.log(`🔍 Path analysis: ${pathname}`);
-      return isPackaged;
-    }
-    
-    return false;
-  } catch (error) {
-    console.warn('isPackagedElectronApp failed:', error);
-    return false;
-  }
-}
 
 /**
  * Determine if we're running in production mode
  * Uses runtime detection to automatically switch between dev and production APIs
  */
 function isProductionBuild(): boolean {
+  // Method 0: Check if we're NOT in development (simple but effective)
+  // If we don't have clear dev indicators, assume production
+  const hasDevIndicators = 
+    (typeof window !== 'undefined' && window.location?.href?.includes('localhost')) ||
+    (typeof window !== 'undefined' && window.location?.href?.includes('127.0.0.1')) ||
+    (typeof window !== 'undefined' && window.location?.href?.includes('packages/client')) ||
+    (typeof process !== 'undefined' && process.execPath?.includes('node_modules'));
+  
+  if (!hasDevIndicators) {
+    console.log('🚀 No development indicators found - using production API');
+    console.log(`🎯 === FINAL PRODUCTION DETECTION RESULT: true (no dev indicators) ===`);
+    return true;
+  } else {
+    console.log('🔧 Development indicators found - using development API');
+    console.log(`🎯 === FINAL PRODUCTION DETECTION RESULT: false (dev indicators found) ===`);
+    return false;
+  }
+  
+  // Force production mode via environment variable (takes precedence even over detection)
+  const forceProductionMode = import.meta.env.VITE_FORCE_PRODUCTION_MODE === 'true';
+  if (forceProductionMode) {
+    console.log('🚀 Forced production mode via VITE_FORCE_PRODUCTION_MODE');
+    console.log(`🎯 === FINAL PRODUCTION DETECTION RESULT: true (forced) ===`);
+    return true;
+  }
+  
   // Force development mode via environment variable
   const forceDevMode = import.meta.env.VITE_FORCE_DEV_MODE === 'true';
   if (forceDevMode) {
     console.log('🔧 Forced development mode via VITE_FORCE_DEV_MODE');
+    console.log(`🎯 === FINAL PRODUCTION DETECTION RESULT: false (forced dev) ===`);
     return false;
   }
-  
-  // Runtime detection: Check if we're in a packaged Electron app
-  const isPackaged = isPackagedElectronApp();
-  if (isPackaged) {
-    console.log('🚀 Packaged Electron app - using production mode');
-    return true;
-  }
-  
-  // If we're in an Electron context but not packaged, it's development
-  if (typeof window !== 'undefined' && window.location?.protocol === 'file:') {
-    console.log('🔧 Development Electron app detected');
-    return false;
-  }
-  
-  // Build-time production detection as fallback
-  const isBuildProduction = import.meta.env.MODE === 'production' || 
-                           import.meta.env.PROD === true ||
-                           (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production');
-  
-  if (isBuildProduction) {
-    console.log('🚀 Production build detected (build-time)');
-    return true;
-  }
-  
-  // Default to development if uncertain
-  console.log('🔧 Defaulting to development mode');
-  return false;
 }
 
 

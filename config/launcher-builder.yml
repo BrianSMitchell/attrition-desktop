@@ -1,0 +1,81 @@
+appId: com.attrition.launcher
+productName: Attrition Launcher
+copyright: Copyright © 2025 Attrition Game Studio
+
+# Build configuration
+electronVersion: 31.2.0
+compression: maximum
+artifactName: ${productName}-Setup-${version}.${ext}
+
+# Directories
+directories:
+  output: ../../packages/releases
+  buildResources: ../assets
+
+# File inclusion/exclusion
+files:
+  - src/**/*
+  - ui/**/*
+  - "!**/.DS_Store"
+  - "!**/node_modules/.cache"
+  - "!**/*.map"
+
+# Auto-updater settings (disabled for launcher - launcher manages game updates)
+publish: null
+
+# Windows-specific configuration
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  # icon: ../assets/icon.ico
+  requestedExecutionLevel: requireAdministrator # Needed for installing game updates
+  artifactName: ${productName}-Setup-${version}.${ext}
+  forceCodeSigning: false
+  sign: null
+
+# NSIS installer configuration
+nsis:
+  oneClick: false
+  perMachine: true
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  # installerIcon: ../assets/icon.ico
+  # uninstallerIcon: ../assets/icon.ico
+  # installerHeaderIcon: ../assets/icon.ico
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: "Attrition Launcher"
+  displayLanguageSelector: false
+  
+  # Custom installer script to ensure old versions are removed
+  # include: ../scripts/installer.nsh
+
+# macOS configuration (future)
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: ../assets/icon.icns
+  category: public.app-category.games
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: ../entitlements/entitlements.mac.plist
+  entitlementsInherit: ../entitlements/entitlements.mac.plist
+
+# Linux configuration (future)
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  icon: ../assets/icon.png
+  category: Game
+  synopsis: Strategic Space Empire Game Launcher
+  description: Launcher for Attrition - Strategic space empire building and warfare game

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -80,6 +80,42 @@ async function resolveSharedParser() {
 
 const APP_ID = 'com.attrition.desktop';
 const isDev = !app.isPackaged;
+
+/**
+ * Check if the game was launched by the launcher
+ * The launcher should pass a command line argument or set an environment variable
+ */
+function checkLauncherLaunch() {
+  // Check for launcher-specific command line arguments
+  const hasLauncherFlag = process.argv.includes('--launched-by-launcher');
+  
+  // Check for launcher-specific environment variable
+  const hasLauncherEnv = process.env.ATTRITION_LAUNCHED_BY_LAUNCHER === 'true';
+  
+  // In development mode, allow direct launch
+  if (isDev) {
+    return true;
+  }
+  
+  return hasLauncherFlag || hasLauncherEnv;
+}
+
+/**
+ * Show warning dialog if game was launched directly (not through launcher)
+ */
+async function showLauncherWarning() {
+  const result = await dialog.showMessageBox(null, {
+    type: 'warning',
+    title: 'Attrition - Use Launcher',
+    message: 'Please use the Attrition Launcher',
+    detail: 'For the best experience and to ensure you have the latest updates, please launch Attrition through the official launcher instead of running the game directly.\n\nThe launcher handles automatic updates and ensures optimal performance.',
+    buttons: ['Exit Game', 'Continue Anyway'],
+    defaultId: 0,
+    cancelId: 0
+  });
+  
+  return result.response === 1; // Continue if user clicked "Continue Anyway"
+}
 
 /**
  * API Configuration with HTTPS support
@@ -1632,6 +1668,16 @@ function createMainWindow() {
 
 app.on('ready', async () => {
   logStartup('app:ready');
+  
+  // Check if the game was launched through the launcher
+  if (!checkLauncherLaunch()) {
+    const shouldContinue = await showLauncherWarning();
+    if (!shouldContinue) {
+      app.quit();
+      return;
+    }
+  }
+  
   try {
     // Improve notifications and app identity on Windows
     app.setAppUserModelId(APP_ID);

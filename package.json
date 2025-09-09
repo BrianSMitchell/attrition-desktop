@@ -1,6 +1,6 @@
 {
   "name": "attrition",
-  "version": "1.0.0",
+  "version": "1.0.7",
   "description": "Desktop space empire strategy game",
   "private": true,
   "packageManager": "pnpm@8.15.0",
@@ -66,7 +66,11 @@
     "security:audit": "pnpm audit && node scripts/dev/security-check.js",
     "db:seed": "node scripts/maintenance/seed-database.js",
     "db:migrate": "node scripts/maintenance/migrate-database.js",
-    "dev:setup": "pnpm install && pnpm run db:seed && pnpm --filter @game/shared build"
+    "dev:setup": "pnpm install && pnpm run db:seed && pnpm --filter @game/shared build",
+    "launcher:dev": "pnpm --filter @game/launcher dev",
+    "launcher:build": "pnpm --filter @game/launcher build",
+    "launcher:dist": "pnpm --filter @game/launcher dist",
+    "build:all": "pnpm --filter @game/shared build && pnpm --filter @game/client build && pnpm --filter @game/desktop build && pnpm --filter @game/launcher build"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",

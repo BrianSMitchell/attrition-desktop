@@ -1,6 +1,26 @@
 import { app, dialog, BrowserWindow } from 'electron';
 import log from 'electron-log';
 
+/**
+ * Check if we're running in development mode
+ * Uses the same logic as API configuration for consistency
+ */
+function isDevelopmentMode() {
+  // Check if we have clear development indicators
+  const hasDevIndicators = 
+    (typeof process !== 'undefined' && process.execPath?.includes('node_modules')) ||
+    !app.isPackaged;
+  
+  log.info('isDevelopmentMode check', {
+    hasDevIndicators,
+    isPackaged: app.isPackaged,
+    execPath: process.execPath,
+    nodeEnv: process.env.NODE_ENV
+  });
+  
+  return hasDevIndicators;
+}
+
 // Lazy-load autoUpdater to avoid module resolution issues in packed builds
 let autoUpdater = null;
 
@@ -157,7 +177,8 @@ class UpdateService {
     this.autoUpdater.autoInstallOnAppQuit = true;
     
     // Only check for updates in production
-    if (process.env.NODE_ENV === 'development') {
+    const isDev = isDevelopmentMode();
+    if (isDev) {
       this.autoUpdater.updateConfigPath = 'dev-app-update.yml';
     }
 
@@ -173,7 +194,7 @@ class UpdateService {
     log.info('UpdateService configuration:', {
       autoDownload: this.autoUpdater.autoDownload,
       autoInstallOnAppQuit: this.autoUpdater.autoInstallOnAppQuit,
-      isDevelopment: process.env.NODE_ENV === 'development'
+      isDevelopment: isDev
     });
   }
 
@@ -182,7 +203,8 @@ class UpdateService {
    * @param {boolean} silent - Whether to show "no updates" message
    */
   async checkForUpdates(silent = false) {
-    log.info(`UpdateService.checkForUpdates called`, { silent, isValid: this.isValid, checkingForUpdate: this.checkingForUpdate, isDev: process.env.NODE_ENV === 'development' });
+    const isDev = isDevelopmentMode();
+    log.info(`UpdateService.checkForUpdates called`, { silent, isValid: this.isValid, checkingForUpdate: this.checkingForUpdate, isDev });
     
     if (!this.isValid) {
       log.warn('UpdateService is not valid - skipping update check');
@@ -190,7 +212,7 @@ class UpdateService {
     }
     
     // In development, simulate or warn instead of actual update check
-    if (process.env.NODE_ENV === 'development') {
+    if (isDev) {
       log.info('Development mode detected - simulating update check');
       if (!silent) {
         this.notifyRenderer('update-checking');
@@ -304,7 +326,8 @@ class UpdateService {
     }
     
     // Don't start periodic checks in development
-    if (process.env.NODE_ENV === 'development') {
+    const isDev = isDevelopmentMode();
+    if (isDev) {
       log.info('Skipping periodic update checks in development');
       return;
     }

@@ -1,0 +1,27 @@
+{
+  "name": "@game/launcher",
+  "version": "1.0.7",
+  "private": true,
+  "description": "Attrition Game Launcher - Handles updates and launches the main game",
+  "main": "src/main.js",
+  "author": "Attrition Game Studio",
+  "license": "MIT",
+  "homepage": "https://attrition-game.com",
+  "scripts": {
+    "dev": "electron .",
+    "start": "electron .",
+    "build": "electron-builder --config ../../config/launcher-builder.yml",
+    "build:win": "electron-builder --win --config ../../config/launcher-builder.yml",
+    "dist": "electron-builder --config ../../config/launcher-builder.yml"
+  },
+  "dependencies": {
+    "@game/shared": "workspace:*",
+    "axios": "^1.7.7",
+    "electron-log": "^5.4.3",
+    "semver": "^7.6.3"
+  },
+  "devDependencies": {
+    "electron": "^31.2.0",
+    "electron-builder": "^24.13.3"
+  }
+}

@@ -2,6 +2,9 @@ appId: com.attrition.game
 productName: Attrition
 copyright: Copyright © 2025 ${author}
 
+# Ensure Windows artifact matches updater/latest.yml expectations
+artifactName: "Attrition-Setup-${version}.${ext}"
+
 # Disable code signing globally
 forceCodeSigning: false
 
@@ -25,6 +28,9 @@ extraResources:
   - from: "../../packages/client/dist"
     to: "client"
     filter: ["**/*"]
+  - from: "../releases/win-unpacked"
+    to: "launcher"
+    filter: ["Attrition Launcher.exe"]
 
 asarUnpack:
   - resources/**
@@ -46,9 +52,8 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: true
-  createDesktopShortcut: always
-  createStartMenuShortcut: true
-  # Note: Will use PNG until ICO files are created
+  createDesktopShortcut: false  # We'll create launcher shortcuts instead
+  createStartMenuShortcut: false  # We'll create launcher shortcuts instead
   displayLanguageSelector: true
 
 mac:

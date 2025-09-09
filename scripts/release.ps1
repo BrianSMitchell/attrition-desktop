@@ -20,8 +20,8 @@ try {
 }
 
 # Step 2: Check if release files exist
-$installerPath = "packages/releases/Attrition Setup $Version.exe"
-$blockmapPath = "packages/releases/Attrition Setup $Version.exe.blockmap"
+$installerPath = "packages/releases/Attrition-Setup-$Version.exe"
+$blockmapPath = "packages/releases/Attrition-Setup-$Version.exe.blockmap"
 $latestPath = "packages/releases/latest.yml"
 
 if (!(Test-Path $installerPath)) {
