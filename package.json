@@ -1,6 +1,6 @@
 {
   "name": "attrition",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Desktop space empire strategy game",
   "private": true,
   "packageManager": "pnpm@8.15.0",

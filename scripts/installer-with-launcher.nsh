@@ -32,3 +32,9 @@
   # Remove start menu shortcuts
   RMDir /r "$SMPROGRAMS\Attrition"
 !macroend
+
+# Override the run application to launch the launcher instead of the game
+!macro customFinishPage
+  !define MUI_FINISHPAGE_RUN "$LOCALAPPDATA\Attrition\Attrition Launcher.exe"
+  !define MUI_FINISHPAGE_RUN_TEXT "Launch Attrition Launcher"
+!macroend
