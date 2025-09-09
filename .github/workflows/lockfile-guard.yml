@@ -8,7 +8,7 @@ on:
 
 jobs:
   lockfile-guard:
-    name: Ensure lockfile is in sync
+    name: lockfile-guard
     runs-on: ubuntu-latest
 
     steps:
