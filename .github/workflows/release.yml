@@ -22,44 +22,40 @@ jobs:
       uses: pnpm/action-setup@v2
       with:
         version: 8
-    
+        
     - name: Setup Python for native builds
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
         
-    - name: Setup Visual Studio Build Tools
-      uses: microsoft/setup-msbuild@v1.1
+    - name: Install Visual Studio Build Tools
+      run: |
+        choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --passive --locale en-US"
       
-    - name: Cache dependencies
+    - name: Cache pnpm dependencies
       uses: actions/cache@v3
       with:
-        path: |
-          ~/.pnpm-store
-          .npm
-          .electron
-          .electron-builder
+        path: ~/.pnpm-store
         key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
         restore-keys: |
           ${{ runner.os }}-pnpm-
           
-    - name: Install dependencies
+    - name: Install dependencies with proper native rebuilding
       run: |
-        npm install -g node-gyp
         pnpm install --frozen-lockfile
       env:
-        npm_config_cache: ${{ github.workspace }}/.npm
-        ELECTRON_CACHE: ${{ github.workspace }}/.electron
-        ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.electron-builder
+        npm_config_node_gyp: $(npm prefix -g)/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js
       
-    - name: Rebuild native dependencies
+    - name: Build with native dependencies
       run: |
-        pnpm --filter @game/desktop rebuild
-        
-    - name: Build application
-      run: pnpm build
+        pnpm --filter @game/shared build
+        pnpm --filter @game/server build  
+        pnpm --filter @game/client build
+        cd packages/desktop && npm rebuild better-sqlite3 keytar
+        cd ../.. && pnpm --filter @game/desktop build
       env:
         GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        npm_config_build_from_source: true
       
     - name: Get version from tag
       id: version
