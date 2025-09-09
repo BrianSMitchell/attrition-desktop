@@ -28,7 +28,7 @@ extraResources:
   - from: "../../packages/client/dist"
     to: "client"
     filter: ["**/*"]
-  - from: "../releases/win-unpacked"
+  - from: "../launcher"
     to: "launcher"
     filter: ["Attrition Launcher.exe"]
 

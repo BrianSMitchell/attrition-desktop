@@ -174,3 +174,6 @@ supermemory/
 supermemory-attrition/
 tools/python/
 tools/*.mjs
+
+# Launcher executable (too large for git)
+packages/launcher/*.exe
