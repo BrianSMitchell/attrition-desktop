@@ -2,7 +2,7 @@ name: Lockfile Guard
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, chore/ci-required-checks ]
   pull_request:
     branches: [ main, develop ]
 

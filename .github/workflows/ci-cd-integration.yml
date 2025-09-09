@@ -2,7 +2,7 @@ name: CI/CD Integration
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, chore/ci-required-checks]
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
