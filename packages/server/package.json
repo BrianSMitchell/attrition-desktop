@@ -49,6 +49,10 @@
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.5",
     "@types/seedrandom": "^3.0.8",
+    "@types/cors": "^2.8.17",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.11.17",
+    "typescript": "^5.3.3",
     "seedrandom": "^3.0.5"
   },
   "devDependencies": {
