@@ -1,0 +1,54 @@
+name: Lockfile Guard
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lockfile-guard:
+    name: Ensure lockfile is in sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.0
+
+      - name: Detect dependency manifest changes without lockfile
+        id: depdiff
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="origin/${{ github.base_ref }}...HEAD"
+          else
+            RANGE="${{ github.event.before }}...${{ github.sha }}"
+          fi
+
+          CHANGED_FILES=$(git diff --name-only $RANGE || true)
+          echo "Changed files:\n$CHANGED_FILES"
+
+          if echo "$CHANGED_FILES" | grep -qE '(^|/)package.json$'; then
+            if ! echo "$CHANGED_FILES" | grep -q '^pnpm-lock.yaml$'; then
+              echo "::error::Detected package.json changes without pnpm-lock.yaml update. Run 'pnpm -w install' and commit the lockfile."
+              exit 1
+            fi
+          fi
+
+      - name: Verify lockfile matches manifests
+        run: |
+          pnpm -v
+          pnpm -w install --frozen-lockfile
+

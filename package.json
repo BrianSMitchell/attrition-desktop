@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "description": "Desktop space empire strategy game",
   "private": true,
+  "packageManager": "pnpm@8.15.0",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
     "dev": "concurrently \"pnpm --filter @game/server dev\" \"pnpm --filter @game/desktop dev\"",
     "build": "pnpm --filter @game/shared build && pnpm --filter @game/server build && pnpm --filter @game/desktop build",
-    "build:server": "pnpm install --frozen-lockfile --recursive && pnpm --filter @game/shared build && pnpm --filter @game/server build",
+    "build:server": "pnpm --filter @game/shared build && pnpm --filter @game/server build",
     "start:server": "pnpm --filter @game/server start",
     "test": "pnpm --filter \"@game/*\" test",
     "lint": "pnpm --filter \"@game/*\" lint",
