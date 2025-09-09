@@ -9,6 +9,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('desktop', {
   getVersion: () => ipcRenderer.invoke('app:getVersion'),
   openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),
+  isPackaged: () => ipcRenderer.invoke('app:isPackaged'),
 
   // Secure token bridge (refresh token only — no raw getter)
   tokens: {

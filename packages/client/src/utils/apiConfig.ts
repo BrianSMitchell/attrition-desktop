@@ -21,21 +21,71 @@ export interface ApiConfig {
 }
 
 /**
+ * Check if we're running in a packaged Electron app
+ * Uses synchronous detection that works at module load time
+ */
+function isPackagedElectronApp(): boolean {
+  try {
+    // Check if we're in an Electron context using file protocol
+    if (typeof window !== 'undefined' && window.location?.protocol === 'file:') {
+      // In a packaged Electron app, the location will be a file:// URL
+      // pointing to the app resources, not localhost
+      const pathname = window.location.pathname;
+      // Packaged apps typically have paths like /resources/app.asar/...
+      const isPackaged = pathname.includes('resources') || 
+                        pathname.includes('app.asar') ||
+                        !pathname.includes('packages/client');
+      
+      console.log(`📦 Electron app detected - packaged: ${isPackaged}`);
+      console.log(`🔍 Path analysis: ${pathname}`);
+      return isPackaged;
+    }
+    
+    return false;
+  } catch (error) {
+    console.warn('isPackagedElectronApp failed:', error);
+    return false;
+  }
+}
+
+/**
  * Determine if we're running in production mode
- * For desktop development, force development mode
+ * Uses runtime detection to automatically switch between dev and production APIs
  */
 function isProductionBuild(): boolean {
-  // Force development mode for desktop builds during development
-  // This ensures local server is used even when built with vite build
+  // Force development mode via environment variable
   const forceDevMode = import.meta.env.VITE_FORCE_DEV_MODE === 'true';
   if (forceDevMode) {
+    console.log('🔧 Forced development mode via VITE_FORCE_DEV_MODE');
     return false;
   }
   
-  // Vite sets NODE_ENV to 'production' for production builds
-  return import.meta.env.MODE === 'production' || 
-         import.meta.env.PROD === true ||
-         (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production');
+  // Runtime detection: Check if we're in a packaged Electron app
+  const isPackaged = isPackagedElectronApp();
+  if (isPackaged) {
+    console.log('🚀 Packaged Electron app - using production mode');
+    return true;
+  }
+  
+  // If we're in an Electron context but not packaged, it's development
+  if (typeof window !== 'undefined' && window.location?.protocol === 'file:') {
+    console.log('🔧 Development Electron app detected');
+    return false;
+  }
+  
+  // Build-time production detection as fallback
+  const isBuildProduction = import.meta.env.MODE === 'production' || 
+                           import.meta.env.PROD === true ||
+                           (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production');
+  
+  if (isBuildProduction) {
+    console.log('🚀 Production build detected (build-time)');
+    return true;
+  }
+  
+  // Default to development if uncertain
+  console.log('🔧 Defaulting to development mode');
+  return false;
 }
 
 
@@ -61,6 +111,7 @@ function getApiBaseUrl(): string {
   
   if (import.meta.env.VITE_API_URL) {
     baseUrl = import.meta.env.VITE_API_URL;
+    console.log(`🖥️ Desktop Explicit API: ${baseUrl}`);
   } else if (isProduction) {
     // Production: Use HTTPS with configurable host
     const productionHost = import.meta.env.VITE_PRODUCTION_HOST || 'attrition-game.onrender.com';

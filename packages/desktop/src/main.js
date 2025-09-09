@@ -150,6 +150,15 @@ ipcMain.handle('app:getVersion', () => {
   }
 });
 
+ipcMain.handle('app:isPackaged', () => {
+  try {
+    return app.isPackaged;
+  } catch (error) {
+    errorLogger.error('Failed to get app isPackaged status', error);
+    return false; // Default to development mode if uncertain
+  }
+});
+
 ipcMain.handle('app:openExternal', async (_event, url) => {
   try {
     // Security: Validate URL format and protocol allowlist
