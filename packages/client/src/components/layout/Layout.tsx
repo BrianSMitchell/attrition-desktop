@@ -21,6 +21,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { status: networkStatus, isFullyConnected } = useNetwork();
   const isDesktop = typeof window !== 'undefined' && !!(window as any).desktop;
   const { status: syncStatus } = useSync();
+  const [appVersion, setAppVersion] = useState<string | null>(null);
 
   // Derive connection state for persistent header indicator
   const connectionState: 'online' | 'degraded' | 'offline' =
@@ -36,6 +37,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [serverStatus, setServerStatus] = useState<ServerStatusData | null>(null);
 
   useEffect(() => {
+    // Desktop-only: fetch app version once
+    if (isDesktop && (window as any).desktop?.getVersion) {
+      try {
+        (window as any).desktop.getVersion().then((v: string) => {
+          if (typeof v === 'string' && v.trim().length > 0) setAppVersion(v);
+        }).catch(() => {});
+      } catch {}
+    }
+
     let intervalId: number | undefined;
     // Simple backoff window if the server responds with 429
     let pauseUntil = 0;
@@ -101,6 +111,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-bold text-blue-400">Attrition</h1>
+            {appVersion && (
+              <span className="text-sm text-gray-400">v{appVersion}</span>
+            )}
             <span className="text-sm text-gray-400">Alpha Server</span>
           </div>
           

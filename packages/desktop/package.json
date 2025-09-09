@@ -1,6 +1,6 @@
 {
   "name": "@game/desktop",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Attrition - Strategic space colonization and warfare game",
   "main": "src/main.js",
