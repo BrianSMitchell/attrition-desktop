@@ -52,3 +52,80 @@ Many scripts require environment variables to be set:
 - Log operations for debugging and audit purposes
 - Make scripts idempotent where possible
 - Include help text or usage instructions
+
+---
+
+# GitHub Release Automation for Attrition
+
+**NEW**: This directory now includes scripts to automate the GitHub release process for large installer files (>100MB).
+
+## 🔧 Setup (One-time)
+
+### 1. Generate GitHub Personal Access Token
+1. Go to https://github.com/settings/tokens
+2. Click "Generate new token (classic)"
+3. Give it a name like "Attrition Release Bot"
+4. Select scopes: `repo` (Full control of private repositories)
+5. Click "Generate token" and copy the token
+
+### 2. Set Environment Variable
+**Windows (PowerShell):**
+```powershell
+# Temporary (current session only)
+$env:GITHUB_PAT = "your_token_here"
+
+# Permanent (add to your profile)
+[System.Environment]::SetEnvironmentVariable("GITHUB_PAT", "your_token_here", "User")
+```
+
+### 3. Install Python Dependencies
+```powershell
+python -m pip install requests
+```
+
+## 🚀 Release Automation Usage
+
+### Complete Build and Release (Recommended)
+```powershell
+# Patch release (1.0.9 -> 1.0.10)
+.\scripts\Build-And-Release.ps1
+
+# Minor release (1.0.9 -> 1.1.0)  
+.\scripts\Build-And-Release.ps1 -VersionType minor
+
+# Major release (1.0.9 -> 2.0.0)
+.\scripts\Build-And-Release.ps1 -VersionType major
+
+# Dry run (see what would happen)
+.\scripts\Build-And-Release.ps1 -DryRun
+```
+
+### Manual Release Creation
+```powershell
+.\scripts\Create-GitHubRelease.ps1 -Version "v1.0.10" -InstallerPath "packages/releases/Attrition-Setup-1.0.10.exe"
+```
+
+## 🤖 AI Agent Integration
+
+Your AI agent can use these scripts:
+
+```powershell
+# Full automation for releases
+.\scripts\Build-And-Release.ps1 -VersionType patch
+```
+
+## 📁 New Release Files
+
+```
+scripts/
+├── github-release.py         # Core Python script for GitHub API
+├── Create-GitHubRelease.ps1  # PowerShell wrapper
+└── Build-And-Release.ps1     # Complete build and release automation
+```
+
+## 💡 Benefits
+
+1. **No Repository Bloat**: Large files don't go into git history
+2. **Cost Effective**: No LFS storage costs
+3. **Simple Integration**: Easy for AI agents to use
+4. **Handles up to 2GB files**: Perfect for large installers
