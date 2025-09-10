@@ -10,6 +10,7 @@ import { useNetwork } from '../../contexts/NetworkContext';
 import StatusDot from '../ui/StatusDot';
 import SyncDot from '../ui/SyncDot';
 import { useSync } from '../../contexts/SyncContext';
+import { useMessageStore } from '../../stores/messageStore';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -21,6 +22,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { status: networkStatus, isFullyConnected } = useNetwork();
   const isDesktop = typeof window !== 'undefined' && !!(window as any).desktop;
   const { status: syncStatus } = useSync();
+  const { getUnreadCount, loadSummary, initializeSocketListeners, cleanupSocketListeners } = useMessageStore();
   const [appVersion, setAppVersion] = useState<string | null>(null);
 
   // Derive connection state for persistent header indicator
@@ -35,6 +37,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       : 'Online';
 
   const [serverStatus, setServerStatus] = useState<ServerStatusData | null>(null);
+
+  useEffect(() => {
+    // Load message summary on component mount
+    loadSummary();
+    
+    // Initialize socket listeners for real-time message updates
+    initializeSocketListeners();
+    
+    // Cleanup socket listeners on unmount
+    return () => {
+      cleanupSocketListeners();
+    };
+  }, []);
 
   useEffect(() => {
     // Desktop-only: fetch app version once
@@ -165,6 +180,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </div>
               </div>
             )}
+
+            {/* Messages Button */}
+            <Link
+              to="/messages"
+              className="relative flex items-center px-3 py-1 text-sm bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors"
+            >
+              <span className="mr-1">📧</span>
+              Messages
+              {getUnreadCount() > 0 && (
+                <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+                  {getUnreadCount() > 99 ? '99+' : getUnreadCount()}
+                </span>
+              )}
+            </Link>
             
             {/* User Menu */}
             <div className="flex items-center space-x-3">
@@ -219,6 +248,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               className="block px-3 py-2 rounded text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
             >
               Help
+            </Link>
+            <Link
+              to="/messages"
+              className="relative block px-3 py-2 rounded text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+            >
+              Messages
+              {getUnreadCount() > 0 && (
+                <span className="ml-2 px-2 py-0.5 text-xs bg-red-500 text-white rounded-full">
+                  {getUnreadCount()}
+                </span>
+              )}
             </Link>
             {isDesktop && (
               <Link

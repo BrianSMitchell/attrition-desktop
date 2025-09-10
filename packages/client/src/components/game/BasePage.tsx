@@ -8,6 +8,7 @@ import PlanetInfoBlock from './PlanetInfoBlock';
 import PlanetVisual from './PlanetVisual';
 import basesService from '../../services/basesService';
 import baseStatsService, { BaseStatsDTO } from '../../services/baseStatsService';
+import fleetsService, { FleetListRow } from '../../services/fleetsService';
 import type { Building, BuildingType } from '@game/shared';
 import { getBuildingSpec } from '@game/shared';
 
@@ -92,6 +93,8 @@ const BasePage: React.FC = () => {
   const [baseObj, setBaseObj] = useState<any | null>(null);
   const [publicBuildings, setPublicBuildings] = useState<ClientBuilding[]>([]);
   const [publicBuildingsError, setPublicBuildingsError] = useState<string | null>(null);
+  const [publicFleets, setPublicFleets] = useState<FleetListRow[]>([]);
+  const [publicFleetsError, setPublicFleetsError] = useState<string | null>(null);
   const [baseStats, setBaseStats] = useState<BaseStatsDTO | null>(null);
 
   const isOwner = !!user && !!ownerId && user._id === ownerId;
@@ -152,7 +155,7 @@ const BasePage: React.FC = () => {
           setPublicBuildingsError(null);
         } else {
           setBaseObj(null);
-          // public view: load real buildings at this location
+          // public view: load real buildings and fleets at this location
           try {
             setPublicBuildingsError(null);
             const res = await basesService.getBaseStructures(coord);
@@ -177,6 +180,21 @@ const BasePage: React.FC = () => {
           } catch {
             setPublicBuildings([]);
             setPublicBuildingsError('Network error while loading buildings');
+          }
+
+          // Load real fleet data for public view
+          try {
+            setPublicFleetsError(null);
+            const fleetsRes = await fleetsService.getFleets(coord);
+            if (fleetsRes.success && fleetsRes.data && fleetsRes.data.fleets) {
+              setPublicFleets(fleetsRes.data.fleets);
+            } else {
+              setPublicFleets([]);
+              setPublicFleetsError(fleetsRes.error || 'Failed to load fleets');
+            }
+          } catch {
+            setPublicFleets([]);
+            setPublicFleetsError('Network error while loading fleets');
           }
         }
       } catch (e) {
@@ -237,11 +255,6 @@ const BasePage: React.FC = () => {
   }
 
   // Public view (non-owner)
-
-  // Mock data for public view sections (Fleets and Structures)
-  const mockFleets = [
-    { fleet: 'Fleet 9', player: '[P.M.R] Vanity333', arrival: '—', size: '17,670' }
-  ];
 
 
 
@@ -318,9 +331,14 @@ const BasePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Fleets (mock data) */}
+      {/* Fleets */}
       <div className="game-card">
         <h3 className="text-lg font-semibold text-empire-gold mb-3">Fleets</h3>
+        {publicFleetsError && (
+          <div className="p-3 bg-red-900/50 border border-red-700 rounded-md text-red-200 mb-3">
+            {publicFleetsError}
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="text-gray-300">
@@ -332,15 +350,15 @@ const BasePage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="text-white">
-              {mockFleets.map((f, i) => (
-                <tr key={i} className="border-b border-gray-800/60">
-                  <td className="py-1 pr-4 text-blue-300 hover:text-blue-200 cursor-default">{f.fleet}</td>
-                  <td className="py-1 pr-4 text-gray-200">{f.player}</td>
-                  <td className="py-1 pr-4 text-gray-300">{f.arrival}</td>
-                  <td className="py-1 text-right font-mono">{f.size}</td>
+              {publicFleets.map((fleet) => (
+                <tr key={fleet._id} className="border-b border-gray-800/60">
+                  <td className="py-1 pr-4 text-blue-300 hover:text-blue-200 cursor-default">{fleet.name}</td>
+                  <td className="py-1 pr-4 text-gray-200">{fleet.ownerName}</td>
+                  <td className="py-1 pr-4 text-gray-300">{fleet.arrival || '—'}</td>
+                  <td className="py-1 text-right font-mono">{fleet.sizeCredits.toLocaleString()}</td>
                 </tr>
               ))}
-              {mockFleets.length === 0 && (
+              {publicFleets.length === 0 && !publicFleetsError && (
                 <tr>
                   <td colSpan={4} className="py-3 text-center text-gray-400">No fleets detected in orbit.</td>
                 </tr>

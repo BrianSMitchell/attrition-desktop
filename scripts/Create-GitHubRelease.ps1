@@ -8,14 +8,14 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$InstallerPath,
     
-    [string]$Repo = "BrianSMitchell/attrition-game",
+    [string]$Repo = "BrianSMitchell/attrition-desktop",
     
     [string]$ReleaseNotes = ""
 )
 
 # Check if Python is available
 try {
-    python --version | Out-Null
+    py --version | Out-Null
 } catch {
     Write-Error "Python is not installed or not in PATH. Please install Python 3.6+ and try again."
     exit 1
@@ -23,10 +23,10 @@ try {
 
 # Check if requests module is available
 try {
-    python -c "import requests" 2>$null
+    py -c "import requests" 2>$null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Installing required Python package 'requests'..." -ForegroundColor Yellow
-        python -m pip install requests
+        py -m pip install requests
     }
 } catch {
     Write-Error "Failed to install required Python packages."
@@ -53,9 +53,9 @@ if (-not (Test-Path $PythonScript)) {
 Write-Host "Creating GitHub release for $Repo version $Version..." -ForegroundColor Green
 
 if ($ReleaseNotes) {
-    python $PythonScript $Repo $Version $InstallerPath $ReleaseNotes
+    py $PythonScript $Repo $Version $InstallerPath $ReleaseNotes
 } else {
-    python $PythonScript $Repo $Version $InstallerPath
+    py $PythonScript $Repo $Version $InstallerPath
 }
 
 if ($LASTEXITCODE -eq 0) {

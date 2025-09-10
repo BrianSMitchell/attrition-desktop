@@ -7,6 +7,9 @@ electronVersion: 31.2.0
 compression: maximum
 artifactName: ${productName}-Setup-${version}.${ext}
 
+# Disable code signing globally
+forceCodeSigning: false
+
 # Directories
 directories:
   output: ../../packages/releases
@@ -37,11 +40,15 @@ win:
   artifactName: ${productName}-Setup-${version}.${ext}
   forceCodeSigning: false
   sign: null
+  certificateFile: null
+  certificatePassword: null
+  signAndEditExecutable: false
+  signDlls: false
 
 # NSIS installer configuration
 nsis:
   oneClick: false
-  perMachine: true
+  perMachine: false  # Changed to per-user install for proper desktop shortcuts
   allowElevation: true
   allowToChangeInstallationDirectory: true
   # installerIcon: ../assets/icon.ico
@@ -51,6 +58,8 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: "Attrition Launcher"
   displayLanguageSelector: false
+  # Force desktop shortcut creation
+  include: ../../scripts/launcher-shortcuts.nsh
   
   # Custom installer script to ensure old versions are removed
   # include: ../scripts/installer.nsh

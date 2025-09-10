@@ -205,52 +205,124 @@ async function launchGame() {
   try {
     const gameExecutable = getGameExecutablePath();
     
+    log.info('Checking game executable:', {
+      path: gameExecutable,
+      exists: fs.existsSync(gameExecutable)
+    });
+    
     if (!fs.existsSync(gameExecutable)) {
-      throw new Error(`Game executable not found: ${gameExecutable}`);
+      const errorMsg = `Game executable not found at: ${gameExecutable}`;
+      log.error(errorMsg);
+      mainWindow.webContents.send('launcher-status', {
+        status: 'error',
+        message: errorMsg
+      });
+      return;
     }
     
-    log.info('Starting game process:', gameExecutable);
+    // Check if the file is actually executable
+    try {
+      const stats = fs.statSync(gameExecutable);
+      log.info('Game executable stats:', {
+        size: stats.size,
+        modified: stats.mtime,
+        isFile: stats.isFile()
+      });
+    } catch (statError) {
+      log.error('Failed to get game executable stats:', statError);
+    }
     
+    log.info('Starting game process with enhanced options:', {
+      executable: gameExecutable,
+      args: ['--launched-by-launcher']
+    });
+    
+    // Use more explicit spawn options
     gameProcess = spawn(gameExecutable, ['--launched-by-launcher'], {
-      detached: true,
-      stdio: 'ignore',
+      detached: false, // Keep attached for better error handling
+      stdio: ['ignore', 'pipe', 'pipe'], // Capture stdout/stderr for debugging
       env: {
         ...process.env,
         ATTRITION_LAUNCHED_BY_LAUNCHER: 'true'
-      }
+      },
+      windowsVerbatimArguments: false,
+      shell: false
     });
     
-    gameProcess.unref(); // Allow launcher to exit independently
+    // Capture output for debugging
+    if (gameProcess.stdout) {
+      gameProcess.stdout.on('data', (data) => {
+        log.info('Game stdout:', data.toString());
+      });
+    }
+    
+    if (gameProcess.stderr) {
+      gameProcess.stderr.on('data', (data) => {
+        log.error('Game stderr:', data.toString());
+      });
+    }
     
     gameProcess.on('spawn', () => {
-      log.info('Game process started successfully');
+      log.info('Game process spawned successfully');
       mainWindow.webContents.send('launcher-status', {
         status: 'game-launched',
         message: 'Game started successfully!'
       });
       
-      // Minimize launcher or close it
+      // Minimize launcher immediately when game spawns
       if (mainWindow) {
+        log.info('Game spawned, minimizing launcher');
         mainWindow.minimize();
-        // Optionally close after a delay
+        
+        // Close launcher after game has had time to stabilize
         setTimeout(() => {
-          if (mainWindow) {
+          if (mainWindow && gameProcess && !gameProcess.killed) {
+            log.info('Game appears stable, closing launcher');
             mainWindow.close();
           }
-        }, 2000);
+        }, 5000); // 5 seconds to ensure game is stable
       }
     });
     
     gameProcess.on('error', (error) => {
-      log.error('Failed to start game process:', error);
+      log.error('Game process error:', {
+        error: error.message,
+        code: error.code,
+        errno: error.errno,
+        syscall: error.syscall,
+        path: error.path
+      });
+      
+      let userMessage = `Failed to start game: ${error.message}`;
+      
+      // Provide more specific error messages
+      if (error.code === 'ENOENT') {
+        userMessage = 'Game executable not found. Please try reinstalling.';
+      } else if (error.code === 'EACCES') {
+        userMessage = 'Permission denied. Try running the launcher as administrator.';
+      } else if (error.code === 'EPERM') {
+        userMessage = 'Permission error. Check antivirus settings and try again.';
+      }
+      
       mainWindow.webContents.send('launcher-status', {
         status: 'error',
-        message: `Failed to start game: ${error.message}`
+        message: userMessage
       });
     });
     
+    gameProcess.on('exit', (code, signal) => {
+      log.info('Game process exited:', { code, signal });
+      
+      if (code !== 0 && code !== null) {
+        mainWindow.webContents.send('launcher-status', {
+          status: 'error',
+          message: `Game exited with error code: ${code}`
+        });
+      }
+    });
+    
   } catch (error) {
-    log.error('Launch game failed:', error);
+    log.error('Launch game failed with exception:', error);
     mainWindow.webContents.send('launcher-status', {
       status: 'error',
       message: `Failed to launch game: ${error.message}`

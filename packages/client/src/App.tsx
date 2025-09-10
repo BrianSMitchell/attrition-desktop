@@ -14,11 +14,13 @@ import BasesPage from './components/game/BasesPage';
 import BasePage from './components/game/BasePage';
 import HelpPage from './components/help/HelpPage';
 import FleetPage from './components/game/FleetPage';
+import MessagesPage from './components/game/MessagesPage';
 import PerformancePage from './components/admin/PerformancePage';
 import { ToastProvider, ToastViewport } from './contexts/ToastContext';
 import { UpdateProvider } from './contexts/UpdateContext';
 import SyncFeedback from './components/ui/SyncFeedback';
 import UpdateNotification from './components/ui/UpdateNotification';
+import MessageToast from './components/ui/MessageToast';
 
 const isDesktop = typeof window !== 'undefined' && (((window as any).desktop) || window.location.protocol === 'file:');
 const RouterComponent = isDesktop ? HashRouter : BrowserRouter;
@@ -63,6 +65,7 @@ function App() {
               <ToastViewport />
               <UpdateNotification />
               <SyncFeedback />
+              <MessageToast />
             <div className="game-container">
             <Routes>
               {/* Public routes */}
@@ -156,6 +159,19 @@ function App() {
                   user ? (
                     <Layout>
                       <FleetPage />
+                    </Layout>
+                  ) : (
+                    <Navigate to="/login" replace />
+                  )
+                } 
+              />
+              
+              <Route 
+                path="/messages" 
+                element={
+                  user ? (
+                    <Layout>
+                      <MessagesPage />
                     </Layout>
                   ) : (
                     <Navigate to="/login" replace />
