@@ -48,7 +48,7 @@ win:
 # NSIS installer configuration
 nsis:
   oneClick: false
-  perMachine: false  # Changed to per-user install for proper desktop shortcuts
+  perMachine: false  # Per-user install for proper desktop shortcuts
   allowElevation: true
   allowToChangeInstallationDirectory: true
   # installerIcon: ../assets/icon.ico
@@ -58,8 +58,10 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: "Attrition Launcher"
   displayLanguageSelector: false
-  # Force desktop shortcut creation
+  artifactName: "Attrition Launcher-Setup-${version}.${ext}"
+  # Custom NSIS script for desktop shortcuts
   include: ../../scripts/launcher-shortcuts.nsh
+  warningsAsErrors: false
   
   # Custom installer script to ensure old versions are removed
   # include: ../scripts/installer.nsh
