@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { BuildingKey, BuildingSpec } from "@game/shared";
+import type { StructureKey as BuildingKey, StructureSpec as BuildingSpec } from "@game/shared";
 import { getStructureCreditCostForLevel } from "@game/shared";
 import type { StructuresStatusDTO } from "../../services/structuresService";
 import { useModalStore } from "../../stores/modalStore";
@@ -17,6 +17,8 @@ interface StructuresBuildTableProps {
   constructionPerHour?: number;
   activeConstruction?: { key: BuildingKey; completionAt: string } | null;
   locationCoord?: string;
+  // Tech levels for requirement checking (from research status)
+  techLevels?: Record<string, number>;
   // Planet context for displaying per-base energy gain hints
   planetSolarEnergy?: number;
   planetGasYield?: number;
@@ -42,6 +44,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
   onStart,
   constructionPerHour,
   activeConstruction,
+  techLevels,
   planetSolarEnergy,
   planetGasYield,
   planetMetalYield,
@@ -218,8 +221,14 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
         if (!hasReq) {
           return <span className="text-gray-400">{text}</span>;
         }
-        const techLevels = status?.techLevels || {};
-        const met = s.techPrereqs.every((p) => (techLevels[p.key] ?? 0) >= p.level);
+        // Get current tech levels from research data (passed as prop)
+        const currentTechLevels = techLevels || {};
+        // Check if all tech prerequisites are met
+        const met = s.techPrereqs.every((p) => {
+          const currentLevel = Math.max(0, currentTechLevels[p.key] ?? 0);
+          return currentLevel >= p.level;
+        });
+        // Show green for met requirements, red for unmet requirements
         return <span className={met ? "text-green-400" : "text-red-400"}>{text}</span>;
       },
     },
@@ -237,15 +246,18 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
         } catch {
           nextCost = currentLevel === 0 ? s.creditsCost : null;
         }
-        return typeof nextCost === "number" ? formatDuration(nextCost, constructionPerHour) : "—";
+        if (typeof nextCost !== "number") return "—";
+        const text = formatDuration(nextCost, constructionPerHour);
+        const tip = `ETA = Credits (${nextCost.toLocaleString()}) / Construction Capacity (${constructionPerHour.toLocaleString()} cred/h)`;
+        return <span title={tip}>{text}</span>;
       },
     },
   ];
 
   const getEligibility = (s: BuildingSpec): Eligibility => {
     const elig = status?.eligibility[s.key as BuildingKey];
-    // Allow queue behavior: enable all eligible rows to Queue (including the active one)
-    const canStart = !!elig?.canStart;
+    // v0: disable all starts while a construction is active at this base
+    const canStart = !!elig?.canStart && !hasActive;
     const reasons = elig?.reasons || [];
     return { canStart, reasons };
   };
@@ -345,7 +357,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
     <BuildTable<BuildingSpec>
       title="Structures"
       firstColumnHeader="Structure"
-      actionHeader="Build"
+      actionHeader="Start"
       summary={undefined}
       loading={loading}
       onRefresh={onRefresh}
@@ -358,10 +370,8 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
       onAction={(s) => onStart(s.key as BuildingKey)}
       actionLabel={(_, eligible, isLoading) => {
         if (isLoading) return "...";
-        if (hasActive) {
-          return eligible ? "Queue" : "Unavailable";
-        }
-        return eligible ? "Build" : "Unavailable";
+        if (hasActive) return "Unavailable";
+        return eligible ? "Start" : "Unavailable";
       }}
       actionTestIdPrefix="start"
       nameTestIdPrefix="name"
