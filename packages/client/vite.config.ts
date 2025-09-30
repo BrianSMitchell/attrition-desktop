@@ -4,16 +4,24 @@ import { visualizer } from 'rollup-plugin-visualizer'
 import { fileURLToPath, URL } from 'node:url'
 
 // Desktop-only build configuration for Electron embedding
-export default defineConfig(({ mode }) => ({
-  plugins: [react(), splitVendorChunkPlugin()],
+export default defineConfig(({ mode }) => {
+  const isDevelopment = mode === 'development';
+  
+  return {
+  plugins: [
+    react(),
+    // Only use vendor chunk splitting in production for faster dev builds
+    ...(isDevelopment ? [] : [splitVendorChunkPlugin()])
+  ],
   publicDir: '../../assets',
   base: './',
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: isDevelopment ? true : 'hidden', // Faster dev builds with sourcemaps
     target: 'chrome100', // Electron uses Chromium
-    minify: 'terser',
-    rollupOptions: {
+    minify: isDevelopment ? false : 'terser', // Skip minification in dev
+    rollupOptions: isDevelopment ? {} : {
+      // Only apply heavy optimizations in production builds
       plugins: [
         visualizer({
           filename: 'dist/stats.html',
@@ -81,4 +89,5 @@ export default defineConfig(({ mode }) => ({
     'import.meta.env.MODE': JSON.stringify(mode),
     'import.meta.env.PROD': JSON.stringify(mode === 'production')
   }
-}))
+}; // Close the return statement
+}); // Close the defineConfig

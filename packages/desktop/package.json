@@ -9,7 +9,8 @@
   "homepage": "https://attrition-game.com",
   "type": "module",
   "scripts": {
-    "predev": "pnpm --filter @game/shared build && pnpm --filter @game/client build:dev",
+    "predev:original": "pnpm --filter @game/shared build && pnpm --filter @game/client build:dev",
+    "predev": "pnpm --filter @game/shared build && pnpm --filter @game/client build:dev --mode development",
     "dev": "electron .",
     "start": "electron .",
     "prebuild": "pnpm --filter @game/shared build && pnpm --filter @game/client build",

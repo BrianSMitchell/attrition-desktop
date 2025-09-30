@@ -7,18 +7,23 @@ export class ResourceService {
   
   /**
    * Calculate resource production for an empire based on buildings and technology
+   * Includes optional empire object to avoid redundant database queries
    */
-  private static async calculateCreditsPerHour(empireId: string): Promise<number> {
-    const empire = await Empire.findById(empireId);
+  private static async calculateCreditsPerHour(empireId: string, empire?: any): Promise<number> {
     if (!empire) {
-      throw new Error('Empire not found');
+      empire = await Empire.findById(empireId);
+      if (!empire) {
+        throw new Error('Empire not found');
+      }
     }
 
     // Use cached empire economy (fast)
     const creditsPerHour = await EmpireEconomyService.getCachedEmpireEconomy(empireId);
 
-    // Diagnostic logging (no building iteration)
-    console.log(`📊 Empire ${empireId} (${empire.name}) credits/hour (cached): ${creditsPerHour}`);
+    // Diagnostic logging (only in debug mode)
+    if (process.env.DEBUG_RESOURCES === 'true') {
+      console.log(`📊 Empire ${empireId} (${empire.name}) credits/hour (cached): ${creditsPerHour}`);
+    }
 
     return creditsPerHour;
   }
@@ -38,8 +43,8 @@ export class ResourceService {
 
     // Even though we compute hoursElapsed, legacy non-credit resources no longer accumulate.
     // We still respect a minimal cadence for recomputing production for diagnostics.
-    // Get cached credits per hour once
-    const creditsPerHour = await this.calculateCreditsPerHour(empireId);
+    // Get cached credits per hour once (pass empire to avoid redundant DB query)
+    const creditsPerHour = await this.calculateCreditsPerHour(empireId, empire);
     
     if (hoursElapsed < 1/60) {
       return { empire, resourcesGained: {}, creditsPerHour };
@@ -83,8 +88,8 @@ export class ResourceService {
       return { empire, creditsGained: 0 };
     }
 
-    // Calculate production and microcredits
-    const creditsPerHour = await this.calculateCreditsPerHour(empireId);
+    // Calculate production and microcredits (pass empire to avoid redundant DB query)
+    const creditsPerHour = await this.calculateCreditsPerHour(empireId, empire);
 
     // Convert to microcredits (milli-credits) for precise calculation
     const microCreditsPerPeriod = Math.round(creditsPerHour * (periodMs / (60 * 60 * 1000)) * 1000);
@@ -108,25 +113,31 @@ export class ResourceService {
     // Update last payout to the most recent boundary we've paid for
     empire.lastCreditPayout = new Date(lastBoundary.getTime() + (periodsElapsed * periodMs));
 
-    // Debug: Log the empire state before saving
-    console.log(`   DEBUG - Before save: credits=${empire.resources.credits}, remainder=${empire.creditsRemainderMilli}`);
+    // Debug logging (only in debug mode)
+    if (process.env.DEBUG_RESOURCES === 'true') {
+      console.log(`   DEBUG - Before save: credits=${empire.resources.credits}, remainder=${empire.creditsRemainderMilli}`);
+    }
 
     await empire.save();
 
-    // Debug: Verify the save worked
-    const savedEmpire = await Empire.findById(empireId);
-    console.log(`   DEBUG - After save: credits=${savedEmpire?.resources.credits}, remainder=${savedEmpire?.creditsRemainderMilli}`);
+    // Debug: Log final state (only in debug mode) - no need for additional DB query
+    if (process.env.DEBUG_RESOURCES === 'true') {
+      console.log(`   DEBUG - After save: credits=${empire.resources.credits}, remainder=${empire.creditsRemainderMilli}`);
+    }
 
-    // Diagnostic logging
-    console.log(`💰 Empire ${empireId} (${empire.name}):`);
-    console.log(`   Credits/Hour: ${creditsPerHour}`);
-    console.log(`   Periods Elapsed: ${periodsElapsed} (${periodMinutes}min each)`);
-    console.log(`   Microcredits/Period: ${microCreditsPerPeriod}`);
-    console.log(`   Total Microcredits: ${totalMicroCredits}`);
-    console.log(`   Previous Remainder: ${currentRemainder}`);
-    console.log(`   Whole Credits Awarded: ${wholeCredits}`);
-    console.log(`   New Remainder: ${newRemainder}`);
-    console.log(`   Final Credits: ${empire.resources.credits}`);
+    // Diagnostic logging (only in debug mode or for significant payouts)
+    const shouldLogPayout = process.env.DEBUG_RESOURCES === 'true' || wholeCredits >= 10;
+    if (shouldLogPayout) {
+      console.log(`💰 Empire ${empireId} (${empire.name}):`);
+      console.log(`   Credits/Hour: ${creditsPerHour}`);
+      console.log(`   Periods Elapsed: ${periodsElapsed} (${periodMinutes}min each)`);
+      console.log(`   Microcredits/Period: ${microCreditsPerPeriod}`);
+      console.log(`   Total Microcredits: ${totalMicroCredits}`);
+      console.log(`   Previous Remainder: ${currentRemainder}`);
+      console.log(`   Whole Credits Awarded: ${wholeCredits}`);
+      console.log(`   New Remainder: ${newRemainder}`);
+      console.log(`   Final Credits: ${empire.resources.credits}`);
+    }
 
     return { empire, creditsGained: wholeCredits };
   }
