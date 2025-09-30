@@ -1,10 +1,13 @@
 import mongoose from 'mongoose';
 import { Empire, EmpireDocument } from '../models/Empire';
-import { StructuresService } from './structuresService';
+import { Location } from '../models/Location';
+import { Building } from '../models/Building';
+import { BuildingService } from './buildingService';
 import {
   getDefensesList,
   DefenseKey,
   TechnologyKey,
+  computeEnergyBalance,
 } from '@game/shared';
 
 /**
@@ -86,8 +89,11 @@ export interface DefensesStatusDTO {
 /**
  * Phase A "Defenses" service.
  * - Tech-only gating (credits/energy not enforced yet).
- * - Start action maps every defense to existing BuildingService type 'defense_station'.
+ * - Start action directly enqueues a generic 'defense_station' build item using BuildingService
+ *   (does not run StructuresService tech/energy gating meant for structures).
  */
+import { DefenseQueue } from '../models/DefenseQueue';
+import { CapacityService } from './capacityService';
 export class DefensesService {
   static async getStatus(empireId: string): Promise<DefensesStatusDTO> {
     const empire = await Empire.findById(empireId);
@@ -125,6 +131,15 @@ export class DefensesService {
       return formatError('NOT_FOUND', 'Empire not found');
     }
 
+    // Validate owned location
+    const location = await Location.findOne({ coord: locationCoord });
+    if (!location) {
+      return formatError('NOT_FOUND', 'Location not found');
+    }
+    if (location.owner?.toString() !== (empire as any).userId?.toString()) {
+      return formatError('NOT_OWNER', 'You do not own this location', { locationCoord });
+    }
+
     // Validate against catalog + tech prereqs
     const spec = getDefensesList().find(d => d.key === defenseKey);
     if (!spec) {
@@ -137,36 +152,127 @@ export class DefensesService {
       const reasons = techCheck.unmet.map(
         (u) => `Requires ${u.key} ${u.requiredLevel} (current ${u.currentLevel}).`,
       );
-      return formatError('TECH_REQUIREMENTS', 'Technology requirements not met', { unmet: techCheck.unmet });
+      return {
+        ...formatError('TECH_REQUIREMENTS', 'Technology requirements not met', { unmet: techCheck.unmet }),
+        reasons,
+      } as any;
     }
 
-    // Map all defenses to existing 'jump_gate' building key for Phase A (maps to defense_station type)
-    const result = await StructuresService.start(empireId, locationCoord, 'jump_gate');
+    // New citizen-capacity driven queue
+    // If an item is already in progress at this base (status=pending with completesAt in the future), we enqueue
+    const now = Date.now();
+    const inProgress = await DefenseQueue.findOne({
+      empireId: new mongoose.Types.ObjectId(empireId),
+      locationCoord,
+      status: 'pending',
+      completesAt: { $gt: new Date(now) }
+    }).lean();
 
-    if (!result.success) {
-      // Debug log to diagnose 400 failures during E2E
-      console.warn('[DefensesService.start] mapped start failed', {
-        code: (result as any).code,
-        message: (result as any).message || (result as any).error,
-        details: (result as any).details,
-        reasons: (result as any).reasons,
-      });
-      const details = (result as any).details;
-      const reasons = (result as any).reasons;
-      const code = (result as any).code || 'SERVER_ERROR';
-      const message = ('message' in (result as any) ? (result as any).message : (result as any).error || 'Failed to start defense');
-      const base = formatError(code, message, details);
-      return reasons ? { ...base, reasons } : base;
-    }
+    if (!inProgress) {
+      // Compute citizen capacity
+      const caps = await CapacityService.getBaseCapacities(empireId, locationCoord);
+      const perHour = Math.max(0, Number((caps as any)?.citizen?.value || 0));
+      if (!(perHour > 0)) {
+        return formatError('NO_CAPACITY', 'This base has no citizen capacity to build defenses.');
+      }
 
-    return formatSuccess(
+      // Energy validation: ensure adding this defense won't push energy negative when including existing defenses
+      const location = await Location.findOne({ coord: locationCoord });
+      const solarEnergy = Math.max(0, Number((location as any)?.result?.solarEnergy ?? 0));
+      const gasResource = Math.max(0, Number((location as any)?.result?.yields?.gas ?? 0));
+
+      // Gather active buildings at base for current energy
+      const buildings = await Building.find({ empireId: new mongoose.Types.ObjectId(empireId), locationCoord })
+        .select('catalogKey level isActive pendingUpgrade')
+        .lean();
+      const activeBuildings: Array<{ key: string; level: number; isActive: boolean }> = [];
+      for (const b of (buildings || [])) {
+        const key = String((b as any).catalogKey || '');
+        const level = Math.max(0, Number((b as any).level || 0));
+        if (!key || !(level > 0)) continue;
+        if ((b as any).isActive === true || (b as any).pendingUpgrade === true) {
+          activeBuildings.push({ key, level, isActive: true });
+        }
+      }
+
+      // Include completed defenses in energy baseline
+      const completedDefs = await DefenseQueue.find({
+        empireId: new mongoose.Types.ObjectId(empireId),
+        locationCoord,
+        status: 'completed',
+      }).select('defenseKey').lean();
+
+      let produced = 0, consumed = 0, balance = 0, reservedNegative = 0;
       {
-        building: result.data?.building,
+        const base = computeEnergyBalance({
+          buildingsAtBase: activeBuildings,
+          location: { solarEnergy, gasYield: gasResource },
+          includeQueuedReservations: false,
+        });
+        produced = base.produced; consumed = base.consumed; balance = base.balance;
+        // Add defense contributions
+        for (const it of (completedDefs || [])) {
+          const k = String((it as any).defenseKey || '');
+          const dSpec = getDefensesList().find((d) => String(d.key) === k);
+          const d = Number(dSpec?.energyDelta || 0);
+          if (d >= 0) produced += d; else consumed += Math.abs(d);
+        }
+        balance = produced - consumed;
+      }
+
+      // Projected energy after adding this defense
+      const delta = Number(spec.energyDelta || 0);
+      const projectedEnergy = balance + reservedNegative + delta;
+      if (delta < 0 && projectedEnergy < 0) {
+        return formatError('INSUFFICIENT_ENERGY', 'Insufficient energy capacity to start this defense.', { balance, delta, projectedEnergy });
+      }
+
+      // Deduct credits now
+      const cost = Math.max(0, Number(spec.creditsCost || 0));
+      const empireDoc = await Empire.findById(empireId);
+      if (!empireDoc) return formatError('NOT_FOUND', 'Empire not found');
+      const available = Number((empireDoc as any).resources?.credits || 0);
+      if (available < cost) {
+        return formatError('INSUFFICIENT_RESOURCES', `Insufficient credits. Requires ${cost}, you have ${available}.`, { required: cost, available });
+      }
+      (empireDoc as any).resources.credits = available - cost;
+      await empireDoc.save();
+
+      const seconds = Math.max(60, Math.ceil((cost / perHour) * 3600));
+      const dq = await DefenseQueue.create({
+        empireId: new mongoose.Types.ObjectId(empireId),
+        locationCoord,
         defenseKey,
-        etaMinutes: (result as any).data?.etaMinutes,
-        constructionCapacityCredPerHour: (result as any).data?.constructionCapacityCredPerHour
-      },
-      `${spec.name} construction started.`
-    );
+        status: 'pending',
+        startedAt: new Date(now),
+        completesAt: new Date(now + seconds * 1000),
+      } as any);
+
+      return formatSuccess({
+        queueItem: { id: (dq._id as any).toString(), defenseKey, startedAt: dq.startedAt, completesAt: dq.completesAt },
+      }, `${spec.name} construction started.`);
+    } else {
+      // Enqueue waiting item (will be scheduled when current completes)
+      // Charge credits immediately to avoid free builds when scheduled later
+      const cost = Math.max(0, Number(spec.creditsCost || 0));
+      const empireDoc = await Empire.findById(empireId);
+      if (!empireDoc) return formatError('NOT_FOUND', 'Empire not found');
+      const available = Number((empireDoc as any).resources?.credits || 0);
+      if (available < cost) {
+        return formatError('INSUFFICIENT_RESOURCES', `Insufficient credits. Requires ${cost}, you have ${available}.`, { required: cost, available });
+      }
+      (empireDoc as any).resources.credits = available - cost;
+      await empireDoc.save();
+
+      const dq = await DefenseQueue.create({
+        empireId: new mongoose.Types.ObjectId(empireId),
+        locationCoord,
+        defenseKey,
+        status: 'pending',
+      } as any);
+      return formatSuccess({
+        queueItem: { id: (dq._id as any).toString(), defenseKey },
+      }, `${spec.name} queued.`);
+    }
   }
 }

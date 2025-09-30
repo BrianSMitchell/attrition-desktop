@@ -264,24 +264,47 @@ class DesktopErrorLogger {
           storedAt: new Date().toISOString()
         });
         
-        // Store in events queue for error reporting
-        desktopDb.enqueueEvent('error', 'desktop-main', {
-          errorId: entry.id,
-          level: entry.level,
-          category: entry.category,
-          message: entry.message,
-          error: entry.error,
-          context: entry.context,
-          correlationId: entry.correlationId,
-          process: entry.process
-        }, {
-          identityKey: `error_${entry.id}`,
-          catalogKey: 'system_error'
-        });
+        // Only queue FATAL errors for server reporting in production, or all errors if explicitly enabled
+        const shouldQueueForSync = this.shouldQueueErrorForSync(entry);
+        if (shouldQueueForSync) {
+          console.log(`[DesktopErrorLogger] Queueing ${entry.level} error for sync: ${entry.message}`);
+          desktopDb.enqueueEvent('error', 'desktop-main', {
+            errorId: entry.id,
+            level: entry.level,
+            category: entry.category,
+            message: entry.message,
+            error: entry.error,
+            context: entry.context,
+            correlationId: entry.correlationId,
+            process: entry.process
+          }, {
+            identityKey: `error_${entry.id}`,
+            catalogKey: 'system_error'
+          });
+        }
       }
     } catch (error) {
       console.error('[DesktopErrorLogger] Failed to store error in database:', error);
     }
+  }
+
+  /**
+   * Determine if an error should be queued for server sync
+   * Only queue fatal errors in production, or if explicitly enabled via env var
+   */
+  shouldQueueErrorForSync(entry) {
+    // If explicitly enabled, queue all errors
+    if (process.env.ENABLE_ERROR_SYNC === 'true') {
+      return true;
+    }
+    
+    // In production, only queue FATAL errors
+    if (process.env.NODE_ENV === 'production') {
+      return entry.level === ErrorSeverity.FATAL;
+    }
+    
+    // In development, don't queue any errors by default (prevents spam)
+    return false;
   }
 
   /**

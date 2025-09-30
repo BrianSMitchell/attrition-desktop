@@ -15,7 +15,8 @@
     "resolveJsonModule": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "composite": true
+    "composite": true,
+    "moduleResolution": "node"
   },
   "include": [
     "src/**/*.ts"

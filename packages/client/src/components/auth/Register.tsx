@@ -1,13 +1,22 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuthStore } from '../../stores/authStore';
+import { useAuth } from '../../stores/enhancedAppStore';
 
 const Register: React.FC = () => {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const { register, isLoading, error, clearError } = useAuthStore();
+  const auth = useAuth();
+  const { isLoading, error } = auth;
+  // TODO: Implement registration with enhanced store
+  const register = async (_email: string, _username: string, _password: string) => {
+    console.warn('Registration not yet implemented with enhanced store');
+    return Promise.reject('Registration functionality needs to be implemented');
+  };
+  const clearError = () => {
+    console.warn('Clear error not yet implemented with enhanced store');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

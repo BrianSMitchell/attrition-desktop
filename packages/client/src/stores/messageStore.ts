@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { Message, MessageSummary, SendMessageRequest } from '../services/messageService';
-import messageService from '../services/messageService';
+import { gameApi } from './services/gameApi';
 import { getSocket } from '../services/socket';
+
+// NOTE: Migrated to use enhanced store gameApi instead of legacy messageService
 
 export type MessageTab = 'inbox' | 'sentbox' | 'compose';
 
@@ -83,16 +85,16 @@ export const useMessageStore = create<MessageState & MessageActions>()(
     loadInbox: async (page = 1) => {
       set({ isLoading: true, error: null, currentPage: page });
       try {
-        const response = await messageService.getInbox(page, 20);
+        const response = await gameApi.getMessages('inbox', page, 20);
         if (response.success && response.data) {
           set({
-            inboxMessages: response.data.messages,
-            totalPages: response.data.totalPages,
+            inboxMessages: response.data.messages || [],
+            totalPages: response.data.totalPages || 1,
             isLoading: false,
           });
         } else {
           set({
-            error: response.message || 'Failed to load inbox',
+            error: response.error || 'Failed to load inbox',
             isLoading: false,
           });
         }
@@ -107,16 +109,16 @@ export const useMessageStore = create<MessageState & MessageActions>()(
     loadSentbox: async (page = 1) => {
       set({ isLoading: true, error: null, currentPage: page });
       try {
-        const response = await messageService.getSentbox(page, 20);
+        const response = await gameApi.getMessages('sentbox', page, 20);
         if (response.success && response.data) {
           set({
-            sentboxMessages: response.data.messages,
-            totalPages: response.data.totalPages,
+            sentboxMessages: response.data.messages || [],
+            totalPages: response.data.totalPages || 1,
             isLoading: false,
           });
         } else {
           set({
-            error: response.message || 'Failed to load sentbox',
+            error: response.error || 'Failed to load sentbox',
             isLoading: false,
           });
         }
@@ -130,7 +132,7 @@ export const useMessageStore = create<MessageState & MessageActions>()(
 
     loadSummary: async () => {
       try {
-        const response = await messageService.getSummary();
+        const response = await gameApi.getMessageSummary();
         if (response.success && response.data) {
           set({ summary: response.data });
         }
@@ -151,7 +153,7 @@ export const useMessageStore = create<MessageState & MessageActions>()(
       });
 
       try {
-        const response = await messageService.sendMessage(message);
+        const response = await gameApi.sendMessage(message);
         if (response.success) {
           set({
             composeForm: { ...initialComposeForm },
@@ -166,7 +168,7 @@ export const useMessageStore = create<MessageState & MessageActions>()(
             composeForm: {
               ...state.composeForm,
               isSending: false,
-              error: response.message || 'Failed to send message',
+              error: response.error || 'Failed to send message',
             },
           });
           return false;
@@ -184,8 +186,13 @@ export const useMessageStore = create<MessageState & MessageActions>()(
     },
 
     markAsRead: async (messageId: string) => {
+      if (!messageId) {
+        console.error('markAsRead called with invalid messageId:', messageId);
+        return;
+      }
+      
       try {
-        const response = await messageService.markAsRead(messageId);
+        const response = await gameApi.markMessagesAsRead([messageId]);
         if (response.success) {
           // Update local state
           const state = get();
@@ -197,20 +204,34 @@ export const useMessageStore = create<MessageState & MessageActions>()(
               ? { ...state.selectedMessage, isRead: true }
               : state.selectedMessage,
           });
-          // Refresh summary
-          get().loadSummary();
+          // Refresh summary (with error handling)
+          get().loadSummary().catch((summaryError) => {
+            console.warn('Failed to refresh message summary after marking as read:', summaryError);
+          });
+        } else {
+          console.error('Server responded with error when marking message as read:', response.error);
+          // Set a user-friendly error
+          set({ error: 'Failed to mark message as read. Please try again.' });
         }
       } catch (error) {
         console.error('Failed to mark message as read:', error);
+        // Set a user-friendly error
+        set({ error: 'Network error while marking message as read. Please try again.' });
       }
     },
 
     markAllAsRead: async () => {
       try {
-        const response = await messageService.markAllAsRead();
+        const state = get();
+        const unreadMessageIds = state.inboxMessages
+          .filter(msg => !msg.isRead)
+          .map(msg => msg._id);
+        
+        if (unreadMessageIds.length === 0) return;
+        
+        const response = await gameApi.markMessagesAsRead(unreadMessageIds);
         if (response.success) {
           // Update local state
-          const state = get();
           set({
             inboxMessages: state.inboxMessages.map((msg) => ({ ...msg, isRead: true })),
             selectedMessage: state.selectedMessage
@@ -227,7 +248,7 @@ export const useMessageStore = create<MessageState & MessageActions>()(
 
     deleteMessage: async (messageId: string) => {
       try {
-        const response = await messageService.deleteMessage(messageId);
+        const response = await gameApi.deleteMessage(messageId);
         if (response.success) {
           // Update local state
           const state = get();
@@ -250,11 +271,17 @@ export const useMessageStore = create<MessageState & MessageActions>()(
     setActiveTab: (tab: MessageTab) => {
       set({ activeTab: tab, selectedMessage: null, error: null });
       
-      // Load data for the selected tab
+      // Load data for the selected tab with error handling
       if (tab === 'inbox') {
-        get().loadInbox();
+        get().loadInbox().catch((error) => {
+          console.error('Failed to load inbox when switching tabs:', error);
+          set({ error: 'Failed to load inbox messages. Please try again.' });
+        });
       } else if (tab === 'sentbox') {
-        get().loadSentbox();
+        get().loadSentbox().catch((error) => {
+          console.error('Failed to load sentbox when switching tabs:', error);
+          set({ error: 'Failed to load sent messages. Please try again.' });
+        });
       }
     },
 
@@ -263,7 +290,11 @@ export const useMessageStore = create<MessageState & MessageActions>()(
       
       // Mark as read if selecting an unread inbox message
       if (message && !message.isRead && get().activeTab === 'inbox') {
-        get().markAsRead(message._id);
+        // Add error handling to prevent crashes when marking as read
+        get().markAsRead(message._id).catch((error) => {
+          console.error('Failed to mark message as read:', error);
+          // Don't update the UI state on error - let the message stay unread
+        });
       }
     },
 

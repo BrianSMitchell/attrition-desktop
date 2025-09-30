@@ -554,6 +554,25 @@ class EventQueueService {
   }
 
   /**
+   * Clear all error events from the queue (emergency cleanup)
+   */
+  clearErrorQueue() {
+    try {
+      const clearedCount = desktopDb.clearEventsByKind('error');
+      console.log(
+        `[EventQueueService] Cleared ${clearedCount} error events from queue`
+      );
+      return clearedCount;
+    } catch (err) {
+      console.error(
+        "[EventQueueService] Failed to clear error queue:",
+        err
+      );
+      return 0;
+    }
+  }
+
+  /**
    * Retry failed events by resetting their status
    */
   retryFailedEvents(maxRetries = 3) {
@@ -614,8 +633,27 @@ class EventQueueService {
         limit,
       });
 
-      // Get pending events by kind for batch processing
-      const eventKinds = ["structures", "research", "units", "defenses"];
+      // Snapshot pending counts by kind for diagnostics
+      let pendingStats = [];
+      try {
+        const stats = desktopDb.getEventStats();
+        pendingStats = (stats || []).filter(s => s.status === 'queued').map(s => ({ kind: s.kind, count: s.count }));
+        console.log('[EventQueueService.flush] Pending by kind before flush', { pendingStats });
+      } catch (e) {
+        console.warn('[EventQueueService.flush] Failed to get pending stats', e);
+      }
+
+      // Dynamically determine which kinds to process (fallback to defaults)
+      let eventKinds = [];
+      try {
+        eventKinds = desktopDb.getDistinctPendingKinds();
+      } catch (e) {
+        // ignore
+      }
+      if (!eventKinds || eventKinds.length === 0) {
+        eventKinds = ["structures", "research", "units", "defenses"];
+      }
+
       let totalEventsProcessed = 0;
       const kindMetrics = [];
 
@@ -734,6 +772,15 @@ class EventQueueService {
       });
 
       const totalTime = Date.now() - startTime;
+
+      // Compute remaining queued total
+      let remainingQueued = 0;
+      try {
+        remainingQueued = desktopDb.getPendingEventsCount(null);
+      } catch (e) {
+        // ignore
+      }
+
       console.log(`[EventQueueService.flush] Event flush cycle completed successfully`, {
         totalTimeMs: totalTime,
         totalEventsProcessed,
@@ -741,6 +788,7 @@ class EventQueueService {
         eventKindsProcessed: eventKinds.filter(
           (kind) => desktopDb.dequeueEventsForFlush(1, kind).length > 0
         ),
+        remainingQueued,
       });
 
       // Record overall performance metric for flush cycle

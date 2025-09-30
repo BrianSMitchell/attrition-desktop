@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import baseStatsService from '../../services/baseStatsService';
+import { gameApi } from '../../stores/services/gameApi';
 import { Link } from 'react-router-dom';
 
 type Economy = {
@@ -17,6 +17,7 @@ type BaseSummary = {
   occupier: null | { empireId: string; name: string };
   construction: { queued: number; next?: { name: string; remaining: number; percent?: number } };
   production: { queued: number; next?: { name: string; remaining: number; percent?: number } };
+  defenses?: { queued: number; next?: { name: string; remaining: number; percent?: number } };
   research: null | { name: string; remaining: number; percent?: number };
 };
 
@@ -48,15 +49,17 @@ function formatRemainingMs(ms: number): string {
   return `${minutes}m`;
 }
 
-// Simple progress bar with color variants: green (construction), purple (research), red (production)
-const ProgressBar: React.FC<{ percent: number; color: 'green' | 'purple' | 'red' }> = ({ percent, color }) => {
+// Simple progress bar with color variants: green (construction), purple (research), red (production), blue (defenses)
+const ProgressBar: React.FC<{ percent: number; color: 'green' | 'purple' | 'red' | 'blue' }> = ({ percent, color }) => {
   const barColor =
     color === 'green' ? 'bg-green-500' :
     color === 'purple' ? 'bg-purple-500' :
+    color === 'blue' ? 'bg-blue-500' :
     'bg-red-500';
   const trackColor =
     color === 'green' ? 'bg-green-900/40' :
     color === 'purple' ? 'bg-purple-900/40' :
+    color === 'blue' ? 'bg-blue-900/40' :
     'bg-red-900/40';
 
   const pct = Math.min(100, Math.max(0, Math.floor(percent)));
@@ -106,10 +109,14 @@ const BaseEventsTable: React.FC<BaseEventsTableProps> = ({ onRowClick }) => {
       const entries = await Promise.all(
         bases.map(async (b) => {
           try {
-            const res = await baseStatsService.get(b.location);
-            const ownerIncome = Math.round(res.data?.stats.ownerIncomeCredPerHour ?? 0);
-            const baseEconomy = ownerIncome; // Phase A: same as owner income; will diverge when occupation affects owner income
-            return [b.location, { owner: ownerIncome, base: baseEconomy }] as const;
+            const res = await gameApi.getBaseStats(b.location);
+            if (res.success && res.data) {
+              const ownerIncome = Math.round(res.data.ownerIncomeCredPerHour ?? 0);
+              const baseEconomy = ownerIncome; // Phase A: same as owner income; will diverge when occupation affects owner income
+              return [b.location, { owner: ownerIncome, base: baseEconomy }] as const;
+            } else {
+              return [b.location, { owner: 0, base: 0 }] as const;
+            }
           } catch {
             return [b.location, { owner: 0, base: 0 }] as const;
           }
@@ -177,6 +184,7 @@ const BaseEventsTable: React.FC<BaseEventsTableProps> = ({ onRowClick }) => {
                 <th className="py-2 px-3 text-left">Construction</th>
                 <th className="py-2 px-3 text-left">Production</th>
                 <th className="py-2 px-3 text-left">Research</th>
+                <th className="py-2 px-3 text-left">Defenses</th>
               </tr>
             </thead>
             <tbody>
@@ -186,18 +194,28 @@ const BaseEventsTable: React.FC<BaseEventsTableProps> = ({ onRowClick }) => {
                 const base = Math.round(econData?.base ?? 0);
                 const econ = `${owner} / ${base}`;
                 const occupier = b.occupier ? (b.occupier.name || 'Occupied') : '—';
-                const construction = (b.construction.next && b.construction.queued > 0)
-                  ? `${b.construction.next.name} (${formatRemainingMs(b.construction.next.remaining)})`
-                  : `(${b.construction.queued})`;
+                // Construction text mirrors research: show name + ETA, or "waiting" if not scheduled yet
+                const constructionWaiting = !!b.construction.next && (b.construction.next.remaining <= 0);
+                const constructionText = b.construction.next
+                  ? (constructionWaiting
+                      ? `${b.construction.next.name} (waiting)`
+                      : `${b.construction.next.name} (${formatRemainingMs(b.construction.next.remaining)})`)
+                  : (b.construction.queued > 0 ? `(${b.construction.queued})` : '—');
                 const production = (b.production.next && b.production.queued > 0)
                   ? `${b.production.next.name} (${formatRemainingMs(b.production.next.remaining)})`
-                  : `(${b.production.queued})`;
+                  : (b.production.queued > 0 ? `(${b.production.queued})` : '—');
                 const researchWaiting = !!b.research && (b.research.remaining <= 0);
                 const researchText = b.research
                   ? (researchWaiting
                       ? `${b.research.name} (waiting)`
                       : `${b.research.name} (${formatRemainingMs(b.research.remaining)})`)
                   : '—';
+                const defensesWaiting = !!b.defenses?.next && ((b.defenses?.next.remaining || 0) <= 0);
+                const defensesText = b.defenses?.next
+                  ? (defensesWaiting
+                      ? `${b.defenses.next.name} (waiting)`
+                      : `${b.defenses.next.name} (${formatRemainingMs(b.defenses.next.remaining)})`)
+                  : (b.defenses && b.defenses.queued > 0 ? `(${b.defenses.queued})` : '—');
                 return (
                   <tr
                     key={b.baseId}
@@ -218,10 +236,10 @@ const BaseEventsTable: React.FC<BaseEventsTableProps> = ({ onRowClick }) => {
                           className={(b.construction.queued > 0 ? 'text-yellow-400' : 'text-gray-400') + ' hover:text-yellow-300'}
                           aria-label={`View structures for ${b.name}`}
                         >
-                          {construction}
+                          {constructionText}
                         </Link>
-                        {typeof b.construction.next?.percent === 'number' ? (
-                          <ProgressBar percent={b.construction.next.percent!} color="green" />
+                        {typeof b.construction.next?.percent === 'number' && !constructionWaiting ? (
+                          <ProgressBar percent={b.construction.next!.percent!} color="green" />
                         ) : null}
                       </div>
                     </td>
@@ -252,6 +270,21 @@ const BaseEventsTable: React.FC<BaseEventsTableProps> = ({ onRowClick }) => {
                         </Link>
                         {typeof b.research?.percent === 'number' && !researchWaiting ? (
                           <ProgressBar percent={b.research.percent!} color="purple" />
+                        ) : null}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3">
+                      <div className="flex flex-col gap-1">
+                        <Link
+                          to={`/base/${encodeURIComponent(b.location)}?tab=defenses`}
+                          onClick={(e) => e.stopPropagation()}
+                          className={(Number(b.defenses?.queued || 0) > 0 ? 'text-yellow-400' : 'text-gray-400') + ' hover:text-yellow-300'}
+                          aria-label={`View defenses for ${b.name}`}
+                        >
+                          {defensesText}
+                        </Link>
+                        {typeof b.defenses?.next?.percent === 'number' && !defensesWaiting ? (
+                          <ProgressBar percent={b.defenses!.next!.percent!} color="blue" />
                         ) : null}
                       </div>
                     </td>

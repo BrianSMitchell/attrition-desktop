@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly VITE_PRODUCTION_HOST?: string
   readonly VITE_ENVIRONMENT?: string
   readonly VITE_FORCE_DEV_MODE?: string
+  readonly VITE_FEATURE_MAP_NEXT?: string
+  readonly VITE_DEBUG_MAP_NEXT?: string
   readonly MODE: string
   readonly PROD: boolean
   readonly DEV: boolean

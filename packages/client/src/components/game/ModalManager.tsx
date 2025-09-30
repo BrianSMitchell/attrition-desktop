@@ -32,7 +32,7 @@ const ModalManager: React.FC<ModalManagerProps> = ({ empire, onUpdate }) => {
       case 'research':
         return '🔬 Research & Development';
       case 'galaxy':
-        return '🗺️ Galaxy Map';
+        return '🗺️ Map';
       case 'fleet':
         return '🚀 Fleet Management';
       case 'game_info':
@@ -103,7 +103,6 @@ const ModalManager: React.FC<ModalManagerProps> = ({ empire, onUpdate }) => {
       case 'fleet':
         return (
           <FleetModal
-            empire={empire}
             onUpdate={onUpdate}
           />
         );

@@ -1,78 +1,71 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { useAuthStore } from '../../stores/authStore';
-import { Empire } from '@game/shared';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { useGame, useGameActions, useServiceState } from '../../stores/enhancedAppStore';
 import ModalManager from './ModalManager';
-import api from '../../services/api';
 
-
-interface DashboardData {
-  user: any;
-  empire: Empire | null;
-  isNewPlayer: boolean;
-  serverInfo: {
-    name: string;
-    version: string;
-    playersOnline: number;
-    universeSize: { width: number; height: number };
-  };
-  profile?: {
-    economyPerHour: number;
-    fleetScore: number;
-    technologyScore: number;
-    level: number;
-  };
-}
 
 const Dashboard: React.FC = () => {
-  const { user } = useAuthStore();
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const game = useGame();
+  const gameActions = useGameActions();
   const [empireCreationName, setEmpireCreationName] = useState('');
   const [showCreateEmpire, setShowCreateEmpire] = useState(false);
 
-  // Use shared axios instance with global auth/refresh + desktop-safe redirects
-  const apiClient = api;
+  const dashboardData = game.dashboard?.data;
+  const isLoading = game.loading?.dashboard;
+  const error = game.dashboard?.error;
+  
+  // Wait for both services and game state to be ready
+  const services = useServiceState();
+  const servicesReady = services?.isReady && 
+    services.connections?.auth && 
+    services.connections?.network && 
+    services.connections?.socket;
+  
+  console.log('🎮 Dashboard: Service state:', {
+    isReady: services?.isReady,
+    connections: services?.connections,
+    servicesReady
+  });
 
-  // Fetch dashboard data
-  const fetchDashboardData = async () => {
-    try {
-      const response = await apiClient.get('/game/dashboard');
-      const data = response.data;
+  // Early return if services aren't ready
+  if (!servicesReady) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Connecting to game services...</p>
+        </div>
+      </div>
+    );
+  }
 
-      console.log('Dashboard API Response:', data); // Debug log
+  // Load dashboard data on component mount - run only once
+  useEffect(() => {
+    console.log('🎮 Dashboard: Attempting to load dashboard data...');
+    gameActions.loadDashboard().catch(error => {
+      console.error('❌ Dashboard: Failed to load dashboard data:', error);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-      if (data.success) {
-        console.log('Profile data received:', data.data.profile); // Debug log
-        setDashboardData(data.data);
-      }
-    } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-    }
-  };
-
-  // Create empire
+  // Handle empire creation
   const handleCreateEmpire = async () => {
     if (!empireCreationName.trim()) return;
 
     try {
-      const response = await apiClient.post('/game/empire', { name: empireCreationName });
-      const data = response.data;
-
-      if (data.success) {
+      const success = await gameActions.createEmpire(empireCreationName);
+      if (success) {
         setShowCreateEmpire(false);
         setEmpireCreationName('');
-        await fetchDashboardData();
-      } else {
-        console.error(data.error || 'Failed to create empire');
       }
     } catch (err) {
-      console.error('Network error. Please try again.', err);
+      console.error('Error creating empire:', err);
     }
   };
 
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  // Refresh dashboard data
+  const refreshDashboard = useCallback(() => {
+    gameActions.loadDashboard();
+  }, [gameActions]);
 
   // Helper to handle both Map and plain object techLevels from server
   const getTechEntries = (tl: any): [string, number][] => {
@@ -87,7 +80,39 @@ const Dashboard: React.FC = () => {
     [dashboardData?.empire]
   );
 
-  if (!dashboardData) {
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">
+            <p className="text-lg font-semibold">Error Loading Dashboard</p>
+            <p className="text-sm">{error}</p>
+          </div>
+          <button 
+            onClick={refreshDashboard}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show service initialization state
+  if (!servicesReady) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Connecting to game services...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state for dashboard data
+  if (isLoading || !dashboardData) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -103,7 +128,7 @@ const Dashboard: React.FC = () => {
       {/* Welcome Header */}
       <div className="game-card">
         <h1 className="text-2xl font-bold mb-2">
-          Welcome to {dashboardData.serverInfo.name}, {user?.username}!
+          Welcome to {dashboardData.serverInfo.name}, {dashboardData.user?.username}!
         </h1>
         <p className="text-gray-400">
           {dashboardData.empire
@@ -139,7 +164,7 @@ const Dashboard: React.FC = () => {
             <div className="flex gap-3">
               <button
                 onClick={handleCreateEmpire}
-                disabled={!empireCreationName.trim() || empireCreationName.length < 3}
+                disabled={!empireCreationName.trim() || empireCreationName.length < 3 || isLoading}
                 className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Establish Empire
@@ -210,11 +235,11 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="flex items-center justify-between py-1.5">
                 <span className="font-medium text-gray-300">Player</span>
-                <span className="font-mono">{dashboardData.user?.username ?? user?.username ?? '—'}</span>
+                <span className="font-mono">{dashboardData.user?.username ?? '—'}</span>
               </div>
               <div className="flex items-center justify-between py-1.5">
                 <span className="font-medium text-gray-300">Player ID</span>
-                <span className="font-mono">{dashboardData.user?._id ?? user?._id ?? '—'}</span>
+                <span className="font-mono">{dashboardData.user?._id ?? '—'}</span>
               </div>
               <div className="flex items-center justify-between py-1.5">
                 <span className="font-medium text-gray-300">Level</span>
@@ -284,7 +309,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Modal Manager */}
-      <ModalManager empire={dashboardData.empire} onUpdate={fetchDashboardData} />
+      <ModalManager empire={dashboardData.empire} onUpdate={refreshDashboard} />
     </div>
   );
 };

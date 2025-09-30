@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
 import { Building, type BuildingDocument } from '../models/Building';
-import { CapacityService } from './capacityService';
 import { Empire } from '../models/Empire';
+import { CapacityService } from './capacityService';
+import { getIO } from '../index';
 
 /**
  * BuildingService
@@ -73,6 +74,17 @@ export class BuildingService {
 
         await doc.save();
         activatedIds.push((doc._id as mongoose.Types.ObjectId).toString());
+        // Broadcast completion event
+        try {
+          const io = getIO();
+          const empireIdStr = (doc.empireId as mongoose.Types.ObjectId).toString();
+          (io as any)?.broadcastQueueUpdate?.(empireIdStr, doc.locationCoord, 'queue:item_completed', {
+            buildingId: (doc._id as mongoose.Types.ObjectId).toString(),
+            locationCoord: doc.locationCoord,
+            catalogKey: (doc as any).catalogKey,
+            pendingUpgrade: (doc as any).pendingUpgrade === true,
+          });
+        } catch {}
         try {
           const baseKey = `${(doc.empireId as mongoose.Types.ObjectId).toString()}|${doc.locationCoord}`;
           basesToSchedule.add(baseKey);
@@ -158,9 +170,37 @@ export class BuildingService {
       return;
     }
 
-    nextQueued.constructionStarted = now;
-    nextQueued.constructionCompleted = new Date(now.getTime() + minutes * 60 * 1000);
+    // Deterministic scheduling: chain from last scheduled completion at this base
+    const lastScheduled = await Building.findOne({
+      empireId: new mongoose.Types.ObjectId(empireId),
+      locationCoord,
+      isActive: false,
+      constructionCompleted: { $ne: null }
+    })
+      .sort({ constructionCompleted: -1 })
+      .select('constructionCompleted')
+      .lean();
+
+    const startAt = lastScheduled 
+      ? new Date((lastScheduled as any).constructionCompleted)
+      : now;
+
+    nextQueued.constructionStarted = startAt;
+    nextQueued.constructionCompleted = new Date(startAt.getTime() + minutes * 60 * 1000);
     await nextQueued.save();
+
+    // Broadcast schedule event
+    try {
+      const io = getIO();
+      const empireIdStr = (nextQueued.empireId as mongoose.Types.ObjectId).toString();
+      (io as any)?.broadcastQueueUpdate?.(empireIdStr, nextQueued.locationCoord, 'queue:item_scheduled', {
+        buildingId: (nextQueued._id as mongoose.Types.ObjectId).toString(),
+        locationCoord: nextQueued.locationCoord,
+        catalogKey: (nextQueued as any).catalogKey,
+        constructionStarted: nextQueued.constructionStarted,
+        constructionCompleted: nextQueued.constructionCompleted,
+      });
+    } catch {}
   }
 
   /**

@@ -1,5 +1,6 @@
 import { Empire } from '../models/Empire';
 import { EconomyService } from './economyService';
+import { EmpireEconomyService } from './EmpireEconomyService';
 import { ResourceCost } from '@game/shared';
 
 export class ResourceService {
@@ -13,12 +14,11 @@ export class ResourceService {
       throw new Error('Empire not found');
     }
 
-    const economyBreakdown = await EconomyService.computeEmpireEconomy(empireId);
-    const researchCreditBonuses = await EconomyService.getResearchCreditBonuses(empireId);
-    const creditsPerHour = economyBreakdown.totalCreditsPerHour + researchCreditBonuses;
+    // Use cached empire economy (fast)
+    const creditsPerHour = await EmpireEconomyService.getCachedEmpireEconomy(empireId);
 
-    // Diagnostic logging
-    console.log(`📊 Empire ${empireId} (${empire.name}) credits/hour: ${creditsPerHour} (structures: ${economyBreakdown.structuresEconomy}, research bonuses: ${researchCreditBonuses})`);
+    // Diagnostic logging (no building iteration)
+    console.log(`📊 Empire ${empireId} (${empire.name}) credits/hour (cached): ${creditsPerHour}`);
 
     return creditsPerHour;
   }
@@ -38,13 +38,12 @@ export class ResourceService {
 
     // Even though we compute hoursElapsed, legacy non-credit resources no longer accumulate.
     // We still respect a minimal cadence for recomputing production for diagnostics.
+    // Get cached credits per hour once
+    const creditsPerHour = await this.calculateCreditsPerHour(empireId);
+    
     if (hoursElapsed < 1/60) {
-      const creditsPerHour = await this.calculateCreditsPerHour(empireId);
       return { empire, resourcesGained: {}, creditsPerHour };
     }
-
-    // Calculate current production (credits only; non-credit are fixed at 0)
-    const creditsPerHour = await this.calculateCreditsPerHour(empireId);
 
     // Do NOT mutate metal/energy/research; they are deprecated as ticking resources.
     // Legacy resourceProduction fields have been removed from the model.

@@ -30,13 +30,7 @@ jest.mock('../services/techService', () => ({
   },
 }))
 
-const StructuresStart = jest.fn()
-jest.mock('../services/structuresService', () => ({
-  StructuresService: {
-    getStatus: jest.fn(), // not used here
-    start: (...args: any[]) => StructuresStart(...args),
-  },
-}))
+// StructuresService removed due to queue decommission
 
 const DefensesStart = jest.fn()
 jest.mock('../services/defensesService', () => ({
@@ -81,7 +75,6 @@ describe('Router-level idempotency (HTTP 409) mapping', () => {
     }
 
     TechStart.mockResolvedValue(already)
-    StructuresStart.mockResolvedValue(already)
     DefensesStart.mockResolvedValue(already)
     UnitsStart.mockResolvedValue(already)
   })
@@ -101,20 +94,7 @@ describe('Router-level idempotency (HTTP 409) mapping', () => {
     expect(res.body).toHaveProperty('details.identityKey')
   })
 
-  test('POST /api/game/structures/start → 409 with union-safe payload', async () => {
-    const res = await request(app)
-      .post('/api/game/structures/start')
-      .send({ locationCoord: 'A00:00:00:00', buildingKey: 'solar_plants' })
-
-    expect(res.status).toBe(409)
-    expect(res.body).toMatchObject({
-      success: false,
-      code: 'ALREADY_IN_PROGRESS',
-    })
-    expect(res.body).toHaveProperty('message')
-    expect(res.body).toHaveProperty('error')
-    expect(res.body).toHaveProperty('details.identityKey')
-  })
+  // Structures queue test removed - endpoint decommissioned
 
   test('POST /api/game/defenses/start → 409 with union-safe payload', async () => {
     const res = await request(app)

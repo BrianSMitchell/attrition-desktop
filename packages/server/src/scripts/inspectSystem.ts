@@ -21,7 +21,7 @@ async function main() {
   const system = Number.isFinite(Number(systemArg)) ? Number(systemArg) : 0;
 
   const mongoUri =
-    process.env.MONGODB_URI || 'mongodb://localhost:27017/space-empire-mmo';
+    process.env.MONGODB_URI || 'mongodb://localhost:27017/attrition';
 
   console.log(`Connecting to MongoDB...`);
   await mongoose.connect(mongoUri, {

@@ -172,14 +172,17 @@ export const UpdateProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         console.log('[UpdateContext] Initial status response:', response);
         
         if (response.success) {
-          console.log('[UpdateContext] Setting initial state from status:', response.status);
-          setState(prev => ({
-            ...prev,
-            updateAvailable: response.status.updateAvailable,
-            updateDownloaded: response.status.updateDownloaded,
-            checkingForUpdate: response.status.checkingForUpdate,
-            downloadProgress: response.status.downloadProgress,
-          }));
+          console.log('[UpdateContext] Setting initial state from status:', response.data?.status || response.status);
+          const statusData = response.data?.status || response.status;
+          if (statusData) {
+            setState(prev => ({
+              ...prev,
+              updateAvailable: statusData.updateAvailable,
+              updateDownloaded: statusData.updateDownloaded,
+              checkingForUpdate: statusData.checkingForUpdate,
+              downloadProgress: statusData.downloadProgress,
+            }));
+          }
         } else {
           console.warn('[UpdateContext] Initial status load failed:', response.error);
         }
@@ -206,8 +209,8 @@ export const UpdateProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.log('[UpdateContext] checkForUpdates response:', response);
       
       if (!response.success) {
-        console.warn('[UpdateContext] checkForUpdates failed:', response.error);
-        setState(prev => ({ ...prev, error: response.error }));
+        console.warn('[UpdateContext] checkForUpdates failed:', response.error || response.data?.error);
+        setState(prev => ({ ...prev, error: response.error || response.data?.error || 'Unknown error' }));
       } else {
         console.log('[UpdateContext] checkForUpdates succeeded');
       }
@@ -229,7 +232,7 @@ export const UpdateProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const response = await desktop.updater.downloadUpdate();
       
       if (!response.success) {
-        setState(prev => ({ ...prev, error: response.error }));
+        setState(prev => ({ ...prev, error: response.error || response.data?.error || 'Download failed' }));
       }
     } catch (error) {
       console.error('[UpdateContext] Download update failed:', error);
@@ -249,7 +252,7 @@ export const UpdateProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       
       // If we get here, the app should be restarting
       if (!response.success) {
-        setState(prev => ({ ...prev, error: response.error }));
+        setState(prev => ({ ...prev, error: response.error || response.data?.error || 'Install failed' }));
       }
     } catch (error) {
       console.error('[UpdateContext] Install update failed:', error);

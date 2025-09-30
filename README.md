@@ -121,13 +121,31 @@ attrition/
 Start the desktop app and server in development mode:
 
 ```bash
+# Standard development (may require manual cleanup on Ctrl+C)
 pnpm dev
+
+# Recommended: Development with automatic process cleanup
+pnpm dev:clean
 ```
 
 This will start:
 - **Desktop App**: Electron window with the game UI
 - **Game Server**: http://localhost:3001
 - **API Health Check**: http://localhost:3001/health
+
+### Process Management
+
+Sometimes development processes may hang after pressing Ctrl+C. To address this:
+
+```bash
+# List all Attrition-related processes
+pnpm list:processes
+
+# Kill all Attrition development processes
+pnpm clean:processes
+```
+
+See `docs/process-management-guide.md` for detailed information about the new process management utilities.
 
 ### Individual Package Commands
 

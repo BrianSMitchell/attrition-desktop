@@ -1,7 +1,15 @@
-// Simple network service for renderer process
-// This is a lightweight version that works in the browser context
+/**
+ * Legacy networkService API - now acts as a compatibility layer that delegates to NetworkManager.
+ * This maintains existing API contracts while using the new architecture.
+ * 
+ * IMPORTANT: This service no longer contains direct API calls or connectivity monitoring.
+ * All coordination is handled by the NetworkManager and ConnectionManager.
+ */
 
-import { API_BASE_URL } from './api';
+import { NetworkManager } from './core/NetworkManager';
+import type { NetworkState } from './core/types';
+
+// Legacy interface for backward compatibility
 export interface NetworkStatus {
   isOnline: boolean;
   isApiReachable: boolean;
@@ -10,133 +18,104 @@ export interface NetworkStatus {
   error?: string;
 }
 
-class NetworkService {
-  private status: NetworkStatus = {
-    isOnline: navigator.onLine,
-    isApiReachable: true,
-    lastChecked: Date.now(),
-  };
+// Singleton NetworkManager instance
+let networkManager: NetworkManager | null = null;
 
-  private listeners: Array<(status: NetworkStatus) => void> = [];
-  private checkInterval: NodeJS.Timeout | null = null;
-  private apiBaseUrl: string;
+// Get or create NetworkManager instance
+const getNetworkManager = (): NetworkManager => {
+  if (!networkManager) {
+    networkManager = new NetworkManager({ enableLogging: process.env.NODE_ENV === 'development' });
+  }
+  return networkManager;
+};
+
+/**
+ * Initialize the NetworkManager if not already initialized.
+ * This should be called by the ConnectionManager during app startup.
+ */
+const ensureInitialized = async (): Promise<void> => {
+  const manager = getNetworkManager();
+  if (!manager.isReady()) {
+    await manager.initialize();
+  }
+};
+
+/**
+ * Convert NetworkState to legacy NetworkStatus format
+ */
+const convertToLegacyStatus = (state: NetworkState): NetworkStatus => {
+  return {
+    isOnline: state.isOnline,
+    isApiReachable: state.isApiReachable,
+    lastChecked: state.lastChecked,
+    latencyMs: state.latencyMs,
+    error: state.error,
+  };
+};
+
+class NetworkService {
+  private manager: NetworkManager;
 
   constructor() {
-    this.apiBaseUrl = API_BASE_URL;
-    this.setupEventListeners();
-    this.startPeriodicChecks();
-  }
-
-  private setupEventListeners() {
-    const handleOnline = () => {
-      this.status.isOnline = true;
-      this.status.lastChecked = Date.now();
-      this.notifyListeners();
-      this.checkApiConnectivity(); // Check API reachability when coming online
-    };
-
-    const handleOffline = () => {
-      this.status.isOnline = false;
-      this.status.isApiReachable = false;
-      this.status.lastChecked = Date.now();
-      this.notifyListeners();
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }
-
-  private startPeriodicChecks() {
-    // Check API connectivity every 30 seconds
-    this.checkInterval = setInterval(() => {
-      this.checkApiConnectivity();
-    }, 30000);
-  }
-
-  private async checkApiConnectivity() {
-    if (!this.status.isOnline) {
-      this.status.isApiReachable = false;
-      this.notifyListeners();
-      return;
-    }
-
-    try {
-      const startTime = Date.now();
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-
-      const response = await fetch(`${this.apiBaseUrl}/status`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      const endTime = Date.now();
-      const latencyMs = endTime - startTime;
-
-      this.status.isApiReachable = response.ok;
-      this.status.latencyMs = response.ok ? latencyMs : undefined;
-      this.status.lastChecked = Date.now();
-      this.status.error = response.ok ? undefined : `HTTP ${response.status}`;
-      this.notifyListeners();
-    } catch (error: any) {
-      this.status.isApiReachable = false;
-      this.status.lastChecked = Date.now();
-      this.status.error = error.name === 'AbortError' ? 'timeout' : error.message || 'network_error';
-      this.notifyListeners();
+    this.manager = getNetworkManager();
+    
+    // Initialize if not already done (should normally be done by ConnectionManager)
+    if (!this.manager.isReady()) {
+      console.warn('[NETWORK-SERVICE] NetworkManager not initialized, initializing now');
+      this.manager.initialize().catch(console.error);
     }
   }
 
-  private notifyListeners() {
-    // Create a copy of the status to prevent mutation
-    const statusCopy = { ...this.status };
-    this.listeners.forEach(listener => {
+  /**
+   * Subscribe to network status changes - now delegates to NetworkManager
+   */
+  public subscribe(listener: (status: NetworkStatus) => void): () => void {
+    console.log('[NETWORK-SERVICE] subscribe called (now delegating to NetworkManager)');
+    
+    // Convert NetworkManager state changes to legacy format
+    const unsubscribe = this.manager.onStateChange((state: NetworkState) => {
+      const legacyStatus = convertToLegacyStatus(state);
       try {
-        listener(statusCopy);
+        listener(legacyStatus);
       } catch (error) {
-        console.error('[NetworkService] Error notifying listener:', error);
+        console.error('[NETWORK-SERVICE] Error notifying listener:', error);
       }
     });
+    
+    return unsubscribe;
   }
 
-  public subscribe(listener: (status: NetworkStatus) => void): () => void {
-    this.listeners.push(listener);
-    // Immediately notify with current status
-    listener({ ...this.status });
-    return () => {
-      const index = this.listeners.indexOf(listener);
-      if (index > -1) {
-        this.listeners.splice(index, 1);
-      }
-    };
-  }
-
+  /**
+   * Get current network status - now delegates to NetworkManager
+   */
   public getCurrentStatus(): NetworkStatus {
-    return { ...this.status };
+    const state = this.manager.getState();
+    return convertToLegacyStatus(state);
   }
 
+  /**
+   * Check if fully connected - now delegates to NetworkManager
+   */
   public isFullyConnected(): boolean {
-    return this.status.isOnline && this.status.isApiReachable;
+    const state = this.manager.getState();
+    return state.isOnline && state.isApiReachable;
   }
 
+  /**
+   * Destroy/cleanup - now delegates to NetworkManager cleanup
+   */
   public destroy() {
-    if (this.checkInterval) {
-      clearInterval(this.checkInterval);
-      this.checkInterval = null;
-    }
-    this.listeners = [];
+    console.log('[NETWORK-SERVICE] destroy called (now delegating to NetworkManager)');
+    // Note: We don't call manager.cleanup() here as it should be managed by ConnectionManager
+    // This method is maintained for backward compatibility
   }
 }
 
 // Export singleton instance
 const networkService = new NetworkService();
+
+// Additional exports for ConnectionManager integration
+export { getNetworkManager, ensureInitialized };
+
+// Legacy default export
 export default networkService;

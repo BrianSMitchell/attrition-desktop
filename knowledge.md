@@ -107,7 +107,7 @@ pnpm launcher:dist          # Create launcher installer
 ```
 
 ### Environment Setup
-1. **MongoDB**: Local MongoDB or MongoDB Atlas connection string
+1. **MongoDB**: Local MongoDB for dev and MongoDB Atlas for production connection string
 2. **Environment Variables**: Server requires `.env` with `MONGODB_URI`, `JWT_SECRET`, etc.
 3. **Build Order**: Always build `@game/shared` first, then other packages
 4. **Development**: Use `pnpm dev` from root to start both server and desktop app

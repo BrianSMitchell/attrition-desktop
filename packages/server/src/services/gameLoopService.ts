@@ -9,6 +9,7 @@ import { BuildingService } from './buildingService';
 import { CapacityService } from './capacityService';
 import { TechService } from './techService';
 import { getTechSpec, getTechCreditCostForLevel, getUnitSpec } from '@game/shared';
+import { emitFleetUpdate } from '../utils/socketManager';
 
 export class GameLoopService {
   private static instance: GameLoopService;
@@ -68,8 +69,6 @@ export class GameLoopService {
    * Run one iteration of the game loop
    */
   private async runGameLoop(): Promise<void> {
-    console.log('🔄 Running game loop iteration...');
-
     try {
       // Complete finished research projects
       const researchCompleted = await this.completeResearchProjects();
@@ -83,11 +82,13 @@ export class GameLoopService {
       // Complete unit queue items (capacity-driven production)
       const unitStats = await this.processUnitQueue();
 
-      // Activate completed building constructions (capacity-driven construction)
-      const { activatedCount } = await BuildingService.completeDueConstructions();
-      if (activatedCount > 0) {
-        console.log(`[GameLoop] buildings activated=${activatedCount}`);
-      }
+      // Structures construction queue has been decommissioned
+
+      // Legacy building construction system has been decommissioned
+      const activatedCount = 0;
+
+      // Process defense queue activations and completions (citizen capacity)
+      const defenseStats = await this.processDefenseQueue();
 
       // Update empire resources for active empires
       const resourceStats = await this.updateEmpireResources();
@@ -98,6 +99,7 @@ export class GameLoopService {
         `techActivated=${techActivated.activated} ` +
         `techCompleted=${techStats.completed} techCancelled=${techStats.cancelled} techErrors=${techStats.errors} ` +
         `unitCompleted=${unitStats.completed} unitCancelled=${unitStats.cancelled} unitErrors=${unitStats.errors} ` +
+        `defenseCompleted=${defenseStats.completed} defenseActivated=${defenseStats.activated} defenseErrors=${defenseStats.errors} ` +
         `activatedBuildings=${activatedCount} resourcesUpdated=${resourceStats.updated} resourceErrors=${resourceStats.errors}`
       );
 
@@ -107,6 +109,79 @@ export class GameLoopService {
     }
   }
 
+  /**
+   * Defense queue (citizen capacity):
+   * - Complete due items (status=pending, completesAt <= now). For now we just mark completed.
+   * - For bases without an in-progress item, schedule the earliest pending waiting item using current citizen capacity
+   */
+  private async processDefenseQueue(): Promise<{ completed: number; activated: number; errors: number }> {
+    const { DefenseQueue } = await import('../models/DefenseQueue');
+    let completed = 0;
+    let activated = 0;
+    let errors = 0;
+    try {
+      const now = new Date();
+
+      // 1) Complete all due items
+      const due = await DefenseQueue.find({ status: 'pending', completesAt: { $lte: now } }).lean();
+      for (const it of due || []) {
+        try {
+          await DefenseQueue.updateOne({ _id: (it as any)._id }, { $set: { status: 'completed' } });
+          completed++;
+        } catch (e) {
+          errors++;
+          console.error('[GameLoop] defense completion error', e);
+        }
+      }
+
+      // 2) Schedule waiting items per base that currently have no in-progress item
+      const waiting = await DefenseQueue.find({ status: 'pending', $or: [{ completesAt: { $exists: false } }, { completesAt: null }] })
+        .sort({ createdAt: 1 })
+        .lean();
+
+      // Group by base
+      const byBase = new Map<string, any[]>();
+      for (const it of waiting || []) {
+        const key = `${(it as any).empireId}:${(it as any).locationCoord}`;
+        if (!byBase.has(key)) byBase.set(key, []);
+        byBase.get(key)!.push(it);
+      }
+
+      for (const [key, items] of byBase.entries()) {
+        const [empireIdStr, baseCoord] = key.split(':');
+        // Skip if already in progress
+        const inProgress = await DefenseQueue.findOne({ empireId: new mongoose.Types.ObjectId(empireIdStr), locationCoord: baseCoord, status: 'pending', completesAt: { $gt: now } }).select('_id').lean();
+        if (inProgress) continue;
+
+        // Take earliest waiting
+        const next = items[0];
+        if (!next) continue;
+
+        try {
+          const caps = await CapacityService.getBaseCapacities(empireIdStr, baseCoord);
+          const perHour = Math.max(0, Number((caps as any)?.citizen?.value || 0));
+          if (!(perHour > 0)) continue;
+          const cost = (() => {
+            try {
+              const { getDefensesList } = require('@game/shared');
+              const spec = getDefensesList().find((d: any) => d.key === (next as any).defenseKey);
+              const c = Number(spec?.creditsCost || 0);
+              return c > 0 ? c : 100;
+            } catch { return 100; }
+          })();
+          const seconds = Math.max(60, Math.ceil((cost / perHour) * 3600));
+          await DefenseQueue.updateOne({ _id: (next as any)._id }, { $set: { startedAt: now, completesAt: new Date(now.getTime() + seconds * 1000) } });
+          activated++;
+        } catch (e) {
+          errors++;
+          console.error('[GameLoop] defense activation error', e);
+        }
+      }
+    } catch (e) {
+      console.error('[GameLoop] processDefenseQueue top-level error', e);
+    }
+    return { completed, activated, errors };
+  }
 
   /**
    * Complete research projects that have finished
@@ -341,11 +416,23 @@ export class GameLoopService {
 
     try {
       const now = new Date();
+      console.log(`[GameLoop] processUnitQueue: now=${now.toISOString()}`);
+
+      // Debug: Check ALL pending units first
+      const allPending = await UnitQueue.find({ status: 'pending' }).lean();
+      console.log(`[GameLoop] Total pending units: ${allPending.length}`);
+      for (const u of allPending) {
+        console.log(`[GameLoop] Pending unit: _id=${(u as any)._id} unitKey=${(u as any).unitKey} completesAt=${(u as any).completesAt?.toISOString() || 'null'} status=${(u as any).status}`);
+      }
 
       const dueItems = await UnitQueue.find({
         status: 'pending',
         completesAt: { $lte: now },
       });
+      console.log(`[GameLoop] Due items found: ${dueItems.length}`);
+      for (const d of dueItems) {
+        console.log(`[GameLoop] Due unit: _id=${d._id} unitKey=${(d as any).unitKey} completesAt=${(d as any).completesAt?.toISOString()}`);
+      }
 
       for (const item of dueItems) {
         try {
@@ -360,23 +447,29 @@ export class GameLoopService {
           }
 
           // Mark unit production as completed and accumulate into a stationed fleet at this base
+          console.log(`[GameLoop] Processing completed unit: unitKey=${item.unitKey} base=${item.locationCoord} empireId=${empire._id}`);
+          
           item.status = 'completed';
           await item.save();
+          console.log(`[GameLoop] Unit queue item marked completed: _id=${item._id}`);
 
           try {
             const baseCoord = String(item.locationCoord || '');
             const empireId = empire._id as mongoose.Types.ObjectId;
+            console.log(`[GameLoop] Looking for existing fleet at base=${baseCoord} empireId=${empireId}`);
 
             // Find most recent stationed fleet at this base; if none, create a new one with auto-generated name
             let fleet = await Fleet.findOne({ empireId, locationCoord: baseCoord }).sort({ createdAt: -1 });
 
             if (!fleet) {
+              console.log(`[GameLoop] No existing fleet found, creating new fleet`);
               const nextNum = Math.max(1, Number((empire as any).nextFleetNumber || 1));
               const name = `Fleet ${nextNum}`;
 
               // Increment nextFleetNumber for the empire
               (empire as any).nextFleetNumber = nextNum + 1;
               await empire.save();
+              console.log(`[GameLoop] Empire nextFleetNumber incremented to ${nextNum + 1}`);
 
               fleet = new Fleet({
                 empireId,
@@ -385,30 +478,62 @@ export class GameLoopService {
                 units: [],
                 sizeCredits: 0
               });
+              console.log(`[GameLoop] Created new fleet: name="${name}" base=${baseCoord}`);
+            } else {
+              console.log(`[GameLoop] Found existing fleet: _id=${fleet._id} name="${fleet.name}" unitCount=${fleet.units.length}`);
             }
 
             // Add the completed unit to the fleet composition and update sizeCredits
             const key = String(item.unitKey || '');
             const spec = getUnitSpec(key as any);
             const unitCredits = Number(spec?.creditsCost || 0);
+            console.log(`[GameLoop] Adding unit to fleet: unitKey=${key} creditsCost=${unitCredits}`);
 
             const existing = fleet.units.find(u => u.unitKey === key);
             if (existing) {
               existing.count += 1;
+              console.log(`[GameLoop] Incremented existing unit count to ${existing.count}`);
             } else {
               fleet.units.push({ unitKey: key as any, count: 1 });
+              console.log(`[GameLoop] Added new unit type to fleet`);
             }
 
             fleet.sizeCredits = Math.max(0, Number(fleet.sizeCredits || 0)) + unitCredits;
+            console.log(`[GameLoop] Fleet size updated to ${fleet.sizeCredits} credits, unit types: ${fleet.units.length}`);
 
             await fleet.save();
+            console.log(`[GameLoop] Fleet saved successfully: _id=${fleet._id}`);
+
+            // Emit Socket.IO event to notify client of fleet update
+            const unitCount = fleet.units.reduce((sum, u) => sum + u.count, 0);
+            const fleetId = (fleet._id as mongoose.Types.ObjectId).toString();
+            const emitted = emitFleetUpdate(empireId.toString(), {
+              fleetId,
+              locationCoord: fleet.locationCoord,
+              name: fleet.name,
+              sizeCredits: fleet.sizeCredits,
+              unitCount,
+              unitAdded: {
+                unitKey: key,
+                creditsCost: unitCredits
+              }
+            });
+            
+            if (emitted) {
+              console.log(`[GameLoop] ✅ Emitted fleet:updated event for fleet ${fleet._id} to empire:${empireId} (${unitCount} units)`);
+            } else {
+              console.warn(`[GameLoop] ⚠️ Failed to emit fleet:updated event - Socket.IO may not be initialized`);
+            }
           } catch (e) {
-            console.error('[GameLoop] error updating fleet for completed unit', {
+            console.error('[GameLoop] ❌ ERROR updating fleet for completed unit', {
               unitKey: String(item.unitKey || ''),
               empireId: String(empire._id || ''),
               base: String(item.locationCoord || ''),
-              err: (e as any)?.message
+              errorMessage: (e as any)?.message,
+              errorStack: (e as any)?.stack
             });
+            // Re-throw to ensure we know about fleet creation failures
+            throw e;
           }
 
           completed++;

@@ -1,171 +1,156 @@
-import { io, Socket } from "socket.io-client";
-import {
-  getToken as getMemToken,
-  setToken as setMemToken,
-  clearToken as clearMemToken,
-} from "./tokenProvider";
-import { refreshAccessToken } from "./api";
-import { getCurrentApiConfig } from "../utils/apiConfig";
+import { Socket } from "socket.io-client";
+import { SocketManager } from "./core/SocketManager";
 
-const IS_TEST =
-  typeof process !== "undefined" && (process as any)?.env?.NODE_ENV === "test";
+/**
+ * Legacy socket API - now acts as a compatibility layer that delegates to SocketManager.
+ * This maintains existing API contracts while using the new architecture.
+ * 
+ * IMPORTANT: This service no longer contains auth refresh logic or token management.
+ * All coordination is handled by the SocketManager and ConnectionManager.
+ */
 
-let socket: Socket | null = null;
+// Singleton SocketManager instance
+let socketManager: SocketManager | null = null;
 
-// Single-flight refresh guard for Socket auth failures
-let refreshPromise: Promise<string | null> | null = null;
-let lastRefreshFailAt = 0;
+// Get or create SocketManager instance
+const getSocketManager = (): SocketManager => {
+  if (!socketManager) {
+    socketManager = new SocketManager({ enableLogging: process.env.NODE_ENV === 'development' });
+  }
+  return socketManager;
+};
 
-// Get socket configuration with HTTPS enforcement
-const apiConfig = getCurrentApiConfig();
-console.log('🔍 Socket Debug - API Config:', {
-  socketUrl: apiConfig.socketUrl,
-  httpsEnforced: apiConfig.httpsEnforced,
-  isProduction: apiConfig.isProduction,
-  isDesktop: apiConfig.isDesktop
-});
+/**
+ * Initialize the SocketManager if not already initialized.
+ * This should be called by the ConnectionManager during app startup.
+ */
+const ensureInitialized = async (): Promise<void> => {
+  const manager = getSocketManager();
+  if (!manager.isReady()) {
+    await manager.initialize();
+  }
+};
 
-function getApiBase(): string {
-  // Use the HTTPS-enforced socket URL from configuration
-  return apiConfig.socketUrl;
-}
-
-function getStoredToken(): string | null {
-  // Prefer in-memory token (desktop). Fallback to persisted for web.
-  const mem = getMemToken();
-  if (mem) return mem;
+/**
+ * Legacy connectSocket function - now delegates to SocketManager
+ * @param provideToken - Token provider function (ignored - handled by ConnectionManager)
+ * @returns Socket-like object for compatibility
+ */
+export function connectSocket(): Socket | null {
+  console.log('[SOCKET-SERVICE] connectSocket called (now delegating to SocketManager)');
+  
   try {
-    const raw = localStorage.getItem("auth-storage");
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed?.state?.token || null;
-  } catch {
+    const manager = getSocketManager();
+    
+    // Initialize if needed (should normally be done by ConnectionManager)
+    if (!manager.isReady()) {
+      console.warn('[SOCKET-SERVICE] SocketManager not initialized, initializing now');
+      manager.initialize().catch(console.error);
+    }
+    
+    // Attempt connection
+    manager.connect().catch((error) => {
+      console.error('[SOCKET-SERVICE] Connection failed:', error);
+    });
+    
+    // Return a Socket-like interface for compatibility
+    return createLegacySocketInterface(manager);
+  } catch (error) {
+    console.error('[SOCKET-SERVICE] connectSocket error:', error);
     return null;
   }
 }
 
-export function connectSocket(provideToken?: () => string | null): Socket {
-  const baseUrl = getApiBase();
-  const token = (provideToken ? provideToken() : null) ?? getStoredToken();
-
-  // Idempotent connect
-  if (socket && socket.connected) {
-    return socket;
-  }
-
-  // Configure transports based on HTTPS enforcement
-  const socketOptions: any = {
-    transports: ["websocket", "polling"],
-    auth: {
-      token: token || "",
-    },
-    autoConnect: true,
-  };
-
-  // Enhanced security for HTTPS-enforced connections
-  if (apiConfig.httpsEnforced) {
-    socketOptions.secure = true; // Force secure connection
-    socketOptions.rejectUnauthorized = true; // Validate SSL certificates
-    socketOptions.transports = ["websocket"]; // Prefer WebSocket over polling for security
-    
-    console.log('🔐 Socket: HTTPS enforcement active - using secure WebSocket connection');
-  } else {
-    // Development mode: force HTTP WebSocket connection
-    socketOptions.secure = false; // Force insecure connection for localhost
-    socketOptions.transports = ["websocket", "polling"]; // Allow both transports for reliability
-    
-    console.log('🔓 Socket: Development mode - using insecure WebSocket connection to', baseUrl);
-  }
-
-  // Log WebSocket connection security status
-  if (apiConfig.isProduction && !baseUrl.startsWith('https://')) {
-    console.warn('⚠️  Socket: Production build using insecure WebSocket connection');
-  }
-
-  console.log('🔌 Attempting WebSocket connection to:', baseUrl, 'with options:', socketOptions);
-  socket = io(baseUrl, socketOptions);
-
-  socket.on("connect", () => {
-    console.log('✅ WebSocket connected successfully! Socket ID:', socket?.id);
-  });
-
-  socket.on("disconnect", (reason) => {
-    console.log('❌ WebSocket disconnected. Reason:', reason);
-  });
-
-  socket.on("connect_error", (error) => {
-    console.log('🔥 WebSocket connection error:', error.message, error);
-  });
-
-  // Additional connect_error handler for auth token refresh
-  socket.on("connect_error", async (error) => {
-    // Log the error first
-    console.log('🔄 WebSocket auth error, attempting token refresh:', error?.message);
-    
-    // Avoid hammering refresh if it just failed within 5s
-    if (Date.now() - lastRefreshFailAt < 5000) {
-      console.log('⚠️ Skipping refresh - too recent');
-      return;
-    }
-
-    try {
-      if (!refreshPromise) {
-        refreshPromise = refreshAccessToken().finally(() => {
-          refreshPromise = null;
-        });
-      }
-      const newToken = await refreshPromise;
-      if (newToken) {
-        setMemToken(newToken);
-        if (socket) {
-          socket.auth = { ...(socket.auth || {}), token: newToken };
-          // If not connected, trigger reconnect with fresh token
-          if (!socket.connected) {
-            socket.connect();
-          }
-        }
-      } else {
-        // Refresh failed — clear token and let app route guards/UI handle re-login
-        lastRefreshFailAt = Date.now();
-        clearMemToken();
-        // Optional: force navigation for immediate UX (skip during tests)
-        try {
-          if (!IS_TEST && typeof window !== "undefined") {
-            try { window.dispatchEvent(new CustomEvent("auth:unauthorized")); } catch {}
-            if (window.location.protocol === "file:") {
-              window.location.hash = "#/login";
-            } else {
-              window.location.href = "/login";
-            }
-          }
-        } catch {
-          // ignore
-        }
-      }
-    } catch {
-      // ignore; allow normal reconnect/backoff
-    }
-  });
-
-  socket.on("disconnect", () => {
-    // console.debug("[socket] disconnected");
-  });
-
-  return socket;
-}
-
+/**
+ * Legacy getSocket function - now delegates to SocketManager
+ * @returns Socket-like object or null
+ */
 export function getSocket(): Socket | null {
-  return socket;
-}
-
-export function disconnectSocket(): void {
   try {
-    if (socket) {
-      socket.removeAllListeners();
-      socket.disconnect();
-      socket = null;
+    const manager = getSocketManager();
+    
+    if (!manager.isReady() || !manager.isConnected()) {
+      return null;
     }
-  } catch {
-    // ignore
+    
+    return createLegacySocketInterface(manager);
+  } catch (error) {
+    console.error('[SOCKET-SERVICE] getSocket error:', error);
+    return null;
   }
 }
+
+/**
+ * Legacy disconnectSocket function - now delegates to SocketManager
+ */
+export function disconnectSocket(): void {
+  console.log('[SOCKET-SERVICE] disconnectSocket called (now delegating to SocketManager)');
+  
+  try {
+    const manager = getSocketManager();
+    
+    if (manager.isReady()) {
+      manager.disconnect().catch(console.error);
+    }
+  } catch (error) {
+    console.error('[SOCKET-SERVICE] disconnectSocket error:', error);
+  }
+}
+
+/**
+ * Creates a Socket.IO-like interface for backward compatibility
+ * @param manager - The SocketManager instance
+ * @returns Socket-like object
+ */
+function createLegacySocketInterface(manager: SocketManager): Socket {
+  // Create a minimal Socket-like interface
+  // We use 'any' to avoid the complex Socket type requirements
+  const legacySocket: any = {
+    get connected() {
+      return manager.isConnected();
+    },
+    
+    get id() {
+      const state = manager.getState();
+      return state.connectionId || undefined;
+    },
+    
+    emit(event: string, data?: any) {
+      manager.emit(event, data);
+    },
+    
+    on(event: string, callback: (...args: any[]) => void) {
+      return manager.on(event, callback);
+    },
+    
+    off() {
+      // The SocketManager's on() method returns a cleanup function
+      // For full compatibility, we'd need to store the cleanup functions
+      console.warn('[SOCKET-SERVICE] socket.off() called - limited compatibility');
+      return legacySocket;
+    },
+    
+    removeAllListeners() {
+      console.warn('[SOCKET-SERVICE] removeAllListeners() called - handled by SocketManager cleanup');
+      return legacySocket;
+    },
+    
+    connect() {
+      manager.connect().catch(console.error);
+      return legacySocket;
+    },
+    
+    disconnect() {
+      manager.disconnect().catch(console.error);
+      return legacySocket;
+    },
+    
+    // Additional Socket.IO properties for compatibility
+    auth: {},
+  };
+  
+  return legacySocket as Socket;
+}
+
+// Additional exports for ConnectionManager integration
+export { getSocketManager, ensureInitialized };

@@ -7,6 +7,7 @@ import { Server } from 'socket.io';
 import { TechQueue } from './models/TechQueue';
 import { UnitQueue } from './models/UnitQueue';
 import { Building } from './models/Building';
+import { Message } from './models/Message';
 
 import { connectDatabase } from './config/database';
 import { getSSLConfigFromEnvironment, createHttpsServer } from './config/ssl';
@@ -14,6 +15,7 @@ import authRoutes from './routes/auth';
 import gameRoutes from './routes/game';
 import universeRoutes from './routes/universe';
 import syncRoutes from './routes/sync';
+import messageRoutes from './routes/messages';
 import { errorHandler } from './middleware/errorHandler';
 import { sessionInvalidationMiddleware } from './middleware/sessionInvalidation';
 import securityHeadersStack from './middleware/securityHeaders';
@@ -21,14 +23,16 @@ import { httpsRedirectMiddleware, httpsSecurityHeadersMiddleware } from './middl
 import { tlsMonitoringMiddleware, tlsSecurityStatusHandler } from './utils/tlsValidator';
 import { setupSocketIO, getOnlineUniqueUsersCount } from './services/socketService';
 import { gameLoop } from './services/gameLoopService';
+import { hybridGameLoop } from './services/hybridGameLoopService';
 import { httpsHealthCheckHandler, HttpsHealthMonitor } from './utils/httpsHealthCheck';
+import { initSocketManager } from './utils/socketManager';
 
 // Load environment variables
 dotenv.config();
 
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)
-  : ["http://localhost:5173", "http://localhost:5174"];
+  : ["http://localhost:5173", "http://localhost:5174", "null", "file://"];
 
 const app: express.Application = express();
 app.set('trust proxy', 1);
@@ -36,6 +40,11 @@ const server = createServer(app);
 
 // Socket.IO will be initialized later with proper server (HTTP or HTTPS)
 let io: Server;
+
+// Expose IO getter for other services to broadcast events safely
+export function getIO(): Server | undefined {
+  return io;
+}
 
 // HTTPS health monitoring (production only)
 let httpsHealthMonitor: HttpsHealthMonitor | null = null;
@@ -160,6 +169,7 @@ app.use('/api/game', sessionInvalidationMiddleware);
 app.use('/api/universe', sessionInvalidationMiddleware);
 app.use('/api/sync', sessionInvalidationMiddleware);
 app.use('/api/security', sessionInvalidationMiddleware);
+app.use('/api/messages', sessionInvalidationMiddleware);
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -167,6 +177,7 @@ app.use('/api/security', require('./routes/security').default); // Security moni
 app.use('/api/game', gameRoutes);
 app.use('/api/universe', universeRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Socket.IO will be setup in startServer() function
 
@@ -193,6 +204,7 @@ async function startServer() {
         TechQueue.syncIndexes(),
         UnitQueue.syncIndexes(),
         Building.syncIndexes(),
+        Message.syncIndexes(),
       ]);
     } catch {
       // ignore sync errors in dev/test
@@ -238,14 +250,14 @@ async function startServer() {
           console.log(`🔒 SSL/TLS: Handled by reverse proxy (Render/CloudFlare/etc.)`);
           console.log(`✅ SECURITY: HTTPS enforced at reverse proxy level`);
           
-          // Start game loop with configurable interval
-          const gameLoopInterval = parseInt(process.env.GAME_LOOP_INTERVAL_MS || '60000', 10);
-          console.log(`🎮 Starting game loop with ${gameLoopInterval}ms interval`);
+          // Start hybrid game loop with optimized intervals
+          console.log(`🎮 Starting HYBRID game loop (responsive completions + efficient resources)`);
           console.log(`💰 Credit payouts every ${process.env.CREDIT_PAYOUT_PERIOD_MINUTES || '1'} minute(s)`);
-          gameLoop.start(gameLoopInterval);
+          hybridGameLoop.start();
         });
         
         setupSocketIO(io);
+        initSocketManager(io); // Initialize socket manager for global access
         
       } else {
         // Production with direct SSL: Start HTTPS server only
@@ -277,16 +289,16 @@ async function startServer() {
           console.log(`✅ HTTPS ENFORCEMENT: All HTTP requests redirected to HTTPS`);
           console.log(`✅ SECURITY: Production server running in HTTPS-only mode`);
           
-          // Start game loop with configurable interval
-          const gameLoopInterval = parseInt(process.env.GAME_LOOP_INTERVAL_MS || '60000', 10);
-          console.log(`🎮 Starting game loop with ${gameLoopInterval}ms interval`);
+          // Start hybrid game loop with optimized intervals
+          console.log(`🎮 Starting HYBRID game loop (responsive completions + efficient resources)`);
           console.log(`💰 Credit payouts every ${process.env.CREDIT_PAYOUT_PERIOD_MINUTES || '1'} minute(s)`);
-          gameLoop.start(gameLoopInterval);
+          hybridGameLoop.start();
         });
       }
       
       // Setup Socket.IO on HTTPS server
       setupSocketIO(io);
+      initSocketManager(io); // Initialize socket manager for global access
       
       // Start HTTPS health monitoring in production
       httpsHealthMonitor = new HttpsHealthMonitor(HTTPS_PORT, PORT, 'localhost');
@@ -325,12 +337,21 @@ async function startServer() {
         });
         
         setupSocketIO(io);
+        initSocketManager(io); // Initialize socket manager for global access
       } else {
         // Standard development: HTTP only
         io = new Server(server, {
           cors: {
-            origin: allowedOrigins,
-            methods: ["GET", "POST"]
+            origin: (origin, callback) => {
+              // Allow null origin (file://) and localhost origins
+              if (!origin || origin === 'null' || allowedOrigins.includes(origin)) {
+                callback(null, true);
+              } else {
+                callback(new Error('Not allowed by CORS'));
+              }
+            },
+            methods: ["GET", "POST"],
+            credentials: false // Important: file:// origins can't send credentials
           }
         });
         
@@ -343,13 +364,13 @@ async function startServer() {
         });
         
         setupSocketIO(io);
+        initSocketManager(io); // Initialize socket manager for global access
       }
       
-      // Start game loop for development
-      const gameLoopInterval = parseInt(process.env.GAME_LOOP_INTERVAL_MS || '60000', 10);
-      console.log(`🎮 Starting game loop with ${gameLoopInterval}ms interval`);
+      // Start hybrid game loop for development
+      console.log(`🎮 Starting HYBRID game loop (responsive completions + efficient resources)`);
       console.log(`💰 Credit payouts every ${process.env.CREDIT_PAYOUT_PERIOD_MINUTES || '1'} minute(s)`);
-      gameLoop.start(gameLoopInterval);
+      hybridGameLoop.start();
     }
     
   } catch (error) {
@@ -358,31 +379,88 @@ async function startServer() {
   }
 }
 
+// Handle graceful shutdown with timeout
+let isShuttingDown = false;
+const SHUTDOWN_TIMEOUT = 5000; // 5 seconds
+
+function shutdown() {
+  if (isShuttingDown) {
+    console.log('⚠️ Shutdown already in progress');
+    return;
+  }
+  
+  isShuttingDown = true;
+ console.log('🛑 Shutdown signal received, shutting down gracefully');
+  
+  // Stop hybrid game loop
+  try {
+    hybridGameLoop.stop();
+    console.log('🎮 Game loop stopped');
+  } catch (error) {
+    console.error('Error stopping hybrid game loop:', error);
+  }
+  
+  // Stop HTTPS health monitor
+  if (httpsHealthMonitor) {
+    try {
+      httpsHealthMonitor.stop();
+      console.log('🔍 HTTPS health monitor stopped');
+    } catch (error) {
+      console.error('Error stopping HTTPS health monitor:', error);
+    }
+  }
+  
+  // Close server with timeout
+  const shutdownTimer = setTimeout(() => {
+    console.log('⏰ Shutdown timeout reached, force closing');
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT);
+  
+  server.close(() => {
+    clearTimeout(shutdownTimer);
+    console.log('✅ HTTP server closed');
+    
+    // Close database connections
+    try {
+      // Add any database cleanup here if needed
+      console.log('🔌 Database connections closed');
+    } catch (error) {
+      console.error('Error closing database connections:', error);
+    }
+    
+    console.log('✅ Process terminated gracefully');
+    process.exit(0);
+  });
+  
+  // If server doesn't close within timeout, force exit
+  setTimeout(() => {
+    console.log('⏰ Force closing remaining connections');
+    process.exit(0);
+  }, SHUTDOWN_TIMEOUT + 1000);
+}
+
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM received, shutting down gracefully');
-  gameLoop.stop();
-  if (httpsHealthMonitor) {
-    httpsHealthMonitor.stop();
-  }
-  server.close(() => {
-    console.log('✅ Process terminated');
-  });
+  console.log('🛑 SIGTERM received');
+  shutdown();
 });
 
 process.on('SIGINT', () => {
-  console.log('🛑 SIGINT received, shutting down gracefully');
-  gameLoop.stop();
-  if (httpsHealthMonitor) {
-    httpsHealthMonitor.stop();
-  }
-  server.close(() => {
-    console.log('✅ Process terminated');
-  });
+  console.log('🛑 SIGINT received');
+  shutdown();
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('💥 Uncaught Exception:', error);
+  shutdown();
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+  shutdown();
 });
 
 startServer();
 
 export { app, io };
-
-

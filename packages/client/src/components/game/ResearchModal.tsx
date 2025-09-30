@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Empire, ResearchProject } from '@game/shared';
-import api from '../../services/api';
+import { gameApi } from '../../stores/services/gameApi';
 
 interface ResearchTemplate {
   type: 'military' | 'economic' | 'exploration';
@@ -145,15 +145,14 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
     }
   ];
 
-  // Use shared API client
-  const apiInstance = api;
-
   // Fetch research projects
   const fetchResearchProjects = async () => {
     try {
-      const response = await apiInstance.get('/game/research');
-      if (response.data.success) {
-        setResearchProjects(response.data.data.researchProjects);
+      const response = await gameApi.getResearchProjects();
+      if (response.success && response.data) {
+        setResearchProjects(response.data.researchProjects || []);
+      } else {
+        setError(response.error || 'Failed to load research projects');
       }
     } catch (err) {
       console.error('Error fetching research projects:', err);
@@ -172,22 +171,24 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
     setError(null);
 
     try {
-      const response = await apiInstance.post('/game/territories/colonize', {
+      const projectData = {
         type: template.type,
         name: template.name,
         description: template.description,
         researchCost: template.researchCost
-      });
+      };
 
-      if (response.data.success) {
+      const response = await gameApi.startResearchProject(projectData);
+
+      if (response.success) {
         await fetchResearchProjects();
         onUpdate(); // Update dashboard
         setActiveTab('active');
       } else {
-        setError(response.data.error || 'Failed to start research');
+        setError(response.error || 'Failed to start research');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Network error. Please try again.');
+      setError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -244,6 +245,11 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
 
   useEffect(() => {
     fetchResearchProjects();
+    // Fetch fresh research data every 60 seconds for real-time updates
+    const fetchId = setInterval(() => {
+      fetchResearchProjects();
+    }, 60000);
+    return () => clearInterval(fetchId);
   }, []);
 
   return (

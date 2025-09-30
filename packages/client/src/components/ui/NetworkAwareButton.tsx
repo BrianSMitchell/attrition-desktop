@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNetwork } from '../../contexts/NetworkContext';
+import { useEnhancedNetwork } from '../../stores/enhancedAppStore';
 
 interface NetworkAwareButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
@@ -27,7 +27,8 @@ const NetworkAwareButton: React.FC<NetworkAwareButtonProps> = ({
   className = '',
   ...props
 }) => {
-  const { isFullyConnected } = useNetwork();
+  const network = useEnhancedNetwork();
+  const isFullyConnected = network.isFullyConnected;
   const isNetworkDisabled = requiresNetwork && !isFullyConnected;
   const isActuallyDisabled = disabled || isNetworkDisabled;
 

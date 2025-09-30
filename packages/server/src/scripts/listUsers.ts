@@ -8,7 +8,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 async function main() {
   const mongoUri =
-    process.env.MONGODB_URI || 'mongodb://localhost:27017/space-empire-mmo';
+    process.env.MONGODB_URI || 'mongodb://localhost:27017/attrition';
 
   console.log('Connecting to MongoDB...');
   await mongoose.connect(mongoUri, {

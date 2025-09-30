@@ -8,8 +8,10 @@
     "packages/*"
   ],
   "scripts": {
+    "prebuild:clean": "node scripts/pre-build-cleanup.js --force",
+    "prebuild:clean:check": "node scripts/pre-build-cleanup.js --dry-run",
     "dev": "concurrently \"pnpm --filter @game/server dev\" \"pnpm --filter @game/desktop dev\"",
-    "build": "pnpm --filter @game/shared build && pnpm --filter @game/server build && pnpm --filter @game/desktop build",
+    "build": "node scripts/build-with-cleanup.js desktop",
     "build:server": "pnpm install --frozen-lockfile && pnpm --filter @game/shared build && pnpm --filter @game/server build",
     "build:server:prod": "pnpm install --frozen-lockfile && pnpm --filter @game/shared build && pnpm --filter @game/server build",
     "build:render": "npm install && npm run build:shared && npm run build:server-only",
@@ -47,6 +49,9 @@
     "clean:temp": "rmdir /s /q temp 2>nul || echo No temp directory to clean",
     "clean:releases": "rmdir /s /q releases 2>nul || echo No releases directory to clean",
     "clean:all": "pnpm run clean && pnpm run clean:temp && pnpm run clean:releases",
+    "clean:processes": "node scripts/dev/cleanup-dev-processes.js kill",
+    "list:processes": "node scripts/dev/cleanup-dev-processes.js list",
+    "dev:clean": "node scripts/dev/dev-with-cleanup.js",
     "script:dev": "node scripts/dev/",
     "script:maintenance": "node scripts/maintenance/",
     "release:prepare": "pnpm build && pnpm --filter @game/desktop dist",
@@ -55,22 +60,26 @@
     "version:major": "npm version major --workspace=packages/desktop && npm version major",
     "release:build": "pnpm --filter @game/shared build && pnpm --filter @game/client build && pnpm --filter @game/desktop build",
     "release:publish": "pnpm --filter @game/desktop dist",
-    "version:minor": "npm version minor --workspace=packages/desktop && npm version minor",
-    "version:major": "npm version major --workspace=packages/desktop && npm version major",
-    "release:build": "pnpm --filter @game/shared build && pnpm --filter @game/client build && pnpm --filter @game/desktop build",
-    "release:publish": "pnpm --filter @game/desktop dist",
     "dev:full": "docker-compose up -d && pnpm dev",
     "dev:db": "docker-compose up mongodb -d",
+    "dev:db:tools": "docker-compose --profile tools up mongodb mongo-express -d",
+    "dev:server:docker": "docker-compose --profile server up",
+    "dev:server:local": "docker-compose up mongodb -d && pnpm dev",
     "lint:fix": "pnpm --filter \"@game/*\" lint --fix",
     "type:check": "pnpm --filter \"@game/*\" type-check",
     "security:audit": "pnpm audit && node scripts/dev/security-check.js",
     "db:seed": "node scripts/maintenance/seed-database.js",
     "db:migrate": "node scripts/maintenance/migrate-database.js",
+    "docker:build": "docker-compose build",
+    "docker:clean": "docker-compose down -v --remove-orphans",
+    "docker:reset": "docker-compose down -v --remove-orphans && docker-compose up mongodb -d",
+    "docker:logs": "docker-compose logs -f",
+    "docker:shell:mongo": "docker-compose exec mongodb mongosh space-empire-mmo",
     "dev:setup": "pnpm install && pnpm run db:seed && pnpm --filter @game/shared build",
     "launcher:dev": "pnpm --filter @game/launcher dev",
     "launcher:build": "pnpm --filter @game/launcher build",
     "launcher:dist": "pnpm --filter @game/launcher dist",
-    "build:all": "pnpm --filter @game/shared build && pnpm --filter @game/client build && pnpm --filter @game/desktop build && pnpm --filter @game/launcher build"
+    "build:all": "node scripts/build-with-cleanup.js all"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
@@ -89,12 +98,16 @@
     "pnpm": ">=8.0.0"
   },
   "dependencies": {
+    "@pixi/unsafe-eval": "7.4.3",
     "glob": "^11.0.3",
     "seedrandom": "^3.0.5"
   },
   "pnpm": {
     "allowedBuiltDependencies": [
       "electron"
-    ]
+    ],
+    "overrides": {
+      "@pixi/*": "7.4.3"
+    }
   }
 }

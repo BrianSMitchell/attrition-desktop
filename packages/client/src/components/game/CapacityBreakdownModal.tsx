@@ -74,6 +74,9 @@ const CapacityBreakdownModal: React.FC<Props> = ({ data }) => {
       <Section title="Construction Capacity" result={capacities.construction} />
       <Section title="Production Capacity" result={capacities.production} />
       <Section title="Research Capacity" result={capacities.research} />
+      {('citizen' in capacities) && (
+        <Section title="Citizen Capacity" result={(capacities as any).citizen} />
+      )}
 
       <div className="text-xs text-gray-500">
         Notes:

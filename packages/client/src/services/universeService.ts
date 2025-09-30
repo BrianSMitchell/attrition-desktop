@@ -164,6 +164,12 @@ async function getWithDedupe<T>(url: string): Promise<ApiResponse<T>> {
   return (await p) as ApiResponse<T>;
 }
 
+function normalizeServer(server: string | undefined): string {
+  // Ensure server is a single uppercase letter (e.g., "A")
+  const s = (server || 'A').toString();
+  return s.length > 0 ? s[0].toUpperCase() : 'A';
+}
+
 export const universeService = {
   async getLocationByCoord(coord: string): Promise<ApiResponse<UniverseLocationData>> {
     const url = `/universe/coord/${encodeURIComponent(coord)}`;
@@ -171,20 +177,24 @@ export const universeService = {
   },
 
   async getSystemBodies(server: string, galaxy: number, region: number, system: number): Promise<ApiResponse<UniverseSystemBodiesData>> {
-    const url = `/universe/system/${encodeURIComponent(server)}/${galaxy}/${region}/${system}`;
+    const srv = normalizeServer(server);
+    const url = `/universe/system/${encodeURIComponent(srv)}/${galaxy}/${region}/${system}`;
     return await getWithDedupe<UniverseSystemBodiesData>(url);
   },
 
   async getGalaxyRegionSummaries(server: string, galaxy: number): Promise<ApiResponse<GalaxyRegionSummariesData>> {
-    const url = `/universe/galaxy/${encodeURIComponent(server)}/${galaxy}/regions`;
+    const srv = normalizeServer(server);
+    const url = `/universe/galaxy/${encodeURIComponent(srv)}/${galaxy}/regions`;
     return await getWithDedupe<GalaxyRegionSummariesData>(url);
   },
   async getGalaxyRegionStarColors(server: string, galaxy: number): Promise<ApiResponse<GalaxyRegionStarColorsData>> {
-    const url = `/universe/galaxy/${encodeURIComponent(server)}/${galaxy}/region-stars`;
+    const srv = normalizeServer(server);
+    const url = `/universe/galaxy/${encodeURIComponent(srv)}/${galaxy}/region-stars`;
     return await getWithDedupe<GalaxyRegionStarColorsData>(url);
   },
   async getRegionSystems(server: string, galaxy: number, region: number): Promise<ApiResponse<UniverseRegionSystemsData>> {
-    const url = `/universe/region/${encodeURIComponent(server)}/${galaxy}/${region}`;
+    const srv = normalizeServer(server);
+    const url = `/universe/region/${encodeURIComponent(srv)}/${galaxy}/${region}`;
     return await getWithDedupe<UniverseRegionSystemsData>(url);
   }
 };

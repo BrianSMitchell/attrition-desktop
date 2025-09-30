@@ -37,26 +37,16 @@ export interface BuildingTechPrereq {
 export interface BuildingSpec {
   key: BuildingKey;
   name: string;
-  // Credits required to construct level 1 (from screenshot; not yet enforced server-side)
+  // Credits required to construct level 1
   creditsCost: number;
   // Energy effect: positive = produces, negative = consumes
   energyDelta: number;
   // Economy (credits/hour) added at the base (1 economy = 1 credit/hour)
   economy: number;
   populationRequired: number;
-  areaRequired?: number; // TBD exact semantics (user will define later)
+  areaRequired?: number;
   advanced?: boolean; // corresponds to 'x' in Advanced column
   techPrereqs: BuildingTechPrereq[];
-  // Map to current server Building.type for Phase A construction
-  mappedType:
-    | 'metal_mine'
-    | 'energy_plant'
-    | 'factory'
-    | 'research_lab'
-    | 'defense_station'
-    | 'shipyard'
-    | 'command_center'
-    | 'habitat';
 }
 
 // Minimal best-guess subset derived from screenshot.
@@ -71,7 +61,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 0,
     areaRequired: 1,
     techPrereqs: [],
-    mappedType: 'habitat',
   },
   solar_plants: {
     key: 'solar_plants',
@@ -82,7 +71,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 1,
     areaRequired: 1,
     techPrereqs: [],
-    mappedType: 'energy_plant',
   },
   gas_plants: {
     key: 'gas_plants',
@@ -93,7 +81,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 1,
     areaRequired: 1,
     techPrereqs: [],
-    mappedType: 'energy_plant',
   },
   fusion_plants: {
     key: 'fusion_plants',
@@ -104,7 +91,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 1,
     areaRequired: 1,
     techPrereqs: [{ key: 'energy', level: 6 }],
-    mappedType: 'energy_plant',
   },
   antimatter_plants: {
     key: 'antimatter_plants',
@@ -116,7 +102,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     areaRequired: 1,
     advanced: true,
     techPrereqs: [{ key: 'energy', level: 20 }],
-    mappedType: 'energy_plant',
   },
   orbital_plants: {
     key: 'orbital_plants',
@@ -128,7 +113,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     areaRequired: 0,
     advanced: true,
     techPrereqs: [{ key: 'energy', level: 25 }],
-    mappedType: 'energy_plant',
   },
   research_labs: {
     key: 'research_labs',
@@ -139,7 +123,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 1,
     areaRequired: 1,
     techPrereqs: [],
-    mappedType: 'research_lab',
   },
   metal_refineries: {
     key: 'metal_refineries',
@@ -150,7 +133,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 1,
     areaRequired: 1,
     techPrereqs: [],
-    mappedType: 'factory',
   },
   crystal_mines: {
     key: 'crystal_mines',
@@ -161,7 +143,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 1,
     areaRequired: 1,
     techPrereqs: [],
-    mappedType: 'habitat',
   },
   robotic_factories: {
     key: 'robotic_factories',
@@ -172,7 +153,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 1,
     areaRequired: 1,
     techPrereqs: [{ key: 'computer', level: 2 }],
-    mappedType: 'factory',
   },
   command_centers: {
     key: 'command_centers',
@@ -183,7 +163,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 1,
     areaRequired: 1,
     techPrereqs: [{ key: 'computer', level: 6 }],
-    mappedType: 'command_center',
   },
   shipyards: {
     key: 'shipyards',
@@ -194,7 +173,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 1,
     areaRequired: 1,
     techPrereqs: [],
-    mappedType: 'shipyard',
   },
   orbital_shipyards: {
     key: 'orbital_shipyards',
@@ -205,7 +183,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 1,
     areaRequired: 0,
     techPrereqs: [{ key: 'cybernetics', level: 2 }],
-    mappedType: 'shipyard',
   },
   spaceports: {
     key: 'spaceports',
@@ -216,7 +193,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 1,
     areaRequired: 1,
     techPrereqs: [],
-    mappedType: 'habitat',
   },
   nanite_factories: {
     key: 'nanite_factories',
@@ -230,7 +206,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
       { key: 'computer', level: 10 },
       { key: 'laser', level: 8 },
     ],
-    mappedType: 'factory',
   },
   android_factories: {
     key: 'android_factories',
@@ -241,7 +216,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 1,
     areaRequired: 1,
     techPrereqs: [{ key: 'artificial_intelligence', level: 4 }],
-    mappedType: 'factory',
   },
   economic_centers: {
     key: 'economic_centers',
@@ -252,7 +226,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 1,
     areaRequired: 1,
     techPrereqs: [{ key: 'computer', level: 10 }],
-    mappedType: 'habitat', // best mapping to produce credits/hour in current model
   },
   terraform: {
     key: 'terraform',
@@ -266,7 +239,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
       { key: 'computer', level: 10 },
       { key: 'energy', level: 10 },
     ],
-    mappedType: 'habitat',
   },
   multi_level_platforms: {
     key: 'multi_level_platforms',
@@ -277,7 +249,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 0,
     advanced: true,
     techPrereqs: [{ key: 'armour', level: 22 }],
-    mappedType: 'habitat',
   },
   orbital_base: {
     key: 'orbital_base',
@@ -288,7 +259,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 0,
     advanced: true,
     techPrereqs: [{ key: 'computer', level: 20 }],
-    mappedType: 'habitat',
   },
   jump_gate: {
     key: 'jump_gate',
@@ -302,7 +272,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
       { key: 'warp_drive', level: 12 },
       { key: 'energy', level: 20 },
     ],
-    mappedType: 'defense_station',
   },
   biosphere_modification: {
     key: 'biosphere_modification',
@@ -316,7 +285,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
       { key: 'computer', level: 24 },
       { key: 'energy', level: 24 },
     ],
-    mappedType: 'habitat',
   },
   capital: {
     key: 'capital',
@@ -327,7 +295,6 @@ export const buildingsCatalog: Record<BuildingKey, BuildingSpec> = {
     populationRequired: 1,
     advanced: true,
     techPrereqs: [{ key: 'tachyon_communications', level: 1 }],
-    mappedType: 'command_center',
   },
 };
 
@@ -338,6 +305,14 @@ export function getBuildingsList(): BuildingSpec[] {
 export function getBuildingSpec(key: BuildingKey): BuildingSpec {
   return buildingsCatalog[key];
 }
+
+// Phase 0 terminology bridge: prefer Structure* names in new code
+/** @deprecated Use getStructuresList */
+export const getStructuresList = getBuildingsList;
+/** @deprecated Use StructureKey */
+export type StructureKey = BuildingKey;
+/** @deprecated Use StructureSpec */
+export type StructureSpec = BuildingSpec;
 
 // Simple tech-gating helper (Phase A):
 export function canStartBuildingByTech(

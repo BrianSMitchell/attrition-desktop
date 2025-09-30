@@ -1,0 +1,73 @@
+# Multi-stage Dockerfile for Attrition server
+FROM node:18-alpine AS base
+
+# Install pnpm
+RUN npm install -g pnpm@8.15.0
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/server/package.json ./packages/server/
+COPY packages/shared/package.json ./packages/shared/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Development stage
+FROM base AS development
+
+# Copy source code
+COPY packages/shared ./packages/shared
+COPY packages/server ./packages/server
+
+# Build shared package
+RUN pnpm --filter @game/shared build
+
+# Expose port
+EXPOSE 3001
+
+# Start development server with nodemon
+CMD ["pnpm", "--filter", "@game/server", "dev"]
+
+# Production build stage
+FROM base AS builder
+
+# Copy source code
+COPY packages/shared ./packages/shared
+COPY packages/server ./packages/server
+
+# Build everything
+RUN pnpm --filter @game/shared build
+RUN pnpm --filter @game/server build
+
+# Production stage
+FROM node:18-alpine AS production
+
+# Install pnpm
+RUN npm install -g pnpm@8.15.0
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/server/package.json ./packages/server/
+COPY packages/shared/package.json ./packages/shared/
+
+# Install production dependencies only
+RUN pnpm install --frozen-lockfile --production
+
+# Copy built application
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/packages/server/dist ./packages/server/dist
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
+USER nodejs
+
+# Expose port
+EXPOSE 3001
+
+# Start production server
+CMD ["pnpm", "--filter", "@game/server", "start"]

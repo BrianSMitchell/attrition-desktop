@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useUpdate, formatBytes, formatSpeed } from "../../contexts/UpdateContext";
-import { useToast } from "../../contexts/ToastContext";
+import { useUIActions } from '../../stores/enhancedAppStore';
 
 /**
  * UpdateNotification Component
@@ -10,7 +10,7 @@ import { useToast } from "../../contexts/ToastContext";
  */
 const UpdateNotification: React.FC = () => {
   const { state, downloadUpdate, installUpdate, dismissUpdate, checkForUpdates } = useUpdate();
-  const { addToast } = useToast();
+  const { addToast } = useUIActions();
   const [isMinimized, setIsMinimized] = React.useState(false);
 
   // Don't render anything if no update is available and not checking
@@ -22,11 +22,11 @@ const UpdateNotification: React.FC = () => {
   const handleDownload = async () => {
     try {
       await downloadUpdate();
-      addToast({ type: "info", text: "Update download started..." });
+      addToast({ type: "info", message: "Update download started..." });
     } catch (error) {
       addToast({ 
         type: "error", 
-        text: `Failed to start download: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        message: `Failed to start download: ${error instanceof Error ? error.message : 'Unknown error'}` 
       });
     }
   };
@@ -35,11 +35,11 @@ const UpdateNotification: React.FC = () => {
   const handleInstall = async () => {
     try {
       await installUpdate();
-      addToast({ type: "info", text: "Installing update and restarting..." });
+      addToast({ type: "info", message: "Installing update and restarting..." });
     } catch (error) {
       addToast({ 
         type: "error", 
-        text: `Failed to install update: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        message: `Failed to install update: ${error instanceof Error ? error.message : 'Unknown error'}` 
       });
     }
   };
@@ -47,7 +47,7 @@ const UpdateNotification: React.FC = () => {
   // Handle dismiss
   const handleDismiss = () => {
     dismissUpdate();
-    addToast({ type: "info", text: "Update dismissed. You can check for updates later in settings." });
+    addToast({ type: "info", message: "Update dismissed. You can check for updates later in settings." });
   };
 
   // Render checking state

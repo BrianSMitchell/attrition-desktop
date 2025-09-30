@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useNetwork } from "./NetworkContext";
+import { useEnhancedNetwork } from "../stores/enhancedAppStore";
 
 export type SyncState = "idle" | "syncing" | "error";
 
@@ -49,7 +49,8 @@ function computeState(params: {
 }
 
 export const SyncProvider: React.FC<SyncProviderProps> = ({ children, pollMs = 5000 }) => {
-  const { isFullyConnected } = useNetwork();
+  const network = useEnhancedNetwork();
+  const isFullyConnected = network.isFullyConnected;
 
   const [status, setStatus] = React.useState<SyncStatus>({
     state: "idle",

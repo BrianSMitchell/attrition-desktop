@@ -15,6 +15,11 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "pixi.js": ["src/types/pixi-reexports"]
+    },
+    "types": ["node", "vite/client"],
 
     /* Linting */
     "strict": true,
@@ -23,6 +28,9 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
+  "typeAcquisition": {
+    "enable": true
+  },
   "references": [
     { "path": "./tsconfig.node.json" },
     { "path": "../shared" }

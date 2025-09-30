@@ -1,3 +1,5 @@
+// Shared capacities helpers
+
 // Shared capacity calculators for Construction, Production, and Research
 // Phase 1: Minimal viable rules per current model constraints.
 //
@@ -36,6 +38,14 @@ export type CapacityBreakdownItem = {
 export interface CapacityResult {
   value: number; // effective capacity in cred/h
   breakdown: CapacityBreakdownItem[];
+}
+
+// Base capacities DTO including citizen (used by server API responses)
+export interface BaseCapacitiesDTO {
+  construction: CapacityResult;
+  production: CapacityResult;
+  research: CapacityResult;
+  citizen: CapacityResult;
 }
 
 export interface CapacityContext {

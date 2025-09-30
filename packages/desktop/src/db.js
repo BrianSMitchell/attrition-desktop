@@ -235,6 +235,10 @@ class DesktopDb {
 
   setKeyValue(key, value) {
     try {
+      if (!this.db || !this.initialized) {
+        console.error('[DesktopDb] KV store set failed: database not initialized', { key });
+        return false;
+      }
       const stmt = this.db.prepare(`
         INSERT OR REPLACE INTO kv_store (key, value, updated_at)
         VALUES (?, ?, CURRENT_TIMESTAMP)
@@ -249,6 +253,10 @@ class DesktopDb {
 
   getKeyValue(key) {
     try {
+      if (!this.db || !this.initialized) {
+        console.error('[DesktopDb] KV store get failed: database not initialized', { key });
+        return null;
+      }
       const stmt = this.db.prepare(`
         SELECT value FROM kv_store WHERE key = ?
       `);
@@ -601,6 +609,24 @@ class DesktopDb {
   }
 
   /**
+   * Delete all events of a specific kind (for cleanup)
+   */
+  clearEventsByKind(kind) {
+    try {
+      const stmt = this.db.prepare(`
+        DELETE FROM event_queue
+        WHERE kind = ?
+      `);
+      const result = stmt.run(kind);
+      console.log(`[DesktopDb] Cleared ${result.changes} events of kind '${kind}'`);
+      return result.changes;
+    } catch (err) {
+      console.error('[DesktopDb] Clear events by kind failed:', err, { kind });
+      return 0;
+    }
+  }
+
+  /**
    * Get event statistics for monitoring
    */
   getEventStats() {
@@ -619,6 +645,21 @@ class DesktopDb {
       return stmt.all();
     } catch (err) {
       console.error('[DesktopDb] Get event stats failed:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Get distinct kinds that currently have queued events
+   */
+  getDistinctPendingKinds() {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT DISTINCT kind FROM event_queue WHERE status = 'queued'
+      `);
+      return stmt.all().map(row => row.kind);
+    } catch (err) {
+      console.error('[DesktopDb] Get distinct pending kinds failed:', err);
       return [];
     }
   }
@@ -685,12 +726,16 @@ class DesktopDb {
           (id, timestamp, level, category, message, error_name, error_message, error_stack, 
            context, correlation_id, process, file_name, line_number, column_number, 
            user_agent, url, user_id, component_stack, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `);
       
+      const ts = entry.timestamp
+        ? (typeof entry.timestamp === 'number' ? new Date(entry.timestamp).toISOString() : entry.timestamp)
+        : new Date().toISOString();
+
       const result = stmt.run(
         entry.id || this.generateId(),
-        entry.timestamp || new Date().toISOString(),
+        ts,
         entry.level || 'ERROR',
         entry.category || 'SYSTEM',
         entry.message || 'Unknown error',
@@ -731,16 +776,15 @@ class DesktopDb {
         INSERT INTO sync_performance_metrics
           (id, operation, duration_ms, timestamp, success, batch_size, error_message, 
            context, correlation_id, process, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `);
       
       const result = stmt.run(
         metric.id || this.generateId(),
         metric.operation,
         metric.durationMs,
-        metric.timestamp || Date.now(),
         metric.success ? 1 : 0,
-        metric.batchSize || null,
+        metric.batchSize ?? null,
         metric.error || null,
         metric.context ? JSON.stringify(metric.context) : null,
         metric.correlationId || null,

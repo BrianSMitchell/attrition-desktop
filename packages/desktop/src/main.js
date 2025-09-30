@@ -296,41 +296,80 @@ ipcMain.handle('auth:refresh', async () => {
   try {
     const refreshToken = await keytar.getPassword(APP_ID, 'refresh');
     if (!refreshToken) {
-      errorLogger.warn('No refresh token available for auth refresh');
+      errorLogger.info('No refresh token available for auth refresh');
       return { ok: false, error: 'no_refresh' };
     }
 
     const url = `${API_BASE_URL.replace(/\/$/, '')}/auth/refresh`;
-    const result = await httpRequest({
-      url,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-      timeoutMs: 10000,
-      tag: 'auth:refresh'
-    });
+    
+    // Retry mechanism for server startup - retry up to 3 times with delays
+    let lastError;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const result = await httpRequest({
+          url,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+          timeoutMs: 10000,
+          tag: 'auth:refresh'
+        });
 
-    if (!result.ok) {
-      errorLogger.warn('Auth refresh HTTP failure', { status: result.status, code: result.error?.code });
-      return { ok: false, status: result.status };
-    }
+        if (result.ok) {
+          // Success - process the response
+          const json = result.json ?? {};
+          // Expect ApiResponse<RefreshResponse>
+          if (json && json.success && json.data && json.data.token) {
+            const nextRt = json.data.refreshToken;
+            if (nextRt) {
+              try {
+                await keytar.setPassword(APP_ID, 'refresh', String(nextRt));
+              } catch (error) {
+                errorLogger.error('Failed to rotate refresh token', error);
+              }
+            }
+            return { ok: true, token: String(json.data.token) };
+          }
 
-    const json = result.json ?? {};
-    // Expect ApiResponse<RefreshResponse>
-    if (json && json.success && json.data && json.data.token) {
-      const nextRt = json.data.refreshToken;
-      if (nextRt) {
-        try {
-          await keytar.setPassword(APP_ID, 'refresh', String(nextRt));
-        } catch (error) {
-          errorLogger.error('Failed to rotate refresh token', error);
+          errorLogger.warn('Auth refresh invalid response', { response: json });
+          return { ok: false, error: json?.error || 'refresh_failed' };
         }
+        
+        // If it's a connection error and we have more attempts, wait and retry
+        if (attempt < 3 && (result.error?.code === 'ECONNREFUSED' || result.error?.code === 'FETCH_ERROR')) {
+          errorLogger.info(`Auth refresh attempt ${attempt} failed, retrying in ${attempt * 1000}ms`, { error: result.error?.code });
+          await new Promise(resolve => setTimeout(resolve, attempt * 1000)); // 1s, 2s delays
+          lastError = result;
+          continue;
+        }
+        
+        // Final attempt or non-connection error
+        if (result.status === 401) {
+          try {
+            await keytar.deletePassword(APP_ID, 'refresh');
+            errorLogger.info('Auth refresh received 401 - cleared stored refresh token');
+          } catch (e) {
+            errorLogger.error('Failed to clear refresh token after 401', e);
+          }
+          return { ok: false, status: 401, error: 'invalid_refresh_token' };
+        }
+        errorLogger.warn('Auth refresh HTTP failure', { status: result.status, code: result.error?.code, attempt });
+        return { ok: false, status: result.status };
+        
+      } catch (requestError) {
+        lastError = requestError;
+        if (attempt < 3) {
+          errorLogger.info(`Auth refresh attempt ${attempt} exception, retrying in ${attempt * 1000}ms`, { error: requestError.message });
+          await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+          continue;
+        }
+        break;
       }
-      return { ok: true, token: String(json.data.token) };
     }
 
-    errorLogger.warn('Auth refresh invalid response', { response: json });
-    return { ok: false, error: json?.error || 'refresh_failed' };
+    // All attempts failed
+    errorLogger.error('Auth refresh failed after all attempts', lastError);
+    return { ok: false, error: 'all_attempts_failed' };
   } catch (error) {
     errorLogger.error('Auth refresh exception', error);
     return { ok: false, error: 'exception' };
@@ -838,6 +877,41 @@ ipcMain.handle('db:events:enqueue', async (_event, kind, deviceId, payload, dedu
     return { success: true, id };
   } catch (error) {
     errorLogger.error('Event enqueue failed', error, { kind, deviceId });
+    return { success: false, error: error.message };
+  }
+});
+
+// Provide a public flush endpoint that proxies to the internal EventQueueService
+ipcMain.handle('db:events:flushQueue', async (_event, limit = 50) => {
+  try {
+    const res = await eventQueueService.flushPendingEvents(limit);
+    return {
+      success: true,
+      processed: res?.flushed ?? 0,
+      failed: res?.failed ?? 0,
+      completed: res?.completed ?? 0,
+      errors: []
+    };
+  } catch (error) {
+    errorLogger.error('Flush queue failed', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Lightweight queue metrics for renderer diagnostics
+ipcMain.handle('db:events:getQueueMetrics', async () => {
+  try {
+    const pendingCount = desktopDb.getPendingEventsCount(null);
+    const metrics = {
+      pendingCount,
+      processedCount: 0,
+      failedCount: 0,
+      lastFlushTime: Date.now(),
+      lastFlushDuration: 0,
+    };
+    return { success: true, metrics };
+  } catch (error) {
+    errorLogger.error('Get queue metrics failed', error);
     return { success: false, error: error.message };
   }
 });
@@ -1479,11 +1553,15 @@ function createMainWindow() {
   win.on('blur', () => logStartup('window:blur'));
   win.on('closed', () => logStartup('window:closed'));
 
-  // CSP Enforcement via headers
+  // CSP Enforcement via headers (dev allows 'unsafe-eval' for Pixi dev tooling; prod removes it)
   win.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    const scriptSrc = isDev
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;"
+      : "script-src 'self' 'unsafe-inline' blob:;";
+
     const csp = `
   default-src 'self';
-  script-src 'self' 'unsafe-inline' blob:;
+  ${scriptSrc}
   style-src 'self' 'unsafe-inline';
   img-src 'self' data: blob: https:;
   connect-src 'self' https: http: ws: wss:;
@@ -1506,7 +1584,9 @@ function createMainWindow() {
     logStartup('ready-to-show');
     win.show();
     try {
-      win.webContents.openDevTools({ mode: 'detach' });
+      if (isDev) {
+        win.webContents.openDevTools({ mode: 'detach' });
+      }
     } catch (error) {
       errorLogger.warn('Failed to open dev tools', error);
     }
@@ -1527,6 +1607,16 @@ function createMainWindow() {
   win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
     const levelNames = ['log','warn','error','info','debug'];
     const lvl = levelNames[level] || level;
+
+    // Filter out known harmless DevTools Autofill protocol noise
+    try {
+      const src = String(sourceId || '');
+      const msg = String(message || '');
+      if (src.startsWith('devtools://') && (msg.includes('Autofill.enable') || msg.includes('Autofill.setAddresses'))) {
+        return; // suppress noisy devtools protocol errors
+      }
+    } catch {}
+
     const payload = { lvl, message, line, sourceId };
     logStartup('console-message', payload);
     console.log(`[Renderer:${lvl}]`, message, `(at ${sourceId}:${line})`);
@@ -1685,18 +1775,18 @@ app.on('ready', async () => {
     errorLogger.warn('Failed to set app user model ID', error);
   }
 
-  // Load dynamic services now that app path is reliable
-  try {
-    await loadEventQueueService();
-  } catch (error) {
-    errorLogger.fatal('Failed to load eventQueueService at startup', error);
-  }
-
-  // Initialize SQLite before any DB access
+  // Initialize SQLite BEFORE loading services that depend on it
   try {
     desktopDb.init();
   } catch (error) {
     errorLogger.fatal('Failed to initialize desktop database', error);
+  }
+
+  // Load dynamic services now that app path is reliable and DB is initialized
+  try {
+    await loadEventQueueService();
+  } catch (error) {
+    errorLogger.fatal('Failed to load eventQueueService at startup', error);
   }
 
   // Initialize auto-updater service
@@ -1704,21 +1794,32 @@ app.on('ready', async () => {
     errorLogger.info('Initializing UpdateService...');
     updateService = new UpdateService();
     errorLogger.info('UpdateService instance created');
-    
-    updateService.startPeriodicChecks(60); // Check every hour
-    errorLogger.info('UpdateService periodic checks started');
-    
-    // Kick off a silent check shortly after startup
-    setTimeout(() => {
-      try { 
-        errorLogger.info('Running delayed silent update check');
-        updateService.checkForUpdates(true); 
-      } catch (e) {
-        errorLogger.error('Delayed update check failed', e);
-      }
-    }, 5000);
-    
-    errorLogger.info('UpdateService initialization completed successfully');
+
+    // Wait for initialization to complete before starting periodic checks
+    try {
+      await updateService.readyPromise;
+    } catch (e) {
+      errorLogger.error('UpdateService failed during initialization', e);
+    }
+
+    if (updateService && updateService.isValid) {
+      updateService.startPeriodicChecks(60); // Check every hour
+      errorLogger.info('UpdateService periodic checks started');
+
+      // Kick off a silent check shortly after startup
+      setTimeout(() => {
+        try { 
+          errorLogger.info('Running delayed silent update check');
+          updateService.checkForUpdates(true); 
+        } catch (e) {
+          errorLogger.error('Delayed update check failed', e);
+        }
+      }, 5000);
+
+      errorLogger.info('UpdateService initialization completed successfully');
+    } else {
+      errorLogger.warn('UpdateService invalid after initialization; skipping periodic checks');
+    }
   } catch (error) {
     errorLogger.error('Failed to initialize UpdateService', error);
     updateService = null;
@@ -1740,12 +1841,80 @@ app.on('activate', () => {
   }
 });
 
+// Store references to any child processes we spawn
+const childProcesses = new Set();
+
 // Handle app termination gracefully
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
   errorLogger.info('Application shutting down');
+  
+  // Prevent immediate quit to allow cleanup
+  event.preventDefault();
+  
+  // Kill any child processes we spawned
+  childProcesses.forEach(child => {
+    try {
+      if (!child.killed) {
+        child.kill('SIGTERM');
+        // Force kill after 2 seconds if still running
+        setTimeout(() => {
+          if (!child.killed) {
+            try {
+              child.kill('SIGKILL');
+            } catch (err) {
+              console.error('Failed to force kill child process:', err);
+            }
+          }
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Failed to kill child process:', err);
+    }
+  });
   
   // Security service cleanup removed - no longer needed
   
-  errorLogger.close();
-  desktopDb.close();
+  // Safely close logger if it has a close method
+  try {
+    if (errorLogger && typeof errorLogger.close === 'function') {
+      errorLogger.close();
+    }
+  } catch (err) {
+    console.error('Failed to close error logger:', err);
+  }
+  
+  // Close database connection
+  try {
+    desktopDb.close();
+  } catch (err) {
+    console.error('Failed to close database:', err);
+  }
+  
+  // Give processes time to cleanup, then force quit
+  setTimeout(() => {
+    console.log('Force quitting application');
+    app.exit(0);
+  }, 300);
+});
+
+// Add process signal handlers for better cleanup
+process.on('SIGTERM', () => {
+  errorLogger.info('Received SIGTERM signal');
+  app.quit();
+});
+
+process.on('SIGINT', () => {
+  errorLogger.info('Received SIGINT signal');
+ app.quit();
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  errorLogger.fatal('Uncaught Exception in main process', error);
+  app.quit();
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  errorLogger.error('Unhandled Promise Rejection in main process', reason);
+  app.quit();
 });

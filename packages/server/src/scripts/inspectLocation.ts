@@ -61,7 +61,7 @@ function parseArgs() {
 async function main() {
   const { outputJson, coord, starCoord } = parseArgs();
 
-  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/space-empire-mmo';
+  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/attrition';
 
   console.log(`Connecting to MongoDB...`);
   await mongoose.connect(mongoUri, {

@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { CoordinateComponents } from '@game/shared';
 
 export type MapZoomLevel = 'universe' | 'galaxy' | 'region' | 'system';
@@ -8,6 +7,8 @@ export interface MapViewport {
   centerX: number;
   centerY: number;
   zoom: number;
+  minZoom?: number;
+  maxZoom?: number;
 }
 
 export interface UniverseMapState {
@@ -86,15 +87,16 @@ export interface UniverseMapActions {
 }
 
 const useUniverseMapStore = create<UniverseMapState & UniverseMapActions>()(
-  persist(
     (set, get) => ({
-      // Initial state
+// Initial state
       zoomLevel: 'universe',
       selectedCoordinate: null,
       viewport: {
         centerX: 0,
         centerY: 0,
-        zoom: 1
+        zoom: 1,
+        minZoom: 0.1,
+        maxZoom: 10
       },
       
       galaxyData: new Map(),
@@ -121,18 +123,58 @@ const useUniverseMapStore = create<UniverseMapState & UniverseMapActions>()(
       // Navigation actions
       setZoomLevel: (level) => set({ zoomLevel: level }),
       
-      setSelectedCoordinate: (coord) => set({ selectedCoordinate: coord }),
+      setSelectedCoordinate: (coord) => {
+        console.log('[UniverseMapStore] setSelectedCoordinate called with:', {
+          coord,
+          hasServer: coord?.server ? 'yes' : 'no',
+          hasGalaxy: typeof coord?.galaxy === 'number' ? 'yes' : 'no',
+          hasRegion: typeof coord?.region === 'number' ? 'yes' : 'no',
+          hasSystem: typeof coord?.system === 'number' ? 'yes' : 'no',
+          coordString: coord ? `${coord.server || '?'}${typeof coord.galaxy === 'number' ? coord.galaxy : '?'}:${typeof coord.region === 'number' ? coord.region : '?'}${typeof coord.system === 'number' ? ':' + coord.system : ''}` : 'null'
+        });
+        set({ selectedCoordinate: coord });
+      },
       
       navigateToCoordinate: (coord) => {
+        if (!coord) {
+          console.warn('[UniverseMapStore] Coordinate is null/undefined');
+          return;
+        }
+        if (!coord) {
+          console.warn('[UniverseMapStore] Coordinate is null/undefined');
+          return;
+        }
+
+        // Build a safe coordinate with defaults
+        const safeCoord = {
+          server: coord?.server || 'A',
+          galaxy: typeof coord?.galaxy === 'number' ? coord.galaxy : 0,
+          region: typeof coord?.region === 'number' ? coord.region : 0,
+          system: typeof coord?.system === 'number' ? coord.system : 0,
+          body: typeof coord?.body === 'number' ? coord.body : 0
+        };
+
         const zoomLevel = get().getZoomLevelFromCoordinate(coord);
-        set({ 
-          selectedCoordinate: coord,
+        const baseZoom = zoomLevel === 'universe' ? 1 : zoomLevel === 'galaxy' ? 2 : zoomLevel === 'region' ? 4 : 8;
+        
+        // Get current state for smooth transition
+        const prevState = get();
+
+        // Set up new viewport with transition-friendly zoom
+        const newViewport = {
+          ...prevState.viewport,
+          centerX: safeCoord.galaxy,
+          centerY: safeCoord.region,
+          zoom: baseZoom,
+          minZoom: Math.max(0.1, baseZoom * 0.5),
+          maxZoom: baseZoom * 2
+        };
+
+        // Update state
+        set({
+          selectedCoordinate: safeCoord,
           zoomLevel,
-          viewport: {
-            centerX: coord.galaxy,
-            centerY: coord.region,
-            zoom: zoomLevel === 'universe' ? 1 : zoomLevel === 'galaxy' ? 2 : zoomLevel === 'region' ? 4 : 8
-          }
+          viewport: newViewport
         });
       },
 
@@ -145,33 +187,55 @@ const useUniverseMapStore = create<UniverseMapState & UniverseMapActions>()(
       },
 
       navigateToGalaxy: (galaxy) => {
-        const server = get().selectedCoordinate?.server ?? 'A';
-        set({
-          zoomLevel: 'galaxy',
-          selectedCoordinate: {
-            server,
-            galaxy,
-            region: 0,
-            system: 0,
-            body: 0
-          },
-          viewport: { centerX: galaxy, centerY: 0, zoom: 2 }
-        });
+        console.log('[UniverseMapStore] navigateToGalaxy called with:', galaxy);
+        try {
+          if (typeof galaxy !== 'number') {
+            console.error('[UniverseMapStore] Invalid galaxy parameter:', galaxy);
+            return;
+          }
+          const server = get().selectedCoordinate?.server ?? 'A';
+          const newState = {
+            zoomLevel: 'galaxy' as MapZoomLevel,
+            selectedCoordinate: {
+              server,
+              galaxy,
+              region: 0,
+              system: 0,
+              body: 0
+            },
+            viewport: { centerX: galaxy, centerY: 0, zoom: 2 }
+          };
+          console.log('[UniverseMapStore] Setting state:', newState);
+          set(newState);
+        } catch (error) {
+          console.error('[UniverseMapStore] Error in navigateToGalaxy:', error);
+        }
       },
 
       navigateToRegion: (galaxy, region) => {
-        const server = get().selectedCoordinate?.server ?? 'A';
-        set({
-          zoomLevel: 'region',
-          selectedCoordinate: {
-            server,
-            galaxy,
-            region,
-            system: 0,
-            body: 0
-          },
-          viewport: { centerX: galaxy, centerY: region, zoom: 4 }
-        });
+        console.log('[UniverseMapStore] navigateToRegion called with:', { galaxy, region });
+        try {
+          if (typeof galaxy !== 'number' || typeof region !== 'number') {
+            console.error('[UniverseMapStore] Invalid parameters for navigateToRegion:', { galaxy, region });
+            return;
+          }
+          const server = get().selectedCoordinate?.server ?? 'A';
+          const newState = {
+            zoomLevel: 'region' as MapZoomLevel,
+            selectedCoordinate: {
+              server,
+              galaxy,
+              region,
+              system: 0,
+              body: 0
+            },
+            viewport: { centerX: galaxy, centerY: region, zoom: 4 }
+          };
+          console.log('[UniverseMapStore] Setting state:', newState);
+          set(newState);
+        } catch (error) {
+          console.error('[UniverseMapStore] Error in navigateToRegion:', error);
+        }
       },
 
       navigateToSystem: (galaxy, region, system) => {
@@ -216,7 +280,8 @@ const useUniverseMapStore = create<UniverseMapState & UniverseMapActions>()(
           viewport: {
             ...viewport,
             centerX: viewport.centerX + deltaX,
-            centerY: viewport.centerY + deltaY
+            centerY: viewport.centerY + deltaY,
+            zoom: Math.max(viewport.minZoom ?? 0.1, Math.min(viewport.maxZoom ?? 10, viewport.zoom))
           }
         });
       },
@@ -282,32 +347,38 @@ const useUniverseMapStore = create<UniverseMapState & UniverseMapActions>()(
       },
       
       getZoomLevelFromCoordinate: (coord) => {
+        console.log('[UniverseMapStore] getZoomLevelFromCoordinate called with:', coord);
+        if (!coord) {
+          console.log('[UniverseMapStore] No coordinate provided, returning universe');
+          return 'universe';
+        }
+
         // Select view based on most specific coordinate part provided
-        if (coord.body > 0) return 'system';
+        if (typeof coord.body === 'number' && coord.body > 0) {
+          console.log('[UniverseMapStore] Body coordinate detected:', coord.body, ', returning system');
+          return 'system';
+        }
         // If a specific system is referenced (even with body 0), show system view
-        if (coord.system > 0) return 'system';
+        if (typeof coord.system === 'number' && coord.system > 0) {
+          console.log('[UniverseMapStore] System coordinate detected:', coord.system, ', returning system');
+          return 'system';
+        }
         // Clicking a region should enter region view (region can be 0..99)
-        if (coord.region >= 0) return 'region';
+        if (typeof coord.region === 'number' && coord.region >= 0) {
+          console.log('[UniverseMapStore] Region coordinate detected:', coord.region, ', returning region');
+          return 'region';
+        }
         // Fallback to galaxy view when only galaxy is specified
-        if (coord.galaxy >= 0) return 'galaxy';
+        if (typeof coord.galaxy === 'number' && coord.galaxy >= 0) {
+          console.log('[UniverseMapStore] Galaxy coordinate detected:', coord.galaxy, ', returning galaxy');
+          return 'galaxy';
+        }
         // Default to universe view
+        console.log('[UniverseMapStore] No valid coordinates found, returning universe');
         return 'universe';
       }
-    }),
-    {
-      name: 'universe-map-storage',
-      partialize: (state) => ({
-        zoomLevel: state.zoomLevel,
-        selectedCoordinate: state.selectedCoordinate,
-        viewport: state.viewport,
-        showGrid: state.showGrid,
-        showTerritories: state.showTerritories,
-        showFleets: state.showFleets,
-        showResources: state.showResources,
-        showOverhaulData: state.showOverhaulData
-      })
-    }
-  )
+      
+    })
 );
 
 export default useUniverseMapStore;

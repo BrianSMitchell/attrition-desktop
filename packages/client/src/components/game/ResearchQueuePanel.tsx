@@ -1,6 +1,6 @@
 import * as React from "react";
 import { getTechSpec, type TechnologyKey } from "@game/shared";
-import techService from "../../services/techService";
+import { useEnhancedAppStore } from "../../stores/enhancedAppStore";
 
 interface TechQueueItem {
   _id?: string;
@@ -39,18 +39,34 @@ const ResearchQueuePanel: React.FC<ResearchQueuePanelProps> = ({ baseCoord, onCh
   const [tick, setTick] = React.useState(0);
   const [cancelingId, setCancelingId] = React.useState<string | null>(null);
 
+  // Enhanced store access for API calls
+  const services = useEnhancedAppStore((state) => state.services);
+  const gameApi = services?.gameApi;
+  const [compact, setCompact] = React.useState<boolean>(() => {
+    try {
+      return localStorage.getItem('rq.compact') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
   const fetchQueue = async () => {
+    if (!gameApi.getResearchQueue) {
+      setError('Research queue API not available');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const res = await techService.getQueue(baseCoord);
+      const res = await gameApi.getResearchQueue(baseCoord);
       if (res.success) {
-        setQueue(res.data?.queue || []);
+        setQueue(res.data || []);
       } else {
         setError(res.error || "Failed to load research queue");
       }
     } catch (e: any) {
-      setError(e?.response?.data?.error || "Network error while loading research queue");
+      setError("Network error while loading research queue");
     } finally {
       setLoading(false);
     }
@@ -58,10 +74,24 @@ const ResearchQueuePanel: React.FC<ResearchQueuePanelProps> = ({ baseCoord, onCh
 
   React.useEffect(() => {
     fetchQueue();
-    const id = window.setInterval(() => setTick((t) => t + 1), 30000);
-    return () => clearInterval(id);
+    // Update progress bars every 30 seconds
+    const tickId = window.setInterval(() => setTick((t) => t + 1), 30000);
+    // Fetch fresh data every 60 seconds for real-time updates
+    const fetchId = window.setInterval(() => {
+      fetchQueue();
+    }, 60000);
+    return () => {
+      clearInterval(tickId);
+      clearInterval(fetchId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseCoord]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rq.compact', compact ? 'true' : 'false');
+    } catch {}
+  }, [compact]);
 
   const underway = React.useMemo(
     () => queue.filter((q) => q.status === "pending" && !!q.completesAt),
@@ -73,15 +103,15 @@ const ResearchQueuePanel: React.FC<ResearchQueuePanelProps> = ({ baseCoord, onCh
   );
 
   const handleCancel = async (id?: string) => {
-    if (!id) return;
+    if (!id || !gameApi.cancelResearch) return;
     const yes = window.confirm("Cancel this research item?");
     if (!yes) return;
 
     try {
       setCancelingId(id);
-      const res = await techService.cancelQueueItem(id);
+      const res = await gameApi.cancelResearch(id);
       if (!res.success) {
-        setError(res.error || res.message || "Failed to cancel queue item");
+        setError(res.error || "Failed to cancel queue item");
         return;
       }
       // Refresh list
@@ -91,7 +121,7 @@ const ResearchQueuePanel: React.FC<ResearchQueuePanelProps> = ({ baseCoord, onCh
         await onChanged();
       }
     } catch (e: any) {
-      setError(e?.response?.data?.error || "Network error while cancelling");
+      setError("Network error while cancelling");
     } finally {
       setCancelingId(null);
     }
@@ -101,13 +131,24 @@ const ResearchQueuePanel: React.FC<ResearchQueuePanelProps> = ({ baseCoord, onCh
     <div className="game-card">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold text-empire-gold">Research Queue</h3>
-        <button
-          onClick={fetchQueue}
-          className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
-          disabled={loading}
-        >
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1 text-xs text-gray-300 select-none" title="Use a condensed layout to show more items at once">
+            <input
+              type="checkbox"
+              className="accent-purple-500"
+              checked={compact}
+              onChange={(e) => setCompact(e.target.checked)}
+            />
+            Compact
+          </label>
+          <button
+            onClick={fetchQueue}
+            className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+            disabled={loading}
+          >
+            {loading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -130,7 +171,7 @@ const ResearchQueuePanel: React.FC<ResearchQueuePanelProps> = ({ baseCoord, onCh
                 None currently underway.
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className={compact ? "space-y-1" : "space-y-3"}>
                 {underway.map((item) => {
                   const spec = getTechSpec(item.techKey);
                   const started = new Date(item.startedAt).getTime();
@@ -142,9 +183,9 @@ const ResearchQueuePanel: React.FC<ResearchQueuePanelProps> = ({ baseCoord, onCh
                   return (
                     <div
                       key={item._id || `${item.techKey}-${item.locationCoord}-${item.startedAt}`}
-                      className="p-4 bg-gray-700 rounded-lg border border-gray-600"
+                      className={`${compact ? 'p-2' : 'p-4'} bg-gray-700 rounded-lg border border-gray-600`}
                     >
-                      <div className="flex items-center justify-between mb-2">
+                      <div className={"flex items-center justify-between " + (compact ? "mb-1" : "mb-2")}>
                         <div className="font-medium text-white flex items-center gap-2">
                           {spec.name} <span className="text-xs text-gray-400">({item.techKey})</span>
                         </div>
@@ -163,14 +204,14 @@ const ResearchQueuePanel: React.FC<ResearchQueuePanelProps> = ({ baseCoord, onCh
                         </div>
                       </div>
 
-                      {spec.description && (
+{!compact && spec.description && (
                         <p className="text-sm text-gray-400 mb-3">{spec.description}</p>
                       )}
 
-                      <div className="space-y-2">
-                        <div className="w-full bg-gray-600 rounded-full h-2">
+                      <div className={compact ? "space-y-1" : "space-y-2"}>
+<div className={`w-full bg-gray-600 rounded-full ${compact ? 'h-1' : 'h-2'}`}>
                           <div
-                            className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+className={`bg-purple-600 ${compact ? 'h-1' : 'h-2'} rounded-full transition-all duration-300`}
                             style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
                           />
                         </div>
@@ -180,10 +221,12 @@ const ResearchQueuePanel: React.FC<ResearchQueuePanelProps> = ({ baseCoord, onCh
                           <span>ETA: {eta}</span>
                         </div>
 
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Started: {new Date(item.startedAt).toLocaleString()}</span>
-                          <span>Completes: {new Date(item.completesAt as any).toLocaleString()}</span>
-                        </div>
+{!compact && (
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>Started: {new Date(item.startedAt).toLocaleString()}</span>
+                            <span>Completes: {new Date(item.completesAt as any).toLocaleString()}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -206,7 +249,7 @@ const ResearchQueuePanel: React.FC<ResearchQueuePanelProps> = ({ baseCoord, onCh
                   return (
                     <div
                       key={item._id || `${item.techKey}-${item.locationCoord}-${item.startedAt}-waiting`}
-                      className="flex items-center justify-between p-3 bg-gray-800/60 border border-gray-700 rounded"
+className={`flex items-center justify-between ${compact ? 'p-2' : 'p-3'} bg-gray-800/60 border border-gray-700 rounded`}
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-gray-400 w-5 text-right">{idx + 1}.</span>

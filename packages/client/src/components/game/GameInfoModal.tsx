@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Empire, getTechnologyList, getTechSpec, TechnologySpec, getBuildingsList, BuildingSpec, getDefensesList, DefenseSpec, getUnitsList, UnitSpec, TERRAIN_BASELINES, getBasePosition, getStarKindModifiers, STAR_KIND_WEIGHTS } from '@game/shared';
+import { Empire, getTechnologyList, getTechSpec, TechnologySpec, getStructuresList as getBuildingsList, StructureSpec as BuildingSpec, getDefensesList, DefenseSpec, getUnitsList, UnitSpec, TERRAIN_BASELINES, getBasePosition, getStarKindModifiers, STAR_KIND_WEIGHTS } from '@game/shared';
 import type { StarKind } from '@game/shared';
 
 type InfoTab = 'technologies' | 'structures' | 'defenses' | 'units' | 'capacities' | 'terrains' | 'all';

@@ -1,7 +1,18 @@
 import * as React from "react";
 import { useMemo, useState } from "react";
 import type { UnitKey, UnitSpec } from "@game/shared";
-import type { UnitsStatusDTO } from "../../services/unitsService";
+
+// Enhanced store compatible types
+export interface UnitsStatusData {
+  techLevels: Record<string, number>;
+  eligibility: Record<
+    UnitKey,
+    {
+      canStart: boolean;
+      reasons: string[];
+    }
+  >;
+}
 
 /**
  * UnitsBuildTable (Fleets — Quantity-based UI)
@@ -15,10 +26,10 @@ import type { UnitsStatusDTO } from "../../services/unitsService";
 
 interface UnitsBuildTableProps {
   catalog: UnitSpec[];
-  status: UnitsStatusDTO | null;
+  status: UnitsStatusData | null;
   loading: boolean;
   onRefresh: () => void;
-  onQueue?: (items: { key: UnitKey; quantity: number }[], totals: { credits: number; minutes: number }) => Promise<void>;
+  onQueue?: (items: { unitKey: UnitKey; quantity: number }[], totals: { credits: number; minutes: number }) => Promise<void>;
   isOffline?: boolean;
 
   // Production capacity (credits per hour) for this base
@@ -26,12 +37,12 @@ interface UnitsBuildTableProps {
 
   // Called when user clicks Submit with non-zero quantities
   onSubmit?: (
-    items: { key: UnitKey; quantity: number }[],
+    items: { unitKey: UnitKey; quantity: number }[],
     totals: { credits: number; minutes: number }
   ) => void | Promise<void>;
 }
 
-const formatRequires = (u: UnitSpec): { text: string; hasRequirements: boolean } => {
+const formatRequires = (u: UnitSpec, reasons?: string[]): { text: string; hasRequirements: boolean; isUnmet: boolean } => {
   const techs = (u.techPrereqs || [])
     .map((p) => `${p.key.replace(/_/g, " ")} ${p.level}`)
     .join(", ");
@@ -49,7 +60,16 @@ const formatRequires = (u: UnitSpec): { text: string; hasRequirements: boolean }
 
   const text = parts.length ? parts.join(" • ") : "—";
   const hasRequirements = parts.length > 0;
-  return { text, hasRequirements };
+  
+  // Check if any of the reasons indicate unmet requirements
+  const isUnmet = reasons && reasons.length > 0 && reasons.some(reason => {
+    // Check for shipyard requirement failures
+    return reason.includes("Shipyard level") || 
+           reason.includes("Orbital Shipyard level") ||
+           reason.includes("Requires"); // Catches tech requirements too
+  });
+
+  return { text, hasRequirements, isUnmet: !!isUnmet };
 };
 
 const getDescriptor = (u: UnitSpec): string => {
@@ -122,7 +142,7 @@ const UnitsBuildTable: React.FC<UnitsBuildTableProps> = ({
 
   const handleSubmit = async () => {
     const payload = items
-      .map((u) => ({ key: u.key as UnitKey, quantity: Math.max(0, Math.floor(quantities[u.key] || 0)) }))
+      .map((u) => ({ unitKey: u.key as UnitKey, quantity: Math.max(0, Math.floor(quantities[u.key] || 0)) }))
       .filter((p) => p.quantity > 0);
 
     if (payload.length === 0) return;
@@ -220,9 +240,16 @@ const UnitsBuildTable: React.FC<UnitsBuildTableProps> = ({
                       <div className="text-xs text-red-300 mt-1">{reasonsLine}</div>
                     )}
                     {/* Requirements summary (tech/shipyard) */}
-                    {formatRequires(u).hasRequirements && (
-                      <div className="text-xs text-gray-500 mt-1">{formatRequires(u).text}</div>
-                    )}
+                    {(() => {
+                      const requirements = formatRequires(u, reasons);
+                      return requirements.hasRequirements && (
+                        <div className={`text-xs mt-1 ${
+                          requirements.isUnmet ? "text-red-300" : "text-gray-500"
+                        }`}>
+                          {requirements.text}
+                        </div>
+                      );
+                    })()}
                   </td>
 
                   {/* Credits */}
@@ -241,7 +268,11 @@ const UnitsBuildTable: React.FC<UnitsBuildTableProps> = ({
                   </td>
 
                   {/* Time (per unit) */}
-                  <td className="py-2 px-3 align-top">
+                  <td className="py-2 px-3 align-top" title={
+                    perUnitMinutes && productionPerHour && productionPerHour > 0
+                      ? `ETA = Credits (${u.creditsCost.toLocaleString()}) / Production Capacity (${productionPerHour.toLocaleString()} cred/h)`
+                      : undefined
+                  }>
                     {perUnitMinutes && perUnitMinutes > 0 ? formatMinutes(perUnitMinutes) : "—"}
                   </td>
 

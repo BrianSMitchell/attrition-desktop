@@ -103,6 +103,27 @@ export function setupSocketIO(io: Server): void {
       });
     });
 
+    // Queue-specific events
+    socket.on('queue:subscribe', (data) => {
+      // Subscribe to queue updates for a specific base or empire-wide
+      const { baseCoord } = data || {};
+      if (baseCoord) {
+        socket.join(`queue:${user.gameProfile.empireId}:${baseCoord}`);
+      } else {
+        socket.join(`queue:${user.gameProfile.empireId}`);
+      }
+    });
+
+    socket.on('queue:unsubscribe', (data) => {
+      // Unsubscribe from queue updates
+      const { baseCoord } = data || {};
+      if (baseCoord) {
+        socket.leave(`queue:${user.gameProfile.empireId}:${baseCoord}`);
+      } else {
+        socket.leave(`queue:${user.gameProfile.empireId}`);
+      }
+    });
+
     socket.on('disconnect', (reason) => {
       try {
         const userId = (user._id as any).toString?.() ?? String(user._id);
@@ -150,6 +171,15 @@ export function setupSocketIO(io: Server): void {
   io.sendToUser = (userId: string, event: string, data: any) => {
     io.to(`user:${userId}`).emit(event, data);
   };
+
+  io.broadcastQueueUpdate = (empireId: string, baseCoord: string | null, event: string, data: any) => {
+    // Broadcast to empire-wide queue subscribers
+    io.to(`queue:${empireId}`).emit(event, data);
+    // Also broadcast to base-specific subscribers if baseCoord is provided
+    if (baseCoord) {
+      io.to(`queue:${empireId}:${baseCoord}`).emit(event, data);
+    }
+  };
 }
 
 // Extend Socket.IO Server interface
@@ -158,5 +188,6 @@ declare module 'socket.io' {
     broadcastToUniverse(universeId: string, event: string, data: any): void;
     broadcastToEmpire(empireId: string, event: string, data: any): void;
     sendToUser(userId: string, event: string, data: any): void;
+    broadcastQueueUpdate(empireId: string, baseCoord: string | null, event: string, data: any): void;
   }
 }

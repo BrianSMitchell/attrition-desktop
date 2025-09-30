@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import universeService, { UniverseLocationData } from '../../services/universeService';
-import capacitiesService from '../../services/capacitiesService';
-import baseStatsService, { BaseStatsDTO } from '../../services/baseStatsService';
+import { gameApi } from '../../stores/services/gameApi';
 import { useModalStore } from '../../stores/modalStore';
 import type { CapacityResult } from '@game/shared';
+
+// Type for location data from the API
+type UniverseLocationData = any;  // Using any for now since we're using gameApi
+type BaseStatsDTO = any;          // Using any for now since we're using gameApi
 
 type PlanetInfoBlockProps = {
   coord: string; // Full coordinate like A00:10:22:10
@@ -27,11 +29,12 @@ const PlanetInfoBlock: React.FC<PlanetInfoBlockProps> = ({ coord, showLinkToPlan
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<UniverseLocationData | null>(null);
-  const [caps, setCaps] = useState<{ construction?: number; production?: number; research?: number } | null>(null);
+  const [caps, setCaps] = useState<{ construction?: number; production?: number; research?: number; citizen?: number } | null>(null);
   const [capResults, setCapResults] = useState<{
     construction: CapacityResult;
     production: CapacityResult;
     research: CapacityResult;
+    citizen?: CapacityResult;
   } | null>(null);
   const [baseStats, setBaseStats] = useState<BaseStatsDTO | null>(null);
   const { openModal } = useModalStore();
@@ -56,54 +59,52 @@ const PlanetInfoBlock: React.FC<PlanetInfoBlockProps> = ({ coord, showLinkToPlan
     setCapResults(null);
     setBaseStats(null);
 
-    universeService
-      .getLocationByCoord(coord)
-      .then((res) => {
-        if (!mounted) return;
-        if (res.success && res.data) {
-          setData(res.data);
-        } else {
-          setError(res.error || 'Failed to load planet info.');
-        }
-      })
-      .catch(() => {
-        if (mounted) setError('Network error while loading planet info.');
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
+    // Fetch all data in parallel using gameApi
+    const loadData = async () => {
+      try {
+        const [locationRes, capacitiesRes, baseStatsRes] = await Promise.all([
+          gameApi.getLocationByCoord(coord),
+          gameApi.getCapacities(coord),
+          gameApi.getBaseStats(coord)
+        ]);
 
-    // Fetch capacities for this coord
-    capacitiesService
-      .getStatus(coord)
-      .then((res) => {
         if (!mounted) return;
-        if ((res as any).success && (res as any).data) {
-          const d: any = (res as any).data;
-          setCapResults(d as {
-            construction: CapacityResult;
-            production: CapacityResult;
-            research: CapacityResult;
-          });
+
+        // Handle location data
+        if (locationRes.success && locationRes.data) {
+          setData(locationRes.data);
+        } else {
+          setError(locationRes.error || 'Failed to load planet info.');
+        }
+
+        // Handle capacities data
+        if (capacitiesRes.success && capacitiesRes.data) {
+          const d = capacitiesRes.data;
+          setCapResults(d as any);
           setCaps({
             construction: d.construction?.value ?? 0,
             production: d.production?.value ?? 0,
             research: d.research?.value ?? 0,
+            citizen: d.citizen?.value ?? 0,
           });
         }
-      })
-      .catch(() => {});
 
-    // Fetch base stats (area/energy/population budgets and owner income)
-    baseStatsService
-      .get(coord)
-      .then((res) => {
-        if (!mounted) return;
-        if (res.success && res.data) {
-          setBaseStats(res.data.stats);
+        // Handle base stats data
+        if (baseStatsRes.success && baseStatsRes.data) {
+          setBaseStats(baseStatsRes.data);
         }
-      })
-      .catch(() => {});
+      } catch (err) {
+        if (mounted) {
+          setError('Network error while loading planet info.');
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadData();
 
     return () => {
       mounted = false;
@@ -184,6 +185,10 @@ const PlanetInfoBlock: React.FC<PlanetInfoBlockProps> = ({ coord, showLinkToPlan
               label="Research"
               value={fmt(caps?.research)}
             />
+            <Row
+              label="Citizen"
+              value={fmt(caps?.citizen)}
+            />
             <div className="text-right">
               <button
                 onClick={() => {
@@ -222,8 +227,8 @@ const PlanetInfoBlock: React.FC<PlanetInfoBlockProps> = ({ coord, showLinkToPlan
                     <span className="text-gray-400"> cons</span>
                     {'  '}
                     ={' '}
-                    <span className={baseStats.energy.balance >= 0 ? 'text-green-300' : 'text-red-300'}>
-                      {baseStats.energy.balance.toLocaleString()}
+                    <span className={(baseStats.energy.rawBalance ?? baseStats.energy.balance ?? 0) >= 0 ? 'text-green-300' : 'text-red-300'}>
+                      {(baseStats.energy.rawBalance ?? baseStats.energy.balance ?? 0).toLocaleString()}
                     </span>
                   </span>
                 }

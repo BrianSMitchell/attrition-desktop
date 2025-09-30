@@ -5,7 +5,6 @@ export interface TechStatusDTO {
   techLevels: Partial<Record<TechnologyKey, number>>;
   baseLabTotal: number;
   eligibility: Record<TechnologyKey, { canStart: boolean; reasons: string[] }>;
-  credits: number;
 }
 
 function isApiErrorLike(err: unknown): err is ApiError {

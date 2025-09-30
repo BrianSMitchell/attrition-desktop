@@ -553,7 +553,7 @@ export const faqTopics: FaqTopic[] = [
       ),
     },
     {
-      q: 'Why I cannot see my bases or fleets on the galaxy map?',
+      q: 'Why I cannot see my bases or fleets on the map?',
       a: (
         <div className="space-y-2">
           <p>

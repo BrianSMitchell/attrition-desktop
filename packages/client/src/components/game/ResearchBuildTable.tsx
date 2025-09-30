@@ -1,7 +1,5 @@
 import * as React from "react";
-import { useNetwork } from "../../contexts/NetworkContext";
-import { useToast } from "../../contexts/ToastContext";
-import { useAuthStore } from '../../stores/authStore';
+import { useUIActions, useEnhancedAuth, useConnectionStatus } from '../../stores/enhancedAppStore';
 import type { TechnologyKey, TechnologySpec } from "@game/shared";
 import { getTechCreditCostForLevel } from "@game/shared";
 import type { TechStatusDTO } from "../../services/techService";
@@ -39,13 +37,14 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
 }) => {
   const { openModal } = useModalStore();
 
-  const { isFullyConnected } = useNetwork();
+  const { isFullyConnected } = useConnectionStatus();
   const isOffline = !isFullyConnected;
 
-  const { empire } = useAuthStore();
+  const auth = useEnhancedAuth();
+  const { empire } = auth || {};
   const empireId = empire?._id;
 
-  const { addToast } = useToast();
+  const { addToast } = useUIActions();
 
   // Active research (global gray-out)
   const hasActive = !!activeResearch;
@@ -53,7 +52,7 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
   const handleStart = async (key: TechnologyKey) => {
     if (isOffline) {
       if (!onQueue || !locationCoord || !empireId) {
-        addToast({ type: 'error', text: 'Cannot queue: missing context' });
+        addToast({ type: 'error', message: 'Cannot queue: missing context' });
         return;
       }
 
@@ -67,10 +66,10 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
 
       try {
         await onQueue(payload);
-        addToast({ type: 'success', text: 'Research queued for sync when online' });
+        addToast({ type: 'success', message: 'Research queued for sync when online' });
       } catch (error) {
         console.error('Queue error:', error);
-        addToast({ type: 'error', text: 'Failed to queue research' });
+        addToast({ type: 'error', message: 'Failed to queue research' });
       }
       return;
     }
@@ -154,9 +153,10 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
         const level = Math.max(0, status?.techLevels[t.key as TechnologyKey] ?? 0);
         const nextLevel = level + 1;
         const nextCost = getTechCreditCostForLevel(t.key as TechnologyKey, nextLevel);
-        return typeof researchPerHour === "number" && researchPerHour > 0
-          ? formatDuration(nextCost, researchPerHour)
-          : "—";
+        if (!(typeof researchPerHour === "number" && researchPerHour > 0)) return "—";
+        const text = formatDuration(nextCost, researchPerHour);
+        const tip = `ETA = Credits (${nextCost.toLocaleString()}) / Research Capacity (${researchPerHour.toLocaleString()} cred/h)`;
+        return <span title={tip}>{text}</span>;
       },
     },
   ];
@@ -190,10 +190,10 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
   };
 
   // Summary (header right) per table standard: show Credits and Labs, plus Refresh button from BuildTable
-  const summary = status ? (
+  const summary = status && empire ? (
     <div className="flex items-center gap-3">
       <div className="text-sm text-gray-300">
-        Credits: <span className="text-empire-gold font-mono">{status.credits.toLocaleString()}</span>
+        Credits: <span className="text-empire-gold font-mono">{empire.resources.credits.toLocaleString()}</span>
       </div>
       <div className="text-sm text-gray-300">
         Labs: <span className="text-blue-400 font-semibold">{status.baseLabTotal}</span>

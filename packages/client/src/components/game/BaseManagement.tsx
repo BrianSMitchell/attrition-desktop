@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useBaseStore } from '../../stores/baseStore';
 import { Empire } from '@game/shared';
-import api from '../../services/api';
+import { gameApi } from '../../stores/services/gameApi';
 import BaseOverview from './BaseOverview';
 import BaseDetail from './BaseDetail';
 
@@ -34,31 +34,28 @@ const BaseManagement: React.FC<BaseManagementProps> = ({ empire }) => {
     
     try {
       // Fetch colonies
-      const coloniesResponse = await api.get('/game/territories');
-      if (!coloniesResponse.data.success) {
-        throw new Error(coloniesResponse.data.error || 'Failed to fetch territories');
+      const coloniesResponse = await gameApi.getTerritories();
+      if (!coloniesResponse.success) {
+        throw new Error(coloniesResponse.error || 'Failed to fetch territories');
       }
 
-      const territories = coloniesResponse.data.data.territories;
+      const territories = coloniesResponse.data.territories;
       
       // For each territory, fetch buildings and calculate production
       const basesData = await Promise.all(
         territories.map(async (territory: any) => {
           try {
             // Fetch buildings for this location
-            const buildingsResponse = await api.get(`/game/buildings/location/${territory.coord}`);
-            const buildings = buildingsResponse.data.success ? buildingsResponse.data.data.buildings : [];
+            const buildingsResponse = await gameApi.getBuildingsByLocation(territory.coord);
+            const buildings = buildingsResponse.success ? buildingsResponse.data.buildings : [];
 
-            // Get construction queue (buildings not yet active)
-            const constructionQueue = buildings.filter((building: any) => !building.isActive);
 
             // Minimal base shape for UI; cast as any to satisfy store typing
             const base: any = {
               _id: territory._id ?? territory.coord,
               name: territory.name ?? territory.coord,
               locationCoord: territory.coord,
-              buildings,
-              constructionQueue
+              buildings
             };
 
             return base;
@@ -193,6 +190,8 @@ const BaseManagement: React.FC<BaseManagementProps> = ({ empire }) => {
         <BaseDetail 
           base={selectedBase}
           onBack={() => handleTabChange('overview')}
+          buildings={[]}
+          defenses={[]}
         />
       ) : (
         <div className="game-card text-center">

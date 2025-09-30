@@ -1,5 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import universeService, { UniverseLocationData } from '../../services/universeService';
+import * as React from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useEnhancedAppStore } from '../../stores/enhancedAppStore';
+
+// Enhanced store compatible types
+interface UniverseLocationData {
+  coord: string;
+  type: 'planet' | 'asteroid' | 'star';
+  terrain?: {
+    type: string;
+  };
+}
 
 type PlanetVisualProps = {
   coord: string;
@@ -10,6 +20,10 @@ const PlanetVisual: React.FC<PlanetVisualProps> = ({ coord, className }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<UniverseLocationData | null>(null);
+  
+  // Enhanced store access for API calls
+  const services = useEnhancedAppStore((state) => state.services);
+  const gameApi = services?.gameApi;
 
   useEffect(() => {
     let mounted = true;
@@ -17,9 +31,15 @@ const PlanetVisual: React.FC<PlanetVisualProps> = ({ coord, className }) => {
     setError(null);
     setData(null);
 
-    universeService
+    if (!gameApi?.getLocationByCoord) {
+      if (mounted) setError('Location API not available');
+      setLoading(false);
+      return;
+    }
+
+    gameApi
       .getLocationByCoord(coord)
-      .then((res) => {
+      .then((res: any) => {
         if (!mounted) return;
         if (res.success && res.data) {
           setData(res.data);
@@ -37,33 +57,44 @@ const PlanetVisual: React.FC<PlanetVisualProps> = ({ coord, className }) => {
     return () => {
       mounted = false;
     };
-  }, [coord]);
+  }, [coord, gameApi?.getLocationByCoord]);
 
-  const planetVisualStyle = useMemo<React.CSSProperties>(() => {
-    const type = data?.type || 'planet';
-    const themes: Record<string, string> = {
-      terrestrial:
-        'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.2) 20%, #487a3a 21%, #2b4f28 60%, #132515 100%)',
-      gas_giant:
-        'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6), rgba(255,255,255,0.15) 18%, #7a62b7 20%, #4f3a8a 58%, #2a174f 100%)',
-      ice:
-        'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(255,255,255,0.4) 22%, #78a9d6 23%, #3c6d99 60%, #1c3550 100%)',
-      desert:
-        'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.2) 18%, #e0b34a 20%, #a97a2a 60%, #5e3b10 100%)',
-      volcanic:
-        'radial-gradient(circle at 30% 30%, rgba(255,200,200,0.7), rgba(255,200,200,0.2) 20%, #cc2b2b 22%, #7a1e1e 60%, #330d0d 100%)',
-      planet:
-        'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.2) 20%, rgba(40,80,140,1) 21%, rgba(20,40,80,1) 60%, rgba(10,20,40,1) 100%)',
-      asteroid:
-        'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6), rgba(255,255,255,0.2) 18%, #7b6f62 20%, #4a423b 60%, #26221e 100%)',
-      star:
-        'radial-gradient(circle at 30% 30%, rgba(255,255,200,0.9), rgba(255,255,200,0.4) 22%, #ffd27a 24%, #e0a53a 60%, #8a5a0a 100%)',
-    };
-    const background = themes[type] || themes.planet;
-    return {
-      background,
-      boxShadow: '0 0 40px rgba(100,150,255,0.3), inset 0 0 30px rgba(0,0,0,0.6)',
-    };
+  const planetImageUrl = useMemo(() => {
+    const base = (import.meta as any)?.env?.BASE_URL || './';
+    const build = (name: string) => `${base}planets/${name}`;
+
+    const terrainType = data?.terrain?.type;
+    if (!terrainType) {
+      // Fallbacks when terrain is not available
+      const generalType = (data?.type || 'planet').toLowerCase();
+      if (generalType === 'asteroid') return build('asteroid.svg');
+      // Use a safe generic planet image we know exists
+      return build('rocky.svg');
+    }
+
+    // List of terrains with PNG assets (capitalized)
+    const pngTerrains = [
+      'Arid',
+      'Craters',
+      'Crystalline',
+      'Earthly',
+      'Gaia',
+      'Glacial',
+      'Magma',
+      'Metallic',
+      'Oceanic',
+      'Rocky',
+      'Toxic',
+      'Volcanic',
+      // Extendable: add future PNG terrains here when artwork is ready
+    ];
+
+    if (pngTerrains.includes(terrainType)) {
+      return build(`${terrainType}.png`);
+    }
+
+    // Fallback to SVG for remaining terrains
+    return build(`${terrainType.toLowerCase()}.svg`);
   }, [data]);
 
   const sizeClass =
@@ -91,11 +122,14 @@ const PlanetVisual: React.FC<PlanetVisualProps> = ({ coord, className }) => {
   }
 
   return (
-    <div
-      className={`rounded-full shadow-lg ${sizeClass}`}
-      style={planetVisualStyle}
-      aria-label="Planet preview"
-    />
+    <div className={`rounded-full shadow-lg ${sizeClass} overflow-hidden bg-black flex items-center justify-center`}>
+      <img
+        src={planetImageUrl}
+        alt={`Image of ${data?.terrain?.type || data?.type || 'planet'}`}
+        className="w-full h-full object-cover"
+        aria-label="Planet preview"
+      />
+    </div>
   );
 };
 

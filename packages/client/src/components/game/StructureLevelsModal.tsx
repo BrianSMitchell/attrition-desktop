@@ -1,8 +1,8 @@
 import React from 'react';
-import type { BuildingKey } from '@game/shared';
+import type { StructureKey as BuildingKey } from '@game/shared';
 import { STRUCTURE_LEVEL_TABLES, STRUCTURE_LEVEL_META } from './levelTables/structures';
 import { useBaseStore } from '../../stores/baseStore';
-import { universeService } from '../../services/universeService';
+import { useEnhancedAppStore } from '../../stores/enhancedAppStore';
 
 interface StructureLevelsModalProps {
   structureKey: BuildingKey | undefined;
@@ -30,6 +30,10 @@ const StructureLevelsModal: React.FC<StructureLevelsModalProps> = ({ structureKe
     selectedBaseId: s.selectedBaseId,
     bases: s.bases,
   }));
+  
+  // Enhanced store access for API calls
+  const services = useEnhancedAppStore((state) => state.services);
+  const gameApi = services?.gameApi;
   const selectedBase = React.useMemo(
     () => (selectedBaseId ? bases.find((b) => b._id === selectedBaseId) || null : null),
     [selectedBaseId, bases]
@@ -43,14 +47,14 @@ const StructureLevelsModal: React.FC<StructureLevelsModalProps> = ({ structureKe
   React.useEffect(() => {
     let didCancel = false;
     async function load() {
-      if (!isMetalRefineries) return;
+      if (!isMetalRefineries || !gameApi.getLocationByCoord) return;
       const coord = selectedBase?.locationCoord;
       if (!coord) {
         if (!didCancel) setMetalRating(null);
         return;
       }
       try {
-        const res = await universeService.getLocationByCoord(coord);
+        const res = await gameApi.getLocationByCoord(coord);
         if (res?.success && res.data) {
           const d = res.data as any;
           const rating =
@@ -69,20 +73,20 @@ const StructureLevelsModal: React.FC<StructureLevelsModalProps> = ({ structureKe
     return () => {
       didCancel = true;
     };
-  }, [isMetalRefineries, selectedBase?.locationCoord]);
+  }, [isMetalRefineries, selectedBase?.locationCoord, gameApi.getLocationByCoord]);
 
   // Dynamic per-base scaling for Solar Plants (energyOutput)
   React.useEffect(() => {
     let didCancel = false;
     async function load() {
-      if (!isSolarPlants) return;
+      if (!isSolarPlants || !gameApi.getLocationByCoord) return;
       const coord = selectedBase?.locationCoord;
       if (!coord) {
         if (!didCancel) setSolarRating(null);
         return;
       }
       try {
-        const res = await universeService.getLocationByCoord(coord);
+        const res = await gameApi.getLocationByCoord(coord);
         if (res?.success && res.data) {
           const d = res.data as any;
           const rating =
@@ -101,20 +105,20 @@ const StructureLevelsModal: React.FC<StructureLevelsModalProps> = ({ structureKe
     return () => {
       didCancel = true;
     };
-  }, [isSolarPlants, selectedBase?.locationCoord]);
+  }, [isSolarPlants, selectedBase?.locationCoord, gameApi.getLocationByCoord]);
 
   // Dynamic per-base scaling for Gas Plants (energyOutput depends on gas rating)
   React.useEffect(() => {
     let didCancel = false;
     async function load() {
-      if (!isGasPlants) return;
+      if (!isGasPlants || !gameApi.getLocationByCoord) return;
       const coord = selectedBase?.locationCoord;
       if (!coord) {
         if (!didCancel) setGasRating(null);
         return;
       }
       try {
-        const res = await universeService.getLocationByCoord(coord);
+        const res = await gameApi.getLocationByCoord(coord);
         if (res?.success && res.data) {
           const d = res.data as any;
           const rating =
@@ -133,20 +137,20 @@ const StructureLevelsModal: React.FC<StructureLevelsModalProps> = ({ structureKe
     return () => {
       didCancel = true;
     };
-  }, [isGasPlants, selectedBase?.locationCoord]);
+  }, [isGasPlants, selectedBase?.locationCoord, gameApi.getLocationByCoord]);
 
   // Dynamic per-base scaling for Crystal Mines (economyOutput depends on crystals rating)
   React.useEffect(() => {
     let didCancel = false;
     async function load() {
-      if (!isCrystalMines) return;
+      if (!isCrystalMines || !gameApi.getLocationByCoord) return;
       const coord = selectedBase?.locationCoord;
       if (!coord) {
         if (!didCancel) setCrystalRating(null);
         return;
       }
       try {
-        const res = await universeService.getLocationByCoord(coord);
+        const res = await gameApi.getLocationByCoord(coord);
         if (res?.success && res.data) {
           const d = res.data as any;
           const rating =
@@ -165,20 +169,20 @@ const StructureLevelsModal: React.FC<StructureLevelsModalProps> = ({ structureKe
     return () => {
       didCancel = true;
     };
-  }, [isCrystalMines, selectedBase?.locationCoord]);
+  }, [isCrystalMines, selectedBase?.locationCoord, gameApi.getLocationByCoord]);
 
   // Dynamic per-base scaling for Urban Structures (populationCapacity depends on fertility)
   React.useEffect(() => {
     let didCancel = false;
     async function load() {
-      if (!isUrbanStructures) return;
+      if (!isUrbanStructures || !gameApi.getLocationByCoord) return;
       const coord = selectedBase?.locationCoord;
       if (!coord) {
         if (!didCancel) setFertilityRating(null);
         return;
       }
       try {
-        const res = await universeService.getLocationByCoord(coord);
+        const res = await gameApi.getLocationByCoord(coord);
         if (res?.success && res.data) {
           const d = res.data as any;
           const rating =
@@ -198,7 +202,7 @@ const StructureLevelsModal: React.FC<StructureLevelsModalProps> = ({ structureKe
     return () => {
       didCancel = true;
     };
-  }, [isUrbanStructures, selectedBase?.locationCoord]);
+  }, [isUrbanStructures, selectedBase?.locationCoord, gameApi.getLocationByCoord]);
 
   // Detect optional columns based on data present
   const hasPopulationCapacity = rows.some((r) => typeof r.populationCapacity === 'number');

@@ -1,177 +1,38 @@
-import axios from 'axios';
 import { ApiResponse, AuthResponse } from '@game/shared';
-import { attachMetrics } from './httpInstrumentation';
-import { getToken as getMemToken, setToken as setMemToken, clearToken as clearMemToken } from './tokenProvider';
+import { AuthManager } from './core/AuthManager';
 import { getCurrentApiConfig } from '../utils/apiConfig';
 
-// Use the same API configuration as the main API service
-const apiConfig = getCurrentApiConfig();
-const API_BASE_URL = apiConfig.apiUrl;
+/**
+ * Legacy authService API - now acts as a compatibility layer that delegates to AuthManager.
+ * This maintains existing API contracts while using the new architecture.
+ * 
+ * IMPORTANT: This service no longer contains auth refresh logic or token scheduling.
+ * All coordination is handled by the AuthManager and ConnectionManager.
+ */
 
-/* Create axios instance with default config */
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-attachMetrics(api, 'auth');
+// Singleton AuthManager instance
+let authManager: AuthManager | null = null;
 
-let isRefreshing = false;
-let tokenExpiry: number | null = null;
-let proactiveRefreshTimer: NodeJS.Timeout | null = null;
+// Get or create AuthManager instance
+const getAuthManager = (): AuthManager => {
+  if (!authManager) {
+    authManager = new AuthManager({ enableLogging: process.env.NODE_ENV === 'development' });
+  }
+  return authManager;
+};
 
-// Decode JWT token to get expiration
-const decodeToken = (token: string): { exp?: number; iat?: number } | null => {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-    return JSON.parse(jsonPayload);
-  } catch {
-    return null;
+/**
+ * Initialize the AuthManager if not already initialized.
+ * This should be called by the ConnectionManager during app startup.
+ */
+const ensureInitialized = async (): Promise<void> => {
+  const manager = getAuthManager();
+  if (!manager.isReady()) {
+    await manager.initialize();
   }
 };
 
-// Set up proactive token refresh (5 minutes before expiration)
-const scheduleTokenRefresh = (token: string) => {
-  if (proactiveRefreshTimer) {
-    clearTimeout(proactiveRefreshTimer);
-    proactiveRefreshTimer = null;
-  }
-  
-  const decoded = decodeToken(token);
-  if (decoded?.exp) {
-    tokenExpiry = decoded.exp * 1000; // Convert to milliseconds
-    const now = Date.now();
-    const refreshTime = tokenExpiry - (5 * 60 * 1000); // 5 minutes before expiration
-    const delay = refreshTime - now;
-    
-    if (delay > 0 && delay < (24 * 60 * 60 * 1000)) { // Don't schedule more than 24 hours ahead
-      console.log(`[AUTH] Scheduling proactive token refresh in ${Math.round(delay / 1000)}s`);
-      proactiveRefreshTimer = setTimeout(async () => {
-        console.log('[AUTH] Proactive token refresh triggered');
-        await performTokenRefresh();
-      }, delay);
-    }
-  }
-};
-
-// Enhanced token refresh function
-const performTokenRefresh = async (): Promise<string | null> => {
-  if (isRefreshing) {
-    console.log('[AUTH] Refresh already in progress, waiting...');
-    return null;
-  }
-  
-  try {
-    isRefreshing = true;
-    console.log('[AUTH] Performing token refresh...');
-    
-    if (typeof window !== 'undefined' && window.desktop?.auth?.refresh) {
-      const result = await window.desktop.auth.refresh();
-      if (result?.ok && result.token) {
-        setMemToken(result.token);
-        scheduleTokenRefresh(result.token);
-        console.log('[AUTH] Token refreshed successfully');
-        return result.token;
-      }
-    }
-    
-    console.warn('[AUTH] Token refresh failed');
-    return null;
-  } catch (error) {
-    console.error('[AUTH] Token refresh error:', error);
-    return null;
-  } finally {
-    isRefreshing = false;
-  }
-};
-
-// Enhanced setToken function that schedules refresh
-const setTokenWithScheduling = (token: string) => {
-  setMemToken(token);
-  scheduleTokenRefresh(token);
-};
-
-api.interceptors.request.use(async (config) => {
-  // Access token lives in memory only for desktop
-  const bearer = getMemToken();
-  
-  if (bearer) {
-    // Check if token is close to expiring (within 2 minutes)
-    const decoded = decodeToken(bearer);
-    if (decoded?.exp) {
-      const now = Date.now() / 1000;
-      const timeLeft = decoded.exp - now;
-      
-      // If token expires in less than 2 minutes, try to refresh it
-      if (timeLeft < 120 && !isRefreshing) {
-        console.log(`[AUTH] Token expires in ${Math.round(timeLeft)}s, attempting refresh...`);
-        const newToken = await performTokenRefresh();
-        if (newToken) {
-          config.headers = config.headers ?? {};
-          (config.headers as any).Authorization = `Bearer ${newToken}`;
-          return config;
-        }
-      }
-    }
-    
-    config.headers = config.headers ?? {};
-    (config.headers as any).Authorization = `Bearer ${bearer}`;
-  }
-  
-  return config;
-});
-
-// Handle auth errors (attempt desktop refresh once, then redirect)
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const status = error?.response?.status;
-    const original = error?.config || {};
-    
-    // Enhanced 401 handling with better retry logic
-    if (status === 401 && !original._retry && typeof window !== 'undefined' && window.desktop?.auth?.refresh) {
-      original._retry = true;
-      
-      console.log('[AUTH] 401 response, attempting token refresh...');
-      const newToken = await performTokenRefresh();
-      
-      if (newToken) {
-        console.log('[AUTH] Retrying original request with new token');
-        // Retry original request with new token
-        original.headers = original.headers || {};
-        (original.headers as any).Authorization = `Bearer ${newToken}`;
-        return api.request(original);
-      }
-    }
-
-    if (status === 401) {
-      // Clear any persisted web storage (if present) and memory token, then navigate to login
-      try { localStorage.removeItem('auth-storage'); } catch {}
-      try { clearMemToken(); } catch {}
-      try {
-        if (window.desktop?.tokens?.deleteRefresh) {
-          await window.desktop.tokens.deleteRefresh();
-        }
-      } catch {}
-      if (typeof window !== 'undefined') {
-        if (window.location.protocol === 'file:') {
-          // Electron/desktop uses HashRouter; avoid file:///C:/login
-          window.location.hash = '#/login';
-        } else {
-          window.location.href = '/login';
-        }
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
-/* In-flight and TTL cache for getProfile */
+/* Profile caching - maintained for API compatibility */
 let inflightGetProfile: Promise<ApiResponse<{ user: any; empire: any }>> | null = null;
 let lastProfile: ApiResponse<{ user: any; empire: any }> | null = null;
 let lastProfileTs = 0;
@@ -180,65 +41,102 @@ const PROFILE_TTL_MS = 5000;
 export const authService = {
   async login(email: string, password: string): Promise<ApiResponse<AuthResponse>> {
     console.log('[AUTH-SERVICE] Login called with:', { email, password: password ? '[PRESENT]' : '[MISSING]' });
+    
     try {
-      // Desktop path: perform login via main IPC so refresh token never touches renderer
-      if (typeof window !== 'undefined' && window.desktop?.auth?.login) {
-        console.log('[AUTH-SERVICE] Using desktop IPC auth.login');
-        const resp = await window.desktop.auth.login(email, password);
-        console.log('[AUTH-SERVICE] Desktop IPC response:', resp);
-      if (resp?.success && (resp as any).data?.token) {
-        setTokenWithScheduling((resp as any).data.token as string);
+      await ensureInitialized();
+      const manager = getAuthManager();
+      
+      // Use AuthManager for login
+      const success = await manager.login(email, password);
+      
+      if (success) {
+        const state = manager.getState();
+        return {
+          success: true,
+          data: {
+            user: state.user!,
+            empire: state.empire,
+            token: state.token!
+          } as AuthResponse,
+          message: 'Login successful'
+        };
+      } else {
+        return {
+          success: false,
+          error: 'Login failed - invalid credentials',
+          message: 'Login failed'
+        };
       }
-        return resp as ApiResponse<AuthResponse>;
-      }
-
-      // Web fallback: call API directly
-      const response = await api.post<ApiResponse<AuthResponse>>('/auth/login', {
-        email,
-        password,
-      });
-
-      const data = response.data;
-      // Keep access token in memory only
-      if (data?.success && (data as any).data?.token) {
-        setTokenWithScheduling((data as any).data.token as string);
-      }
-      return data;
     } catch (error) {
-      if (axios.isAxiosError(error) && error.response) {
-        return error.response.data;
-      }
-      throw new Error('Network error occurred');
+      console.error('[AUTH-SERVICE] Login error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error occurred',
+        message: 'Login failed'
+      };
     }
   },
 
   async register(email: string, username: string, password: string): Promise<ApiResponse<AuthResponse>> {
+    console.log('[AUTH-SERVICE] Register called with:', { email, username, password: password ? '[PRESENT]' : '[MISSING]' });
+    
     try {
-      // Desktop path: perform register via main IPC so refresh token never touches renderer
-      if (typeof window !== 'undefined' && window.desktop?.auth?.register) {
-        const resp = await window.desktop.auth.register(email, username, password);
-      if (resp?.success && (resp as any).data?.token) {
-        setTokenWithScheduling((resp as any).data.token as string);
-      }
+      // Registration is not yet implemented in AuthManager - use legacy IPC/API pattern
+      // This maintains backward compatibility while we're in transition
+      
+      // Desktop path: perform register via main IPC
+      if (typeof window !== 'undefined' && (window as any).desktop?.auth?.register) {
+        const resp = await (window as any).desktop.auth.register(email, username, password);
+        
+        if (resp?.success && (resp as any).data?.token) {
+          // Initialize manager and set state based on response
+          await ensureInitialized();
+          const manager = getAuthManager();
+          
+          // Update manager state manually (temporary until register is implemented in manager)
+          (manager as any).updateState({
+            user: (resp as any).data.user,
+            empire: (resp as any).data.empire || null,
+            token: (resp as any).data.token,
+            isAuthenticated: true
+          });
+        }
+        
         return resp as ApiResponse<AuthResponse>;
       }
 
-      // Web fallback: call API directly
-      const response = await api.post<ApiResponse<AuthResponse>>('/auth/register', {
-        email,
-        username,
-        password,
+      // Web fallback: call API directly (also temporary)
+      const response = await fetch(`${getCurrentApiConfig().apiUrl}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, username, password }),
       });
-      const data = response.data;
+      
+      const data = await response.json();
+      
       if (data?.success && (data as any).data?.token) {
-        setTokenWithScheduling((data as any).data.token as string);
+        await ensureInitialized();
+        const manager = getAuthManager();
+        
+        // Update manager state manually
+        (manager as any).updateState({
+          user: (data as any).data.user,
+          empire: (data as any).data.empire || null,
+          token: (data as any).data.token,
+          isAuthenticated: true
+        });
       }
+      
       return data;
     } catch (error) {
-      if (axios.isAxiosError(error) && error.response) {
-        return error.response.data;
-      }
-      throw new Error('Network error occurred');
+      console.error('[AUTH-SERVICE] Register error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error occurred',
+        message: 'Registration failed'
+      };
     }
   },
 
@@ -250,7 +148,7 @@ export const authService = {
       return lastProfile;
     }
 
-    // Coalesce concurrent /auth/me calls
+    // Coalesce concurrent profile checks
     if (!force && inflightGetProfile) {
       return await inflightGetProfile;
     }
@@ -258,20 +156,43 @@ export const authService = {
     if (force) {
       inflightGetProfile = null;
     }
+    
     inflightGetProfile = (async () => {
       try {
-        const response = await api.get<ApiResponse<{ user: any; empire: any }>>('/auth/me');
-        const data = response.data;
-        if (data && data.success) {
+        await ensureInitialized();
+        const manager = getAuthManager();
+        
+        // Use AuthManager's checkAuthStatus to refresh profile data
+        const isValid = await manager.checkAuthStatus();
+        
+        if (isValid) {
+          const state = manager.getState();
+          const data: ApiResponse<{ user: any; empire: any }> = {
+            success: true,
+            data: {
+              user: state.user!,
+              empire: state.empire!
+            },
+            message: 'Profile retrieved successfully'
+          };
+          
           lastProfile = data;
           lastProfileTs = Date.now();
+          return data;
+        } else {
+          return {
+            success: false,
+            error: 'Authentication failed',
+            message: 'Unable to retrieve profile'
+          };
         }
-        return data;
       } catch (error) {
-        if (axios.isAxiosError(error) && error.response) {
-          return error.response.data as ApiResponse<{ user: any; empire: any }>;
-        }
-        throw new Error('Network error occurred');
+        console.error('[AUTH-SERVICE] Profile error:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Network error occurred',
+          message: 'Profile retrieval failed'
+        };
       } finally {
         inflightGetProfile = null;
       }
@@ -281,33 +202,33 @@ export const authService = {
   },
 
   async logout(): Promise<void> {
+    console.log('[AUTH-SERVICE] Logout called');
+    
     try {
-      await api.post('/auth/logout');
+      await ensureInitialized();
+      const manager = getAuthManager();
+      
+      // Use AuthManager for logout - it handles all cleanup
+      await manager.logout();
+      
+      // Clear profile cache
+      lastProfile = null;
+      lastProfileTs = 0;
+      inflightGetProfile = null;
+      
+      console.log('[AUTH-SERVICE] Logout completed');
     } catch (error) {
-      // Ignore logout errors, just clear local storage
-      console.error('Logout error:', error);
-    } finally {
-      // Clear token refresh timer
-      if (proactiveRefreshTimer) {
-        clearTimeout(proactiveRefreshTimer);
-        proactiveRefreshTimer = null;
-      }
-      tokenExpiry = null;
-      
-      // Clear tokens
-      clearMemToken();
-      localStorage.removeItem('auth-storage');
-      
-      // Clear refresh token from desktop
-      if (typeof window !== 'undefined' && window.desktop?.tokens?.deleteRefresh) {
-        try {
-          await window.desktop.tokens.deleteRefresh();
-        } catch (error) {
-          console.error('Error clearing refresh token:', error);
-        }
-      }
+      console.error('[AUTH-SERVICE] Logout error:', error);
+      // Even if there's an error, ensure local state is cleared
+      lastProfile = null;
+      lastProfileTs = 0;
+      inflightGetProfile = null;
     }
   },
 };
 
+// Additional exports for ConnectionManager integration
+export { getAuthManager, ensureInitialized };
+
+// Legacy default export
 export default authService;

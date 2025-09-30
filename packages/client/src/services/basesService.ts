@@ -40,6 +40,12 @@ export interface BaseStructuresData {
   activeConstruction?: { key: BuildingKey; completionAt: string } | null;
 }
 
+export interface BaseDefensesData {
+  coord: string;
+  defenseLevels: Array<{ key: string; name: string; level: number; energyDelta: number }>;
+  inProgress: Array<{ key: string; name: string; completesAt: string | null }>;
+}
+
 function isApiErrorLike(err: unknown): err is ApiError {
   return (
     !!err &&
@@ -93,6 +99,29 @@ export const basesService = {
         code: "NETWORK_ERROR",
         message: "Network error",
       } as ApiResponse<BaseStructuresData>;
+    }
+  },
+
+  async getBaseDefenses(coord: string): Promise<ApiResponse<BaseDefensesData>> {
+    try {
+      const res = await api.get<ApiResponse<BaseDefensesData>>(
+        `/game/bases/${encodeURIComponent(coord)}/defenses`
+      );
+      return res.data;
+    } catch (err) {
+      if (isApiErrorLike(err)) {
+        return {
+          success: false,
+          code: err.code,
+          message: err.message,
+          details: err.details,
+        } as ApiResponse<BaseDefensesData>;
+      }
+      return {
+        success: false,
+        code: "NETWORK_ERROR",
+        message: "Network error",
+      } as ApiResponse<BaseDefensesData>;
     }
   },
 };

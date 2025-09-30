@@ -69,7 +69,7 @@ function formatError(code: string, message: string, details?: any) {
  * - Start action is NOT implemented (no persistence/model yet). Validates prereqs and returns a friendly error.
  */
 export class UnitsService {
-  static async getStatus(empireId: string): Promise<UnitsStatusDTO> {
+  static async getStatus(empireId: string, locationCoord?: string): Promise<UnitsStatusDTO> {
     const empire = await Empire.findById(empireId);
     if (!empire) {
       throw new Error('Empire not found');
@@ -78,20 +78,67 @@ export class UnitsService {
     const techLevels = mapFromEmpireTechLevels(empire);
     const list = getUnitsList();
 
+    // Get shipyard levels for the location if specified
+    let shipyardLevels: Record<string, number> = {};
+    if (locationCoord) {
+      const shipyards = await Building.find({
+        empireId: new mongoose.Types.ObjectId(empireId),
+        locationCoord,
+        catalogKey: 'shipyards',
+        isActive: true,
+      }).select('level');
+      
+      const maxShipyardLevel = (shipyards || []).reduce((max, b: any) => Math.max(max, Number(b.level || 0)), 0);
+      shipyardLevels['shipyards'] = maxShipyardLevel;
+      
+      // Also check for orbital shipyards if needed
+      const orbitalShipyards = await Building.find({
+        empireId: new mongoose.Types.ObjectId(empireId),
+        locationCoord,
+        catalogKey: 'orbital_shipyards',
+        isActive: true,
+      }).select('level');
+      
+      const maxOrbitalShipyardLevel = (orbitalShipyards || []).reduce((max, b: any) => Math.max(max, Number(b.level || 0)), 0);
+      shipyardLevels['orbital_shipyards'] = maxOrbitalShipyardLevel;
+    }
+
     const eligibility: UnitsStatusDTO['eligibility'] = {} as any;
 
     for (const spec of list) {
       const techCheck = evaluateUnitTechPrereqs(techLevels, spec.techPrereqs || []);
       const reasons: string[] = [];
+      let canStart = true;
 
+      // Check tech requirements
       if (!techCheck.ok) {
+        canStart = false;
         for (const u of techCheck.unmet) {
           reasons.push(`Requires ${u.key} ${u.requiredLevel} (current ${u.currentLevel}).`);
         }
       }
 
+      // Check shipyard requirements if location is specified
+      if (locationCoord) {
+        if (typeof spec.requiredShipyardLevel === 'number' && spec.requiredShipyardLevel > 0) {
+          const currentShipyardLevel = shipyardLevels['shipyards'] || 0;
+          if (currentShipyardLevel < spec.requiredShipyardLevel) {
+            canStart = false;
+            reasons.push(`Requires Shipyard level ${spec.requiredShipyardLevel} (current ${currentShipyardLevel}).`);
+          }
+        }
+
+        if (typeof spec.requiredOrbitalShipyardLevel === 'number' && spec.requiredOrbitalShipyardLevel > 0) {
+          const currentOrbitalLevel = shipyardLevels['orbital_shipyards'] || 0;
+          if (currentOrbitalLevel < spec.requiredOrbitalShipyardLevel) {
+            canStart = false;
+            reasons.push(`Requires Orbital Shipyard level ${spec.requiredOrbitalShipyardLevel} (current ${currentOrbitalLevel}).`);
+          }
+        }
+      }
+
       eligibility[spec.key] = {
-        canStart: techCheck.ok,
+        canStart,
         reasons,
       };
     }
@@ -195,28 +242,14 @@ export class UnitsService {
     const etaMinutes = Math.max(1, Math.ceil(hours * 60));
 
     // Queue idempotency guard: check for existing pending item
-    const identityKey = `${empireId}:${locationCoord}:${unitKey}`;
-    const existing = typeof (UnitQueue as any).findOne === 'function'
-      ? await (UnitQueue as any).findOne({ identityKey, status: 'pending' })
-      : null;
-    if (existing) {
-      console.log(`[UnitsService.start] idempotent identityKey=${identityKey} state=${existing.status} itemId=${existing._id}`);
-      return formatAlreadyInProgress(
-        'units',
-        identityKey,
-        unitKey,
-        {
-          _id: existing._id?.toString(),
-          state: existing.status,
-          startedAt: existing.startedAt,
-          etaSeconds: Math.max(0, Math.ceil((existing.completesAt.getTime() - Date.now()) / 1000)),
-          catalogKey: unitKey
-        }
-      );
-    }
+    // Allow multiple simultaneous unit productions of the same type by using a unique identityKey per item.
+    // This intentionally relaxes the prior idempotency guard that prevented more than one pending item
+    // for the same empire/base/unitKey.
+    const now = new Date();
+    const nonce = `${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`;
+    const identityKey = `${empireId}:${locationCoord}:${unitKey}:${nonce}`;
 
     // Enqueue first, then deduct credits after successful insert to avoid race-condition double-charge
-    const now = new Date();
     const completesAt = new Date(now.getTime() + etaMinutes * 60 * 1000);
 
     const queueItem = new UnitQueue({

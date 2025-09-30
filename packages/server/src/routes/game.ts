@@ -4,11 +4,12 @@ import { Empire } from '../models/Empire';
 import { Colony } from '../models/Colony';
 import { ResearchProject } from '../models/ResearchProject';
 import { TechQueue } from '../models/TechQueue';
-import { Location } from '../models/Location';
-import { Building } from '../models/Building';
 import { UnitQueue } from '../models/UnitQueue';
+import { Building } from '../models/Building';
+import { DefenseQueue } from '../models/DefenseQueue';
 import { Fleet } from '../models/Fleet';
 import { User } from '../models/User';
+import { Location } from '../models/Location';
 import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { ResourceService } from '../services/resourceService';
@@ -17,10 +18,11 @@ import { TechService } from '../services/techService';
 import { StructuresService } from '../services/structuresService';
 import { DefensesService } from '../services/defensesService';
 import { UnitsService } from '../services/unitsService';
-import { CapacityService } from '../services/capacityService';
 import { BaseStatsService } from '../services/baseStatsService';
+import { CapacityService } from '../services/capacityService';
 import { EconomyService } from '../services/economyService';
-import { getTechnologyList, TechnologyKey, getBuildingsList, BuildingKey, getDefensesList, DefenseKey, getUnitsList, UnitKey, getUnitSpec, getTechSpec, getStructureCreditCostForLevel, getBuildingSpec, getTechCreditCostForLevel } from '@game/shared';
+import { getTechnologyList, TechnologyKey, getBuildingsList, BuildingKey, getDefensesList, DefenseKey, getUnitsList, UnitKey, getUnitSpec, getTechSpec, getStructureCreditCostForLevel, getBuildingSpec, getTechCreditCostForLevel, computeEnergyBalance } from '@game/shared';
+import { FleetMovementService } from '../services/fleetMovementService';
 
 const router: Router = Router();
 
@@ -803,59 +805,10 @@ router.get('/structures/catalog', asyncHandler(async (_req: AuthRequest, res: Re
   });
 }));
 
-// Status (tech-only eligibility for now)
-router.get('/structures/status', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const empire = await Empire.findOne({ userId: req.user!._id });
-  if (!empire) {
-    return res.status(404).json({ success: false, error: 'Empire not found' });
-  }
-  const status = await StructuresService.getStatus((empire._id as mongoose.Types.ObjectId).toString());
-  res.json({
-    success: true,
-    data: { status }
-  });
-}));
 
-// Start construction via catalog key
-router.post('/structures/start', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const empire = await Empire.findOne({ userId: req.user!._id });
-  if (!empire) {
-    return res.status(404).json({ success: false, error: 'Empire not found' });
-  }
-
-  const { locationCoord, buildingKey } = req.body as { locationCoord?: string; buildingKey?: BuildingKey };
-
-  if (!locationCoord || !buildingKey) {
-    return res.status(400).json({ success: false, error: 'locationCoord and buildingKey are required' });
-  }
-
-  const result = await StructuresService.start((empire._id as mongoose.Types.ObjectId).toString(), locationCoord, buildingKey);
-  if (!result.success) {
-    // Handle both old format (error) and new format (code/message) with safe typing
-    const errorResponse: any = {
-      success: false,
-      error: (result as any).error ?? (result as any).message,
-      message: (result as any).message ?? (result as any).error
-    };
-    if ((result as any).code) errorResponse.code = (result as any).code;
-    if ((result as any).details) errorResponse.details = (result as any).details;
-    if ((result as any).reasons) errorResponse.reasons = (result as any).reasons;
-    
-    // Return 409 for idempotency conflicts, 400 for other errors
-    const statusCode = (result as any).code === 'ALREADY_IN_PROGRESS' ? 409 : 400;
-    return res.status(statusCode).json(errorResponse);
-  }
-
-  res.json({
-    success: true,
-    data: result.data,
-    message: result.message
-  });
-}));
 
 /**
- * Defenses Routes (Phase A)
- * Tech-only gating; maps to 'defense_station'.
+ * Defenses Routes (Citizen capacity driven)
  */
 router.get('/defenses/catalog', asyncHandler(async (_req: AuthRequest, res: Response) => {
   const catalog = getDefensesList();
@@ -869,6 +822,28 @@ router.get('/defenses/status', asyncHandler(async (req: AuthRequest, res: Respon
   }
   const status = await DefensesService.getStatus((empire._id as mongoose.Types.ObjectId).toString());
   res.json({ success: true, data: { status } });
+}));
+
+router.get('/defenses/queue', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const empire = await Empire.findOne({ userId: req.user!._id });
+  if (!empire) return res.status(404).json({ success: false, error: 'Empire not found' });
+  const locationCoord = String(req.query.locationCoord || '').trim();
+  const filter: any = { empireId: empire._id, status: 'pending' };
+  if (locationCoord) filter.locationCoord = locationCoord;
+
+  const items = await (await import('../models/DefenseQueue')).DefenseQueue.find(filter)
+    .sort({ completesAt: 1, createdAt: 1 })
+    .lean();
+
+  const queue = (items || []).map((it: any) => ({
+    id: it._id?.toString() || '',
+    defenseKey: it.defenseKey,
+    startedAt: it.startedAt || null,
+    completesAt: it.completesAt || null,
+    baseCoord: it.locationCoord || ''
+  }));
+
+  return res.json({ success: true, data: { queue } });
 }));
 
 router.post('/defenses/start', asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -907,6 +882,26 @@ router.post('/defenses/start', asyncHandler(async (req: AuthRequest, res: Respon
   });
 }));
 
+// Cancel a pending defense item
+router.delete('/defenses/queue/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const empire = await Empire.findOne({ userId: req.user!._id });
+  if (!empire) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+  const id = String(req.params.id || '').trim();
+  if (!id || !mongoose.isValidObjectId(id)) return res.status(400).json({ success: false, error: 'Invalid id' });
+
+  const { DefenseQueue } = await import('../models/DefenseQueue');
+  const item: any = await DefenseQueue.findById(id);
+  if (!item || String(item.empireId) !== String(empire._id)) return res.status(404).json({ success: false, error: 'Queue item not found' });
+  if (item.startedAt && item.completesAt && new Date(item.completesAt).getTime() > Date.now()) {
+    return res.status(400).json({ success: false, error: 'Cannot cancel an in-progress defense yet' });
+  }
+
+  item.status = 'cancelled';
+  await item.save();
+  return res.json({ success: true, data: { cancelledId: id } });
+}));
+
 /**
  * Units Routes (Phase A)
  * Tech-only gating; start is not implemented yet (friendly error after validation).
@@ -921,7 +916,8 @@ router.get('/units/status', asyncHandler(async (req: AuthRequest, res: Response)
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
   }
-  const status = await UnitsService.getStatus((empire._id as mongoose.Types.ObjectId).toString());
+  const locationCoord = String(req.query.locationCoord || '').trim() || undefined;
+  const status = await UnitsService.getStatus((empire._id as mongoose.Types.ObjectId).toString(), locationCoord);
   res.json({ success: true, data: { status } });
 }));
 
@@ -954,11 +950,97 @@ router.post('/units/start', asyncHandler(async (req: AuthRequest, res: Response)
     return res.status(statusCode).json(errorResponse);
   }
 
-  // Currently unreachable in Phase A (start returns success: false), but keep for future
   res.json({
     success: true,
     data: (result as any).data,
     message: (result as any).message || 'Unit construction started'
+  });
+}));
+
+/**
+ * Units Production Queue
+ * Lists active unit production (capacity-driven) for the authenticated empire.
+ * Optional ?base=A00:10:22:10 to filter by a specific base coord.
+ */
+router.get('/units/queue', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const empire = await Empire.findOne({ userId: req.user!._id });
+  if (!empire) {
+    return res.status(404).json({ success: false, error: 'Empire not found' });
+  }
+
+  const base = String(req.query.base || '').trim();
+  const filter: any = { empireId: empire._id, status: 'pending' };
+  if (base) filter.locationCoord = base;
+
+  const queue = await UnitQueue.find(filter).sort({ completesAt: 1, createdAt: 1 }).lean();
+
+  // Transform queue items to match frontend expectations
+  const transformedQueue = (queue || []).map((item: any) => {
+    let unitName = item.unitKey || '';
+    let creditsCost = 0;
+    try {
+      const spec = getUnitSpec(item.unitKey as UnitKey);
+      unitName = spec?.name || item.unitKey;
+      creditsCost = Math.max(0, Number(spec?.creditsCost || 0));
+    } catch {
+      // fallback to key
+    }
+
+    return {
+      id: item._id?.toString() || '',
+      unitKey: item.unitKey,
+      unitName,
+      quantity: 1, // Phase A: single unit per queue item
+      totalQuantity: 1, // Phase A: single unit per queue item
+      startedAt: item.startedAt?.toISOString() || new Date().toISOString(),
+      completesAt: item.completesAt?.toISOString() || new Date().toISOString(),
+      creditsCost,
+      baseCoord: item.locationCoord || ''
+    };
+  });
+
+  res.json({ success: true, data: { queue: transformedQueue } });
+}));
+
+// Cancel a pending unit production queue item
+router.delete('/units/queue/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const empire = await Empire.findOne({ userId: req.user!._id });
+  if (!empire) {
+    return res.status(404).json({ success: false, error: 'Empire not found' });
+  }
+
+  const id = String(req.params.id || '').trim();
+  if (!id || !mongoose.isValidObjectId(id)) {
+    return res.status(400).json({ success: false, error: 'Invalid queue item id' });
+  }
+
+  const item = await UnitQueue.findById(id);
+  if (!item || item.empireId.toString() !== (empire._id as mongoose.Types.ObjectId).toString()) {
+    return res.status(404).json({ success: false, error: 'Queue item not found' });
+  }
+
+  if (item.status !== 'pending') {
+    return res.status(400).json({ success: false, error: 'Only pending items can be cancelled' });
+  }
+
+  let refundedCredits: number | null = null;
+  try {
+    // Calculate refund from unit spec
+    const spec = getUnitSpec(item.unitKey as UnitKey);
+    refundedCredits = Math.max(0, Number(spec?.creditsCost || 0));
+    (empire as any).resources.credits = Number((empire as any).resources.credits || 0) + refundedCredits;
+    await empire.save();
+  } catch {
+    // If spec lookup fails, skip refund silently to avoid throwing; status still changes
+  }
+
+  item.status = 'cancelled';
+  await item.save();
+
+  return res.json({
+    success: true,
+    data: { cancelledId: item._id?.toString(), refundedCredits },
+    message: 'Unit production cancelled'
   });
 }));
 
@@ -1021,55 +1103,60 @@ router.get('/bases/summary', asyncHandler(async (req: AuthRequest, res: Response
       })()
     : null;
 
-  // Aggregate queued construction per base (inactive buildings)
-  // Also compute the earliest pending item's name and remaining time
-  const queuedBuildings = await Building.find({
+  // Construction: derive single active construction per base (if any)
+  // We model a single active construction per base in v0 via Building documents with isActive=false and future constructionCompleted
+  const nowMs = Date.now();
+  const activeConstructions = await Building.find({
     empireId: empire._id,
     locationCoord: { $in: coords },
-    isActive: false
+    isActive: false,
+    constructionCompleted: { $gt: new Date(nowMs) }
   })
-    .select('locationCoord catalogKey displayName constructionStarted constructionCompleted')
+    .select('locationCoord catalogKey constructionStarted constructionCompleted')
     .lean();
 
-  const queuedByCoord = new Map<string, number>();
-  const earliestTsByCoord = new Map<string, number>();
-  const nextByCoord = new Map<string, { name: string; remaining: number; percent?: number }>();
+  const consQueuedByCoord = new Map<string, number>();
+  const consNextByCoord = new Map<string, { name: string; remaining: number; percent?: number }>();
 
-  for (const b of queuedBuildings || []) {
-    const lc = (b as any).locationCoord as string | undefined;
+  for (const c of activeConstructions || []) {
+    const lc = (c as any).locationCoord as string | undefined;
     if (!lc) continue;
 
-    // Count inactive (queued)
-    queuedByCoord.set(lc, (queuedByCoord.get(lc) || 0) + 1);
+    consQueuedByCoord.set(lc, 1); // single active construction model
 
-    // Track earliest pending item per coord
-    const ts = (b as any).constructionCompleted ? new Date((b as any).constructionCompleted as any).getTime() : Number.POSITIVE_INFINITY;
-    const prevTs = earliestTsByCoord.get(lc);
-    if (prevTs === undefined || ts < prevTs) {
-      let name = '';
-      const key = (b as any).catalogKey as string | undefined;
-      if (key) {
-        try {
-          name = getBuildingSpec(key as any).name;
-        } catch {
-          // fallback below
-        }
-      }
-      if (!name) {
-        name = (b as any).displayName || String(key || '');
-      }
-      const now = Date.now();
-      const startTs = (b as any).constructionStarted ? new Date((b as any).constructionStarted as any).getTime() : NaN;
-      const remaining = Number.isFinite(ts) ? Math.max(0, ts - now) : 0;
-      let percent = 0;
-      if (Number.isFinite(startTs) && Number.isFinite(ts) && ts > startTs) {
-        const total = ts - startTs;
-        const elapsed = Math.max(0, now - startTs);
-        percent = Math.min(100, Math.max(0, Math.floor((elapsed / total) * 100)));
-      }
-      earliestTsByCoord.set(lc, ts);
-      nextByCoord.set(lc, { name, remaining, percent });
+    // Resolve structure display name
+    let name = '';
+    const key = (c as any).catalogKey as any;
+    try {
+      const spec = getBuildingSpec(key);
+      name = spec?.name || String(key || '');
+    } catch {
+      name = String(key || '');
     }
+
+    const startedVal = (c as any).constructionStarted;
+    const completesVal = (c as any).constructionCompleted;
+    let remaining = 0;
+    let percent: number | undefined = undefined;
+
+    if (completesVal) {
+      const completes = new Date(completesVal as any).getTime();
+      remaining = Math.max(0, completes - nowMs);
+      if (startedVal) {
+        const started = new Date(startedVal as any).getTime();
+        if (Number.isFinite(started) && Number.isFinite(completes) && completes > started) {
+          const total = completes - started;
+          const elapsed = Math.max(0, nowMs - started);
+          percent = Math.min(100, Math.max(0, Math.floor((elapsed / total) * 100)));
+        } else {
+          percent = 0;
+        }
+      } else {
+        percent = 0;
+      }
+    }
+
+    consNextByCoord.set(lc, { name, remaining, percent });
   }
 
   // Helper to compute production from buildings (mirror of client logic)
@@ -1162,6 +1249,64 @@ router.get('/bases/summary', asyncHandler(async (req: AuthRequest, res: Response
     }
   }
 
+  // Aggregate defense queue (DefenseQueue) per base
+  const defenseQueue = await DefenseQueue.find({
+    empireId: empire._id,
+    status: 'pending',
+    locationCoord: { $in: coords }
+  })
+    .select('locationCoord defenseKey startedAt completesAt createdAt')
+    .lean();
+
+  const defQueuedByCoord = new Map<string, number>();
+  const defEarliestTsByCoord = new Map<string, number>();
+  const defNextByCoord = new Map<string, { name: string; remaining: number; percent?: number }>();
+
+  for (const d of defenseQueue || []) {
+    const lc = (d as any).locationCoord as string | undefined;
+    if (!lc) continue;
+
+    defQueuedByCoord.set(lc, (defQueuedByCoord.get(lc) || 0) + 1);
+
+    const completesVal = (d as any).completesAt;
+    const startedVal = (d as any).startedAt;
+    const createdVal = (d as any).createdAt;
+    const orderTs = completesVal
+      ? new Date(completesVal as any).getTime()
+      : (createdVal ? new Date(createdVal as any).getTime() : Number.POSITIVE_INFINITY);
+
+    const prevTs = defEarliestTsByCoord.get(lc);
+    if (prevTs === undefined || orderTs < prevTs) {
+      let name = '';
+      const key = (d as any).defenseKey as string | undefined;
+      if (key) {
+        try {
+          const spec = getDefensesList().find((it) => String((it as any).key) === String(key));
+          name = (spec as any)?.name || key;
+        } catch {
+          name = key || '';
+        }
+      }
+
+      const now = Date.now();
+      let remaining = 0;
+      let percent = 0;
+      if (completesVal && startedVal) {
+        const started = new Date(startedVal as any).getTime();
+        const completes = new Date(completesVal as any).getTime();
+        remaining = Math.max(0, completes - now);
+        if (Number.isFinite(started) && Number.isFinite(completes) && completes > started) {
+          const total = completes - started;
+          const elapsed = Math.max(0, now - started);
+          percent = Math.min(100, Math.max(0, Math.floor((elapsed / total) * 100)));
+        }
+      }
+
+      defEarliestTsByCoord.set(lc, orderTs);
+      defNextByCoord.set(lc, { name, remaining, percent });
+    }
+  }
+
   const bases = (locations || []).map((loc: any) => {
     const colony = colonyByCoord.get(loc.coord);
 
@@ -1173,12 +1318,16 @@ router.get('/bases/summary', asyncHandler(async (req: AuthRequest, res: Response
       // Occupier concept not yet modeled; placeholder null. In future, populate when hostile occupation exists.
       occupier: null as null | { empireId: string; name: string },
       construction: {
-        queued: queuedByCoord.get(loc.coord) || 0,
-        next: nextByCoord.get(loc.coord) || undefined
+        queued: consQueuedByCoord.get(loc.coord) || 0,
+        next: consNextByCoord.get(loc.coord) || undefined
       },
       production: {
         queued: prodQueuedByCoord.get(loc.coord) || 0,
         next: prodNextByCoord.get(loc.coord) || undefined
+      },
+      defenses: {
+        queued: defQueuedByCoord.get(loc.coord) || 0,
+        next: defNextByCoord.get(loc.coord) || undefined
       },
       research: researchSummary
     };
@@ -1272,6 +1421,59 @@ router.get('/bases/:coord/stats', asyncHandler(async (req: AuthRequest, res: Res
 }));
 
 /**
+ * Base Defenses (aggregated levels per defense type at a base)
+ * DTO: { success, data: { coord, defenseLevels: Array<{ key, name, level, energyDelta }>, inProgress: Array<{ key, name, completesAt }> }, message }
+ */
+router.get('/bases/:coord/defenses', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const empire = await Empire.findOne({ userId: req.user!._id });
+  if (!empire) {
+    return res.status(404).json({ success: false, error: 'Empire not found' });
+  }
+
+  const { coord } = req.params;
+  if (!coord) {
+    return res.status(400).json({ success: false, error: 'Missing coord' });
+  }
+
+  // Aggregate completed defense counts by key for this base/empire
+  const { DefenseQueue } = await import('../models/DefenseQueue');
+  const agg = await DefenseQueue.aggregate([
+    { $match: { empireId: empire._id, locationCoord: coord, status: 'completed' } as any },
+    { $group: { _id: '$defenseKey', level: { $sum: 1 } } }
+  ]);
+
+  const catalog = getDefensesList();
+  const defenseLevels = (agg || []).map((g: any) => {
+    const spec = catalog.find((d) => String((d as any).key) === String(g._id));
+    return {
+      key: String(g._id || ''),
+      name: spec?.name || String(g._id || ''),
+      level: Number(g.level || 0),
+      energyDelta: Number(spec?.energyDelta || 0)
+    };
+  });
+
+  // In-progress scheduled defenses (optional, for UI progress)
+  const inProgDocs = await DefenseQueue.find({
+    empireId: empire._id,
+    locationCoord: coord,
+    status: 'pending',
+    completesAt: { $gt: new Date() }
+  }).select('defenseKey completesAt').sort({ completesAt: 1 }).lean();
+
+  const inProgress = (inProgDocs || []).map((it: any) => {
+    const spec = catalog.find((d) => String((d as any).key) === String(it.defenseKey));
+    return {
+      key: String(it.defenseKey || ''),
+      name: spec?.name || String(it.defenseKey || ''),
+      completesAt: it.completesAt ? new Date(it.completesAt).toISOString() : null
+    };
+  });
+
+  return res.json({ success: true, data: { coord, defenseLevels, inProgress }, message: 'Base defenses loaded' });
+}));
+
+/**
  * Structures list for a specific base (catalogKey-first with ETA)
  * DTO: { success, data: { coord, constructionPerHour, items: [...] }, message }
  */
@@ -1297,32 +1499,53 @@ router.get('/bases/:coord/structures', asyncHandler(async (req: AuthRequest, res
       .lean(),
   ]);
 
+  // Finalize any completed constructions (v0: simple inline finalizer)
+  try {
+    const nowTs = Date.now();
+    const toFinalize = (buildings || []).filter((b: any) => b?.isActive === false && b?.constructionCompleted && new Date(b.constructionCompleted).getTime() <= nowTs);
+    for (const b of toFinalize) {
+      if ((b as any).pendingUpgrade === true) {
+        await Building.updateOne({ _id: (b as any)._id }, { $set: { isActive: true, pendingUpgrade: false }, $inc: { level: 1 } });
+        (b as any).isActive = true; (b as any).pendingUpgrade = false; (b as any).level = Number((b as any).level || 0) + 1;
+      } else {
+        await Building.updateOne({ _id: (b as any)._id }, { $set: { isActive: true } });
+        (b as any).isActive = true;
+      }
+    }
+  } catch {}
+
   const constructionPerHour = Math.max(0, Number((caps as any)?.construction?.value || 0));
 
   // Compute current levels by catalogKey (active + pendingUpgrade treated as current)
+  // IMPORTANT: Sum levels across multiple instances of the same catalog key
+  // (e.g., Metal Refineries L12 + L1 + L1 => 14), instead of taking only the max.
   const levelByKey = new Map<string, number>();
   for (const b of (buildings || [])) {
     const key = (b as any).catalogKey as string | undefined;
     if (!key) continue;
     const level = Math.max(0, Number((b as any).level || 0));
     if ((b as any).isActive === true || (b as any).pendingUpgrade === true) {
-      levelByKey.set(key, Math.max(levelByKey.get(key) || 0, level));
+      const prev = levelByKey.get(key) || 0;
+      levelByKey.set(key, prev + level);
     }
   }
 
   // Determine currently active construction at this base (earliest future completion among inactive docs)
-  let activeConstruction: { key: BuildingKey; completionAt: string } | null = null;
+  let activeConstruction: { key: BuildingKey; completionAt: string; startedAt?: string } | null = null;
   try {
     const nowTs = Date.now();
     let earliest = Number.POSITIVE_INFINITY;
+    let startedForEarliest: number | null = null;
     for (const b of (buildings || [])) {
       if ((b as any)?.isActive === false && (b as any)?.constructionCompleted) {
         const ts = new Date((b as any).constructionCompleted as any).getTime();
         if (Number.isFinite(ts) && ts > nowTs && ts < earliest) {
           earliest = ts;
           const key = String((b as any).catalogKey || "");
+          const st = (b as any)?.constructionStarted ? new Date((b as any).constructionStarted as any).getTime() : null;
+          startedForEarliest = st ?? startedForEarliest;
           if (key) {
-            activeConstruction = { key: key as BuildingKey, completionAt: new Date(ts).toISOString() };
+            activeConstruction = { key: key as BuildingKey, completionAt: new Date(ts).toISOString(), startedAt: startedForEarliest ? new Date(startedForEarliest).toISOString() : undefined };
           }
         }
       }
@@ -1377,92 +1600,422 @@ router.get('/bases/:coord/structures', asyncHandler(async (req: AuthRequest, res
 }));
 
 /**
- * Structures Construction Queue
- * Lists queued building constructions (inactive Building docs) for the authenticated empire.
- * Optional ?base=A00:10:22:10 to filter by a specific base coord.
+ * v0 Construction: start a single active construction at a base.
+ * - No queueing. Reject if another construction is in progress at this base.
+ * - Tech-only gating; no refunds/cancel in v0.
  */
-router.get('/structures/queue', asyncHandler(async (req: AuthRequest, res: Response) => {
+router.post('/bases/:coord/structures/:key/construct', asyncHandler(async (req: AuthRequest, res: Response) => {
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
   }
 
-  const base = String(req.query.base || '').trim();
-  const filter: any = { empireId: empire._id, isActive: false };
-  if (base) filter.locationCoord = base;
+  const { coord, key } = req.params as { coord: string; key: BuildingKey };
+  if (!coord || !key) {
+    return res.status(400).json({ success: false, error: 'Missing coord or key' });
+  }
 
-  const queue = await Building.find(filter)
-    .select('locationCoord catalogKey displayName constructionStarted constructionCompleted pendingUpgrade isActive')
-    .sort({ constructionCompleted: 1, createdAt: 1 })
-    .lean();
+  // Ownership check
+  const location = await Location.findOne({ coord });
+  if (!location) {
+    return res.status(404).json({ success: false, error: 'Location not found' });
+  }
+  if (String(location.owner) !== String(empire.userId)) {
+    return res.status(403).json({ success: false, error: 'You do not own this location' });
+  }
 
-  return res.json({ success: true, data: { queue } });
+  // Best-effort: finalize any completed constructions before validation so budgets reflect reality
+  try {
+    const nowTs = Date.now();
+    const toFinalize = await Building.find({
+      empireId: empire._id,
+      locationCoord: coord,
+      isActive: false,
+      constructionCompleted: { $lte: new Date(nowTs) },
+    }).lean();
+    for (const b of toFinalize || []) {
+      if ((b as any).pendingUpgrade === true) {
+        await Building.updateOne({ _id: (b as any)._id }, { $set: { isActive: true, pendingUpgrade: false }, $inc: { level: 1 } });
+      } else {
+        await Building.updateOne({ _id: (b as any)._id }, { $set: { isActive: true } });
+      }
+    }
+  } catch {}
+
+  // Reject if a construction is already in progress at this base
+  const now = Date.now();
+  const existingInProgress = await Building.findOne({
+    empireId: empire._id,
+    locationCoord: coord,
+    isActive: false,
+    constructionCompleted: { $gt: new Date(now) }
+  }).lean();
+  if (existingInProgress) {
+    return res.status(409).json({ success: false, code: 'ALREADY_IN_PROGRESS', error: 'Construction already underway at this base' });
+  }
+
+  // Guard: prevent duplicate instances for the same key while an upgrade or queued item exists
+  // If there is any inactive document for this catalogKey at this base (pending upgrade OR queued new construction),
+  // treat it as already in progress for this structure key.
+  const existingForKeyInactive = await Building.findOne({
+    empireId: empire._id,
+    locationCoord: coord,
+    catalogKey: key,
+    isActive: false,
+  }).lean();
+  if (existingForKeyInactive) {
+    return res.status(409).json({
+      success: false,
+      code: 'ALREADY_IN_PROGRESS',
+      error: 'Construction for this structure is already queued or an upgrade is pending at this base',
+    });
+  }
+
+  // Capacity
+  const caps = await CapacityService.getBaseCapacities((empire._id as mongoose.Types.ObjectId).toString(), coord);
+  const perHour = Math.max(0, Number((caps as any)?.construction?.value || 0));
+  if (!(perHour > 0)) {
+    return res.status(400).json({ success: false, code: 'NO_CAPACITY', error: 'This base has no construction capacity' });
+  }
+
+  // Determine next level for this structure
+  const existingActive = await Building.findOne({
+    empireId: empire._id,
+    locationCoord: coord,
+    catalogKey: key,
+    isActive: true
+  }).lean();
+  const currentLevel = existingActive ? Math.max(1, Number((existingActive as any).level || 1)) : 0;
+  const nextLevel = currentLevel + 1;
+
+  // Cost
+  let cost: number | null = null;
+  try {
+    cost = getStructureCreditCostForLevel(key, nextLevel);
+  } catch {
+    const spec = getBuildingSpec(key);
+    cost = currentLevel === 0 ? spec.creditsCost : null;
+  }
+  if (typeof cost !== 'number') {
+    return res.status(400).json({ success: false, code: 'NO_COST_DEFINED', error: 'No cost defined for this level' });
+  }
+
+  // Credits validation: check if empire has enough credits
+  const availableCredits = Number((empire as any).resources?.credits || 0);
+  if (availableCredits < cost) {
+    const shortfall = cost - availableCredits;
+    return res.status(400).json({
+      success: false,
+      code: 'INSUFFICIENT_RESOURCES',
+      error: `Insufficient credits. Requires ${cost}, you have ${availableCredits}.`,
+      details: {
+        requiredCredits: cost,
+        availableCredits,
+        shortfall
+      }
+    });
+  }
+
+  // Energy validation: canonical parity with client/server helpers
+  const spec = getBuildingSpec(key);
+  const energyDelta = Number(spec?.energyDelta || 0);
+
+  if (energyDelta < 0) {
+    // Build energy inputs to mirror the Structures list/Breakdown (aggregate by key, pendingUpgrade treated as active)
+    const allBuildings = await Building.find({
+      empireId: empire._id,
+      locationCoord: coord,
+    })
+      .select('catalogKey level isActive pendingUpgrade constructionStarted constructionCompleted createdAt')
+      .lean();
+
+    const solarEnergy = Math.max(0, Number((location as any)?.result?.solarEnergy ?? 0));
+    const gasResource = Math.max(0, Number((location as any)?.result?.yields?.gas ?? 0));
+
+  // Aggregate active levels by key exactly like GET /bases/:coord/structures
+  // Sum levels across multiple instances to reflect true total level
+  const levelByKey = new Map<string, number>();
+  for (const b of (allBuildings || [])) {
+    const k = String((b as any).catalogKey || '');
+    if (!k) continue;
+    const lv = Math.max(0, Number((b as any).level || 0));
+    if ((b as any).isActive === true || (b as any).pendingUpgrade === true) {
+      const prev = levelByKey.get(k) || 0;
+      levelByKey.set(k, prev + lv);
+    }
+  }
+
+    const buildingsAtBase: Array<{ key: string; level: number; isActive: boolean; isQueuedConsumer?: boolean }> = [];
+    for (const [k, lv] of levelByKey.entries()) {
+      if (lv > 0) buildingsAtBase.push({ key: k, level: lv, isActive: true });
+    }
+
+    // Determine the earliest actively scheduled queued item (same as structures list)
+    let earliest: any = null;
+    const nowTs = Date.now();
+    for (const b of (allBuildings || [])) {
+      if ((b as any)?.isActive === false && (b as any)?.constructionCompleted) {
+        const ts = new Date((b as any).constructionCompleted as any).getTime();
+        if (Number.isFinite(ts) && ts > nowTs) {
+          if (!earliest || ts < earliest.ts) {
+            earliest = { ts, key: String((b as any).catalogKey || '') };
+          }
+        }
+      }
+    }
+    if (earliest && earliest.key) {
+      const s = getBuildingSpec(earliest.key as any);
+      const d = Number(s?.energyDelta || 0);
+      if (d < 0) {
+        buildingsAtBase.push({ key: earliest.key, level: 1, isActive: false, isQueuedConsumer: true });
+      }
+    }
+
+    const { produced, consumed, balance, reservedNegative } = computeEnergyBalance({
+      buildingsAtBase,
+      location: { solarEnergy, gasYield: gasResource },
+      includeQueuedReservations: true,
+    });
+
+    const projectedEnergy = balance + reservedNegative + energyDelta;
+
+    // Standardized parity log (same as StructuresService.start)
+    console.log(
+      `[StructuresService.start] key=${key} delta=${energyDelta} produced=${produced} consumed=${consumed} balance=${balance} reserved=${reservedNegative} projectedEnergy=${projectedEnergy}`
+    );
+
+    if (projectedEnergy < 0) {
+      return res.status(400).json({
+        success: false,
+        code: 'INSUFFICIENT_ENERGY',
+        error: 'Insufficient energy capacity to start this construction.',
+        details: {
+          produced,
+          consumed,
+          balance,
+          reservedNegative,
+          energyDelta,
+          projectedEnergy,
+        },
+      });
+    }
+  }
+
+  // Area validation: check if there's enough area available
+  const areaRequired = Math.max(0, Number(spec?.areaRequired ?? 1)); // Default to 1 if not specified
+  if (areaRequired > 0) {
+    const baseStats = await BaseStatsService.getBaseStats((empire._id as mongoose.Types.ObjectId).toString(), coord);
+    if (baseStats.area.free < areaRequired) {
+      return res.status(400).json({
+        success: false,
+        code: 'INSUFFICIENT_AREA',
+        error: 'Insufficient area capacity to start this construction.',
+        details: {
+          required: areaRequired,
+          available: baseStats.area.free,
+          used: baseStats.area.used,
+          total: baseStats.area.total
+        }
+      });
+    }
+  }
+
+  // Population validation: check if there's enough population available
+  const populationRequired = Math.max(0, Number(spec?.populationRequired || 0));
+  if (populationRequired > 0) {
+    const baseStats = await BaseStatsService.getBaseStats((empire._id as mongoose.Types.ObjectId).toString(), coord);
+    if (baseStats.population.free < populationRequired) {
+      return res.status(400).json({
+        success: false,
+        code: 'INSUFFICIENT_POPULATION',
+        error: 'Insufficient population capacity to start this construction.',
+        details: {
+          required: populationRequired,
+          available: baseStats.population.free,
+          used: baseStats.population.used,
+          capacity: baseStats.population.capacity
+        }
+      });
+    }
+  }
+
+  // ETA
+  const hours = cost / perHour;
+  const completesAt = new Date(now + Math.max(1, Math.ceil(hours * 3600)) * 1000);
+
+  // Deduct credits immediately when construction starts
+  await Empire.updateOne(
+    { _id: empire._id },
+    { $inc: { 'resources.credits': -cost } }
+  );
+
+  // Start construction
+  if (!existingActive) {
+    const spec = getBuildingSpec(key);
+    try {
+      await Building.create({
+        locationCoord: coord,
+        empireId: empire._id,
+        type: key as any, // Now using catalogKey as type
+        displayName: spec.name,
+        catalogKey: key,
+        level: 1,
+        isActive: false,
+        creditsCost: cost,
+        pendingUpgrade: false,
+        constructionStarted: new Date(now),
+        constructionCompleted: completesAt
+      } as any);
+    } catch (err: any) {
+      // Handle race with unique index (another request created the doc first)
+      if (err && (err.code === 11000 || /duplicate key/i.test(String(err.message || '')))) {
+        // Fetch the current doc and decide: upgrade or already-in-progress
+        const current = await Building.findOne({ empireId: empire._id, locationCoord: coord, catalogKey: key }).lean();
+        if (current) {
+          if ((current as any).isActive === true) {
+            // Switch to upgrade path on the existing active document
+            await Building.updateOne(
+              { _id: (current as any)._id, isActive: true },
+              {
+                $set: {
+                  isActive: false,
+                  pendingUpgrade: true,
+                  creditsCost: cost,
+                  constructionStarted: new Date(now),
+                  constructionCompleted: completesAt
+                }
+              }
+            );
+          } else {
+            // Already queued for this key
+            return res.status(409).json({ success: false, code: 'ALREADY_IN_PROGRESS', error: 'Construction for this structure is already queued at this base' });
+          }
+        } else {
+          // Fallback: rethrow if we truly cannot find it
+          throw err;
+        }
+      } else {
+        throw err;
+      }
+    }
+  } else {
+    await Building.updateOne(
+      { _id: (existingActive as any)._id, isActive: true },
+      {
+        $set: {
+          isActive: false,
+          pendingUpgrade: true,
+          creditsCost: cost,
+          constructionStarted: new Date(now),
+          constructionCompleted: completesAt
+        }
+      }
+    );
+  }
+
+  return res.json({ success: true, data: { coord, key, completesAt }, message: 'Construction started' });
 }));
 
 /**
- * Cancel a queued structure (construction or upgrade)
- * - If the queued item is a first-time construction (separate inactive doc), delete it.
- * - If the queued item is an upgrade scheduled on an existing building doc (pendingUpgrade=true),
- *   revert it back to active and clear scheduling fields.
+ * Cancel active structure construction at a base (v0)
+ * - If the active construction is an upgrade (pendingUpgrade=true), revert the building to active and clear construction fields
+ * - If the active construction is a new level-1 structure created for construction, delete that document
+ * - No credits refund in v0 (refundedCredits = null)
  */
-router.delete('/structures/queue/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
+router.delete('/bases/:coord/structures/cancel', asyncHandler(async (req: AuthRequest, res: Response) => {
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
   }
 
-  const id = String(req.params.id || '').trim();
-  if (!id || !mongoose.isValidObjectId(id)) {
-    return res.status(400).json({ success: false, code: 'INVALID_REQUEST', message: 'Invalid queue item id', error: 'Invalid queue item id' });
+  const { coord } = req.params as { coord: string };
+  if (!coord) {
+    return res.status(400).json({ success: false, error: 'Missing coord' });
   }
 
-  const b = await Building.findById(id);
-  if (!b || b.empireId.toString() !== (empire._id as mongoose.Types.ObjectId).toString()) {
-    return res.status(404).json({ success: false, error: 'Queue item not found' });
+  // Ownership check
+  const location = await Location.findOne({ coord });
+  if (!location) {
+    return res.status(404).json({ success: false, error: 'Location not found' });
+  }
+  if (String(location.owner) !== String(empire.userId)) {
+    return res.status(403).json({ success: false, error: 'You do not own this location' });
   }
 
-  if (b.isActive === true) {
-    return res.status(400).json({ success: false, code: 'INVALID_REQUEST', message: 'Only queued items can be cancelled', error: 'Only queued items can be cancelled' });
+  // Find an in-progress construction for this base (single active construction model)
+  const now = new Date();
+  const item = await Building.findOne({
+    empireId: empire._id,
+    locationCoord: coord,
+    isActive: false,
+    constructionCompleted: { $gt: now }
+  }).sort({ constructionCompleted: 1 });
+
+  if (!item) {
+    return res.status(404).json({ success: false, code: 'NO_ACTIVE_CONSTRUCTION', error: 'No active construction found at this base' });
   }
 
-  // Refund previously charged credits, if any (credits are only charged at schedule-time)
-  let refundedCredits = 0;
+  const key = String((item as any).catalogKey || '');
+  const pendingUpgrade = !!(item as any).pendingUpgrade;
+  // Determine refund amount from stored creditsCost, with safe fallback to catalog
+  let refundedCredits: number | null = null;
   try {
-    const wasCharged = Boolean((b as any).constructionStarted);
-    const refundable = wasCharged ? Math.max(0, Number((b as any).creditsCost || 0)) : 0;
-    if (refundable > 0) {
-      (empire as any).resources.credits = Number((empire as any).resources.credits || 0) + refundable;
-      await empire.save();
-      refundedCredits = refundable;
+    const stored = Number((item as any).creditsCost);
+    if (Number.isFinite(stored) && stored > 0) {
+      refundedCredits = stored;
+    } else if (key) {
+      try {
+        // Compute from catalog as a fallback
+        const level = Math.max(1, Number((item as any).level || 1));
+        const nextLevel = pendingUpgrade ? level + 1 : 1;
+        refundedCredits = getStructureCreditCostForLevel(key as any, nextLevel);
+      } catch {
+        try {
+          const spec = getBuildingSpec(key as any);
+          refundedCredits = Number(spec?.creditsCost || 0) || null;
+        } catch {
+          refundedCredits = null;
+        }
+      }
     }
   } catch {
-    // Non-fatal: skip refund on error to avoid blocking cancellation
+    refundedCredits = null;
   }
 
-  let revertedUpgrade = false;
-  let deleted = false;
+  let cancelled = false;
 
-  if ((b as any).pendingUpgrade === true) {
-    // Revert upgrade on the existing building document
-    (b as any).pendingUpgrade = false;
-    b.isActive = true;
-    (b as any).constructionStarted = new Date(); // not required, but keep sane defaults
-    (b as any).constructionCompleted = undefined as any;
-    (b as any).creditsCost = 0; // reset to prevent double-refund semantics if re-queued later
-    await b.save();
-    revertedUpgrade = true;
+  if (pendingUpgrade) {
+    // Revert the existing building back to active state and clear construction fields
+    const result = await Building.updateOne(
+      { _id: (item as any)._id, isActive: false },
+      {
+        $set: { isActive: true, pendingUpgrade: false },
+        $unset: { creditsCost: '', constructionStarted: '', constructionCompleted: '' }
+      }
+    );
+    cancelled = (result.modifiedCount || 0) > 0;
   } else {
-    // First-time construction: delete the queued inactive document
-    await b.deleteOne();
-    deleted = true;
+    // This was a new L1 structure created solely for construction; remove it
+    const result = await Building.deleteOne({ _id: (item as any)._id });
+    cancelled = (result.deletedCount || 0) > 0;
+  }
+
+  if (!cancelled) {
+    return res.status(400).json({ success: false, code: 'CANCEL_FAILED', error: 'Failed to cancel active construction' });
+  }
+
+  // Apply refund after successful cancel
+  if (refundedCredits && refundedCredits > 0) {
+    await Empire.updateOne(
+      { _id: empire._id },
+      { $inc: { 'resources.credits': refundedCredits } }
+    );
   }
 
   return res.json({
     success: true,
-    data: { cancelledId: id, revertedUpgrade, deleted, refundedCredits },
-    message: refundedCredits > 0
-      ? 'Construction queue item cancelled and credits refunded'
-      : 'Construction queue item cancelled'
+    data: { cancelledStructure: key, refundedCredits: refundedCredits ?? 0 },
+    message: 'Construction cancelled'
   });
 }));
 
@@ -1614,6 +2167,83 @@ router.get('/fleets', asyncHandler(async (req: AuthRequest, res: Response) => {
 }));
 
 /**
+ * Fleets Overview — public view for a base
+ * Returns all stationed fleets at the base (any empire) and any inbound movements to that base.
+ * Query: ?base=COORD
+ * DTO: { success, data: { fleets: [{ _id, name, ownerName, arrival, sizeCredits }] } }
+ */
+router.get('/fleets-overview', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const baseCoord = String(req.query.base || '').trim();
+  if (!baseCoord) {
+    return res.status(400).json({ success: false, error: 'Missing base coordinate (?base=...)' });
+  }
+
+  // 1) Stationed fleets at this base (all empires)
+  const stationed = await Fleet.find({ locationCoord: baseCoord }).lean();
+
+  // Collect empire ids for name lookup
+  const empireIds = new Set<string>();
+  for (const f of stationed) {
+    if ((f as any).empireId) empireIds.add(String((f as any).empireId));
+  }
+
+  // 2) Inbound movements to this base (any empire)
+  //    We include both 'pending' and 'travelling' as incoming
+  const { FleetMovement } = await import('../models/FleetMovement');
+  const incoming = await FleetMovement.find({
+    destinationCoord: baseCoord,
+    status: { $in: ['pending', 'travelling'] }
+  }).lean();
+
+  for (const m of incoming as any[]) {
+    if (m.empireId) empireIds.add(String(m.empireId));
+  }
+
+  // Lookup empire names
+  const empireDocs = await Empire.find({ _id: { $in: Array.from(empireIds) } }).lean();
+  const empireNameById = new Map<string, string>();
+  for (const e of empireDocs) {
+    empireNameById.set(String((e as any)._id), String((e as any).name || 'Unknown'));
+  }
+
+  // For inbound movements, also lookup fleet names (and potentially size)
+  const inboundFleetIds = Array.from(new Set((incoming as any[]).map(m => String(m.fleetId))));
+  const inboundFleets = inboundFleetIds.length > 0
+    ? await Fleet.find({ _id: { $in: inboundFleetIds } }).lean()
+    : [];
+  const inboundFleetById = new Map<string, any>();
+  for (const f of inboundFleets) inboundFleetById.set(String((f as any)._id), f);
+
+  // Build rows
+  const rows: Array<{ _id: string; name: string; ownerName: string; arrival: string | null; sizeCredits: number }> = [];
+
+  // Stationed
+  for (const f of stationed as any[]) {
+    rows.push({
+      _id: String(f._id),
+      name: String(f.name),
+      ownerName: empireNameById.get(String(f.empireId)) || 'Unknown',
+      arrival: null, // stationed
+      sizeCredits: Number(f.sizeCredits || 0),
+    });
+  }
+
+  // Incoming
+  for (const m of incoming as any[]) {
+    const fleetDoc = inboundFleetById.get(String(m.fleetId));
+    rows.push({
+      _id: String(m._id), // movement id as unique row id
+      name: fleetDoc ? String(fleetDoc.name) : `Inbound Fleet`,
+      ownerName: empireNameById.get(String(m.empireId)) || 'Unknown',
+      arrival: m.estimatedArrivalTime ? new Date(m.estimatedArrivalTime).toISOString() : null,
+      sizeCredits: Number(m.sizeCredits || (fleetDoc?.sizeCredits ?? 0)),
+    });
+  }
+
+  return res.json({ success: true, data: { fleets: rows } });
+}));
+
+/**
  * Fleet detail — composition and metadata
  * DTO: { success, data: { fleet: { _id, name, locationCoord, ownerName, units: [{ unitKey, name, count }], sizeCredits } } }
  */
@@ -1663,6 +2293,281 @@ router.get('/fleets/:id', asyncHandler(async (req: AuthRequest, res: Response) =
       }
     }
   });
+}));
+
+/**
+ * Fleet Movement Routes
+ */
+
+/**
+ * Dispatch fleet to new location
+ * POST /game/fleets/:id/dispatch
+ * Body: { destinationCoord: string }
+ * DTO: { success, data: { movement }, message }
+ */
+router.post('/fleets/:id/dispatch', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const empire = await Empire.findOne({ userId: req.user!._id });
+  if (!empire) {
+    return res.status(404).json({ success: false, error: 'Empire not found' });
+  }
+
+  const fleetId = String(req.params.id || '').trim();
+  if (!fleetId || !mongoose.isValidObjectId(fleetId)) {
+    return res.status(400).json({
+      success: false,
+      code: 'INVALID_REQUEST',
+      message: 'Invalid fleet id',
+      details: { field: 'id' }
+    });
+  }
+
+  const { destinationCoord } = req.body as { destinationCoord?: string };
+  if (!destinationCoord || typeof destinationCoord !== 'string') {
+    return res.status(400).json({
+      success: false,
+      code: 'INVALID_REQUEST',
+      message: 'destinationCoord is required',
+      details: { field: 'destinationCoord' }
+    });
+  }
+
+  try {
+    const result = await FleetMovementService.dispatchFleet(
+      fleetId,
+      empire._id as mongoose.Types.ObjectId,
+      { destinationCoord }
+    );
+
+    if (!result.success) {
+      const statusCode = result.code === 'FLEET_NOT_FOUND' ? 404 : 400;
+      return res.status(statusCode).json({
+        success: false,
+        code: result.code,
+        message: result.error || 'Failed to dispatch fleet'
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        movement: {
+          _id: result.movement!._id,
+          status: result.movement!.status,
+          originCoord: result.movement!.originCoord,
+          destinationCoord: result.movement!.destinationCoord,
+          departureTime: result.movement!.departureTime,
+          estimatedArrivalTime: result.movement!.estimatedArrivalTime,
+          travelTimeHours: result.movement!.travelTimeHours,
+          distance: result.movement!.distance,
+          fleetSpeed: result.movement!.fleetSpeed
+        }
+      },
+      message: 'Fleet dispatched successfully'
+    });
+
+  } catch (error) {
+    console.error('Error dispatching fleet:', error);
+    return res.status(500).json({
+      success: false,
+      code: 'SERVER_ERROR',
+      message: 'Failed to dispatch fleet'
+    });
+  }
+}));
+
+/**
+ * Get fleet status including movement information
+ * GET /game/fleets/:id/status
+ * DTO: { success, data: { fleet, movement } }
+ */
+router.get('/fleets/:id/status', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const empire = await Empire.findOne({ userId: req.user!._id });
+  if (!empire) {
+    return res.status(404).json({ success: false, error: 'Empire not found' });
+  }
+
+  const fleetId = String(req.params.id || '').trim();
+  if (!fleetId || !mongoose.isValidObjectId(fleetId)) {
+    return res.status(400).json({
+      success: false,
+      code: 'INVALID_REQUEST',
+      message: 'Invalid fleet id',
+      details: { field: 'id' }
+    });
+  }
+
+  try {
+    const result = await FleetMovementService.getFleetStatus(
+      fleetId,
+      empire._id as mongoose.Types.ObjectId
+    );
+
+    if (!result.success) {
+      return res.status(404).json({
+        success: false,
+        code: 'FLEET_NOT_FOUND',
+        message: result.error || 'Fleet not found'
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        fleet: result.fleet,
+        movement: result.movement ? {
+          _id: result.movement._id,
+          status: result.movement.status,
+          originCoord: result.movement.originCoord,
+          destinationCoord: result.movement.destinationCoord,
+          departureTime: result.movement.departureTime,
+          estimatedArrivalTime: result.movement.estimatedArrivalTime,
+          actualArrivalTime: result.movement.actualArrivalTime,
+          travelTimeHours: result.movement.travelTimeHours,
+          distance: result.movement.distance,
+          fleetSpeed: result.movement.fleetSpeed
+        } : null
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting fleet status:', error);
+    return res.status(500).json({
+      success: false,
+      code: 'SERVER_ERROR',
+      message: 'Failed to get fleet status'
+    });
+  }
+}));
+
+/**
+ * Estimate travel time for fleet dispatch
+ * POST /game/fleets/:id/estimate-travel
+ * Body: { destinationCoord: string }
+ * DTO: { success, data: { travelTimeHours, distance, fleetSpeed } }
+ */
+router.post('/fleets/:id/estimate-travel', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const empire = await Empire.findOne({ userId: req.user!._id });
+  if (!empire) {
+    return res.status(404).json({ success: false, error: 'Empire not found' });
+  }
+
+  const fleetId = String(req.params.id || '').trim();
+  if (!fleetId || !mongoose.isValidObjectId(fleetId)) {
+    return res.status(400).json({
+      success: false,
+      code: 'INVALID_REQUEST',
+      message: 'Invalid fleet id',
+      details: { field: 'id' }
+    });
+  }
+
+  const { destinationCoord } = req.body as { destinationCoord?: string };
+  if (!destinationCoord || typeof destinationCoord !== 'string') {
+    return res.status(400).json({
+      success: false,
+      code: 'INVALID_REQUEST',
+      message: 'destinationCoord is required',
+      details: { field: 'destinationCoord' }
+    });
+  }
+
+  try {
+    const fleet = await Fleet.findOne({ _id: fleetId, empireId: empire._id });
+    if (!fleet) {
+      return res.status(404).json({
+        success: false,
+        code: 'FLEET_NOT_FOUND',
+        message: 'Fleet not found'
+      });
+    }
+
+    // Calculate travel time using FleetMovementService methods
+    const distance = FleetMovementService.calculateDistance(fleet.locationCoord, destinationCoord);
+    const fleetSpeed = FleetMovementService.calculateFleetSpeed(fleet.units || []);
+    const travelTimeHours = FleetMovementService.calculateTravelTime(distance, fleetSpeed);
+
+    return res.json({
+      success: true,
+      data: {
+        travelTimeHours,
+        distance,
+        fleetSpeed
+      }
+    });
+
+  } catch (error) {
+    console.error('Error estimating travel time:', error);
+    return res.status(500).json({
+      success: false,
+      code: 'SERVER_ERROR',
+      message: 'Failed to estimate travel time'
+    });
+  }
+}));
+
+/**
+ * Recall fleet (cancel movement)
+ * PUT /game/fleets/:id/recall
+ * Body: { reason?: string }
+ * DTO: { success, data: { movement }, message }
+ */
+router.put('/fleets/:id/recall', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const empire = await Empire.findOne({ userId: req.user!._id });
+  if (!empire) {
+    return res.status(404).json({ success: false, error: 'Empire not found' });
+  }
+
+  const fleetId = String(req.params.id || '').trim();
+  if (!fleetId || !mongoose.isValidObjectId(fleetId)) {
+    return res.status(400).json({
+      success: false,
+      code: 'INVALID_REQUEST',
+      message: 'Invalid fleet id',
+      details: { field: 'id' }
+    });
+  }
+
+  const { reason } = req.body as { reason?: string };
+
+  try {
+    const result = await FleetMovementService.recallFleet(
+      fleetId,
+      empire._id as mongoose.Types.ObjectId,
+      reason
+    );
+
+    if (!result.success) {
+      const statusCode = result.code === 'NO_ACTIVE_MOVEMENT' ? 400 : 409;
+      return res.status(statusCode).json({
+        success: false,
+        code: result.code,
+        message: result.error || 'Failed to recall fleet'
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        movement: {
+          _id: result.movement!._id,
+          status: result.movement!.status,
+          originCoord: result.movement!.originCoord,
+          destinationCoord: result.movement!.destinationCoord,
+          recallTime: result.movement!.recallTime,
+          recallReason: result.movement!.recallReason
+        }
+      },
+      message: 'Fleet recalled successfully'
+    });
+
+  } catch (error) {
+    console.error('Error recalling fleet:', error);
+    return res.status(500).json({
+      success: false,
+      code: 'SERVER_ERROR',
+      message: 'Failed to recall fleet'
+    });
+  }
 }));
 
 export default router;

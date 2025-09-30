@@ -216,140 +216,17 @@ const msg = `Upgrade cost undefined for ${buildingKey} level ${nextLevel}.`;
         return formatError('INVALID_REQUEST', msg, { buildingKey, nextLevel });
       }
     }
-    // Smart credits projection disabled: queue-time MUST NOT be blocked by credits.
-    // Credits are only enforced at schedule-time (top-of-queue) in BuildingService.scheduleNextQueuedForBase.
-    // Add empire guard to satisfy TS control-flow narrowing inside the unreachable block.
-    if (false && empire) {
-      const now = new Date();
-
-      // Determine candidate start time (chain from the last scheduled completion at this base, else now)
-      const scheduledRawForBase = await Building.find({
-        empireId: new mongoose.Types.ObjectId(empireId),
-        locationCoord,
-        isActive: false,
-        constructionCompleted: { $ne: null }
-      })
-        .select('constructionCompleted')
-        .lean();
-
-      const scheduledForBase = Array.isArray(scheduledRawForBase)
-        ? [...scheduledRawForBase].sort((a: any, b: any) =>
-            new Date((a as any).constructionCompleted).getTime() -
-            new Date((b as any).constructionCompleted).getTime()
-          )
-        : [];
-
-      const lastCompletionForBase: Date | null =
-        (scheduledForBase && scheduledForBase.length > 0
-          ? (scheduledForBase[scheduledForBase.length - 1] as any).constructionCompleted
-          : null) || null;
-
-      const candidateStart: Date = lastCompletionForBase ? new Date(lastCompletionForBase as Date) : now;
-      // Debug: log projection window decision
-      try {
-        console.log(
-          `[StructuresService.start] creditsProjection window now=${now.toISOString()} candidateStart=${candidateStart.toISOString()}`
-        );
-      } catch {}
-
-      // Only perform projection if candidate starts in the future; otherwise fall back to immediate check
-      if (candidateStart.getTime() > now.getTime()) {
-        try {
-          console.log(`[StructuresService.start] creditsProjection entering projection phase`);
-        } catch {}
-        try {
-          // Initial credits/hour across the entire empire
-          const econ = await EconomyService.computeEmpireEconomy(empireId);
-          let perHour = Math.max(0, Number(econ?.totalCreditsPerHour || 0));
-
-          // Gather queued items (any base) that will complete between now and candidateStart
-          const queuedAcrossEmpire = await Building.find({
-            empireId: new mongoose.Types.ObjectId(empireId),
-            isActive: false,
-            constructionCompleted: { $gt: now, $lte: candidateStart }
-          })
-            .select('catalogKey constructionCompleted')
-            .lean();
-
-          type CreditEvent = { t: number; deltaPerHour: number };
-          const events: CreditEvent[] = [];
-
-          for (const q of queuedAcrossEmpire || []) {
-            const k = (q as any).catalogKey as string | undefined;
-            const t = new Date((q as any).constructionCompleted).getTime();
-            if (!k || !isFinite(t)) continue;
-            const specQ = getBuildingSpec(k as any);
-            const deltaPerHour = Math.max(0, Number(specQ?.economy || 0)); // new L1 or +1 level → +economy
-            if (deltaPerHour > 0) {
-              events.push({ t, deltaPerHour });
-            }
-          }
-
-          // Sort events by time
-          events.sort((a, b) => a.t - b.t);
-
-          // Integrate credits from now → candidateStart with step changes at event times
-          let cursor = now.getTime();
-          let creditsAtStart = Number((empire as EmpireDocument).resources.credits || 0);
-
-          for (const ev of events) {
-            if (ev.t <= cursor) {
-              perHour += ev.deltaPerHour;
-              continue;
-            }
-            const dtHours = (ev.t - cursor) / (1000 * 60 * 60);
-            if (dtHours > 0 && perHour > 0) {
-              creditsAtStart += perHour * dtHours;
-            }
-            perHour += ev.deltaPerHour;
-            cursor = ev.t;
-          }
-
-          // Remaining segment up to candidate start
-          const endMs = candidateStart.getTime();
-          if (endMs > cursor && perHour > 0) {
-            const dtHours = (endMs - cursor) / (1000 * 60 * 60);
-            creditsAtStart += perHour * dtHours;
-          }
-
-          if (creditsAtStart < creditsCost) {
-            const shortfall = Math.max(0, Math.ceil(creditsCost - creditsAtStart));
-            const msg = 'Insufficient credits at scheduled start time.';
-            // Diagnostic log to aid E2E/debug
-            console.log(
-              `[StructuresService.start] creditsProjection required=${creditsCost} availableAtStart=${Math.floor(
-                creditsAtStart
-              )} shortfall=${shortfall} candidateStart=${candidateStart.toISOString()}`
-            );
-            return formatError('INSUFFICIENT_RESOURCES', msg, {
-              requiredCredits: creditsCost,
-              availableAtStart: Math.floor(creditsAtStart),
-              shortfall,
-              candidateStart: candidateStart.toISOString()
-            });
-          }
-          // Else: projection says we'll have enough by candidate start → allow queuing to proceed
-        } catch (projErr) {
-          // If projection fails, fall back to immediate check to avoid silent acceptance
-          const msg = `Insufficient credits. Requires ${creditsCost}.`;
+    // Credits validation: check if user has enough credits to start construction
+    // Simple immediate check - user must have required credits available now
+    const availableCredits = Number((empire as EmpireDocument).resources.credits || 0);
+    if (availableCredits < creditsCost) {
+      const shortfall = creditsCost - availableCredits;
+      const msg = `Insufficient credits. Requires ${creditsCost}, you have ${availableCredits}.`;
       return formatError('INSUFFICIENT_RESOURCES', msg, {
-              requiredCredits: creditsCost,
-              availableCredits: (empire as EmpireDocument).resources.credits,
-              shortfall: creditsCost - (empire as EmpireDocument).resources.credits
-            });
-        }
-      } else {
-        // Candidate starts now or in the past → require immediate affordability
-        try {
-          console.log(`[StructuresService.start] creditsProjection immediate check (candidateStart ≤ now)`);
-        } catch {}
-        const msg = `Insufficient credits. Requires ${creditsCost}.`;
-        return formatError('INSUFFICIENT_RESOURCES', msg, {
-          requiredCredits: creditsCost,
-          availableCredits: (empire as EmpireDocument).resources.credits,
-          shortfall: creditsCost - (empire as EmpireDocument).resources.credits
-        });
-      }
+        requiredCredits: creditsCost,
+        availableCredits,
+        shortfall
+      });
     }
 
     // Capacity-driven ETA (creditsCost / construction.value in hours)
@@ -363,208 +240,182 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
     const minutes = Math.max(1, Math.ceil(hours * 60));
 
     // Energy feasibility check via shared helper (baseline +2, planet scaling, queued reservations)
-    try {
-      const existingBuildings = await Building.find({
-        empireId: new mongoose.Types.ObjectId(empireId),
-        locationCoord,
-      })
-        .select('isActive pendingUpgrade catalogKey level')
-        .lean();
+    const existingBuildings = await Building.find({
+      empireId: new mongoose.Types.ObjectId(empireId),
+      locationCoord,
+    })
+      .select('isActive pendingUpgrade catalogKey level constructionCompleted')
+      .lean();
 
-      // Planet-derived values (same sources as BaseStatsService)
-      const solarEnergy = Math.max(0, Number((location as any)?.result?.solarEnergy ?? 0));
-      const gasResource = Math.max(0, Number((location as any)?.result?.yields?.gas ?? 0));
+    // Planet-derived values (same sources as BaseStatsService)
+    const solarEnergy = Math.max(0, Number((location as any)?.result?.solarEnergy ?? 0));
+    const gasResource = Math.max(0, Number((location as any)?.result?.yields?.gas ?? 0));
 
 
-      // Map DB buildings to shared helper input (catalogKey-only; no legacy type mapping)
-      const buildingsAtBase = (existingBuildings || [])
-        .map((b: any) => {
-          const key = (b as any).catalogKey as string | undefined;
-          if (!key) {
-            // Temporary diagnostic for legacy docs missing catalogKey
-            console.warn("[StructuresService.start] skip: missing catalogKey _id=%s", (b as any)._id?.toString?.());
-            return null;
-          }
-          const level = Math.max(1, Number((b as any).level || 1));
-          const pendingUpgrade = (b as any).pendingUpgrade === true;
-          const effectiveActive = (b as any).isActive === true || pendingUpgrade;
-
-          const s = getBuildingSpec(key as any);
-          const d = Number(s?.energyDelta || 0);
-
-          // Parity with BaseStatsService:
-          // - Treat pendingUpgrade as effectively active (isActive: true)
-          // - Reserve one negative step for upgrades if next step is negative (isQueuedConsumer true)
-          // - For queued new constructions (not pendingUpgrade), reserve only negative energy
-          if (effectiveActive) {
-            const input: { key: string; level: number; isActive: boolean; isQueuedConsumer?: boolean } = {
-              key: key as any,
-              level,
-              isActive: true,
-            };
-            if (pendingUpgrade && d < 0) {
-              input.isQueuedConsumer = true;
-            }
-            return input;
-          } else {
-            // queued new construction
-            const isQueuedConsumer = d < 0;
-            return { key: key as any, level, isActive: false, isQueuedConsumer };
-          }
-        })
-        .filter(Boolean) as Array<{ key: string; level: number; isActive: boolean; isQueuedConsumer?: boolean }>;
-
-  const { produced, consumed, balance, reservedNegative } = computeEnergyBalance({
-        buildingsAtBase,
-        location: { solarEnergy, gasYield: gasResource },
-      });
-
-      const delta = Number(spec.energyDelta || 0);
-
-      // Order-aware Smart-Queue projection (energy):
-      // Start from projected sum (balance + reservedNegative), then apply earlier queued producers in order.
-      let projectedSum = balance + reservedNegative;
-
-      // Build ordered earlier items: scheduled first (by constructionCompleted ASC), then unscheduled (by createdAt ASC)
-      const queuedEnergyItems = await Building.find({
-        empireId: new mongoose.Types.ObjectId(empireId),
-        locationCoord,
-        isActive: false
-      })
-        .select('catalogKey pendingUpgrade constructionCompleted createdAt')
-        .lean();
-
-      const scheduledQ = (queuedEnergyItems || [])
-        .filter((q: any) => !!(q as any).constructionCompleted)
-        .sort(
-          (a: any, b: any) =>
-            new Date((a as any).constructionCompleted).getTime() -
-            new Date((b as any).constructionCompleted).getTime()
-        );
-
-      const unscheduledQ = (queuedEnergyItems || [])
-        .filter((q: any) => !(q as any).constructionCompleted)
-        .sort(
-          (a: any, b: any) =>
-            new Date((a as any).createdAt || 0).getTime() -
-            new Date((b as any).createdAt || 0).getTime()
-        );
-
-      const earlier = [...scheduledQ, ...unscheduledQ];
-
-      for (const q of earlier) {
-        const k = (q as any).catalogKey as string | undefined;
-        if (!k) continue;
-        const qSpec = getBuildingSpec(k as any);
-        const qDelta = Number(qSpec?.energyDelta || 0);
-        // For queued consumers (qDelta < 0), the negative is already captured in reservedNegative baseline.
-        // For producers (qDelta > 0), their activation will lift projected energy; include in order.
-        if (qDelta > 0) {
-          projectedSum += qDelta;
+    // Map DB buildings to shared helper input (catalogKey-only; no legacy type mapping)
+    const buildingsAtBase = (existingBuildings || [])
+      .map((b: any) => {
+        const key = (b as any).catalogKey as string | undefined;
+        if (!key) {
+          // Temporary diagnostic for legacy docs missing catalogKey
+          console.warn("[StructuresService.start] skip: missing catalogKey _id=%s", (b as any)._id?.toString?.());
+          return null;
         }
-      }
+        const level = Math.max(1, Number((b as any).level || 1));
+        const pendingUpgrade = (b as any).pendingUpgrade === true;
+        const effectiveActive = (b as any).isActive === true || pendingUpgrade;
 
-      const projectedEnergy = projectedSum + delta;
+        const s = getBuildingSpec(key as any);
+        const d = Number(s?.energyDelta || 0);
 
-      // Standardized log line for E2E parsing using final projection
-      console.log(
-        `[StructuresService.start] key=${buildingKey} delta=${delta} produced=${produced} consumed=${consumed} balance=${balance} reserved=${reservedNegative} projectedEnergy=${projectedEnergy}`
-      );
+        // Parity with BaseStatsService:
+        // - Treat pendingUpgrade as effectively active (isActive: true)
+        // - Reserve one negative step for upgrades if next step is negative (isQueuedConsumer true)
+        // - For queued new constructions (not pendingUpgrade), reserve only negative energy
+        if (effectiveActive) {
+          const input: { key: string; level: number; isActive: boolean; isQueuedConsumer?: boolean } = {
+            key: key as any,
+            level,
+            isActive: true,
+          };
+          if (pendingUpgrade && d < 0) {
+            input.isQueuedConsumer = true;
+          }
+          return input;
+        } else {
+          // queued new construction — reserve negative energy ONLY if actively scheduled (has completion timestamp)
+          const isScheduled = !!(b as any).constructionCompleted;
+          const isQueuedConsumer = isScheduled && d < 0; // do not pre-reserve unscheduled negatives
+          return { key: key as any, level, isActive: false, isQueuedConsumer };
+        }
+      })
+      .filter(Boolean) as Array<{ key: string; level: number; isActive: boolean; isQueuedConsumer?: boolean }>;
 
-      // Producers allowed regardless; only enforce for consumers (negative delta)
-      if (delta < 0 && projectedEnergy < 0) {
-        const msg = 'Insufficient energy capacity to start this construction.';
-        return {
-          success: false as const,
-          code: 'INSUFFICIENT_ENERGY',
-          message: msg,
-          error: msg, // legacy compatibility
-          reasons: ['insufficient_energy', msg], // legacy compatibility
-          details: { produced, consumed, balance, reservedNegative, delta, projectedEnergy },
-        };
-      }
-    } catch (e) {
-      // Non-fatal: if energy calculation cannot be verified, skip gating to avoid blocking unrelated flows
-      console.warn('[StructuresService.start] energy check skipped due to error', e);
+    const { produced, consumed, balance, reservedNegative } = computeEnergyBalance({
+      buildingsAtBase,
+      location: { solarEnergy, gasYield: gasResource },
+      includeQueuedReservations: true,
+    });
+
+    const delta = Number(spec.energyDelta || 0);
+
+    // Use canonical energy feasibility check from shared helper
+    // This ensures parity with BaseStatsService and UI calculations
+    const canStart = delta >= 0 || (balance + reservedNegative + delta >= 0);
+    const projectedEnergy = balance + reservedNegative + delta;
+
+    // Standardized log line for E2E parsing using final projection
+    console.log(
+      `[StructuresService.start] key=${buildingKey} delta=${delta} produced=${produced} consumed=${consumed} balance=${balance} reserved=${reservedNegative} projectedEnergy=${projectedEnergy}`
+    );
+
+    // Producers (delta >= 0) allowed regardless; consumers (delta < 0) only if projection >= 0
+    if (!canStart) {
+      const msg = 'Insufficient energy capacity to start this construction.';
+      return {
+        success: false as const,
+        code: 'INSUFFICIENT_ENERGY',
+        message: msg,
+        error: msg, // legacy compatibility
+        reasons: ['insufficient_energy', msg], // legacy compatibility
+        details: { produced, consumed, balance, reservedNegative, delta, projectedEnergy },
+      };
     }
 
     // Population/Area feasibility check using BaseStatsService (parity with UI)
-    try {
-      const baseStats = await BaseStatsService.getBaseStats(empireId, locationCoord);
-      const popReq = Math.max(0, Number(spec.populationRequired || 0));
-      const areaReq = Math.max(0, Number(spec.areaRequired || 0));
+    const baseStats = await BaseStatsService.getBaseStats(empireId, locationCoord);
+    const popReq = Math.max(0, Number(spec.populationRequired || 0));
+    const areaReq = Math.max(0, Number(spec.areaRequired || 0));
 
-      // Smart-queue projection for population/area (order-aware)
-      const fertility = Math.max(
-        0,
-        Number(
-          (location as any)?.result?.fertility ??
-            (location as any)?.properties?.fertility ??
-            0
-        )
+    // Smart-queue projection for population/area (order-aware)
+    const fertility = Math.max(
+      0,
+      Number(
+        (location as any)?.result?.fertility ??
+          (location as any)?.properties?.fertility ??
+          0
+      )
+    );
+
+    // Build ordered earlier items: scheduled first (by constructionCompleted ASC), then unscheduled (by createdAt ASC)
+    const queuedCapacityItems = await Building.find({
+      empireId: new mongoose.Types.ObjectId(empireId),
+      locationCoord,
+      isActive: false
+    })
+      .select('catalogKey pendingUpgrade constructionCompleted createdAt')
+      .lean();
+
+    const scheduledCap = (queuedCapacityItems || [])
+      .filter((q: any) => !!(q as any).constructionCompleted)
+      .sort(
+        (a: any, b: any) =>
+          new Date((a as any).constructionCompleted).getTime() -
+          new Date((b as any).constructionCompleted).getTime()
       );
 
-      // Build ordered earlier items: scheduled first (by constructionCompleted ASC), then unscheduled (by createdAt ASC)
-      const queuedCapacityItems = await Building.find({
-        empireId: new mongoose.Types.ObjectId(empireId),
-        locationCoord,
-        isActive: false
-      })
-        .select('catalogKey pendingUpgrade constructionCompleted createdAt')
-        .lean();
+    const unscheduledCap = (queuedCapacityItems || [])
+      .filter((q: any) => !(q as any).constructionCompleted)
+      .sort(
+        (a: any, b: any) =>
+          new Date((a as any).createdAt || 0).getTime() -
+          new Date((b as any).createdAt || 0).getTime()
+      );
 
-      const scheduledCap = (queuedCapacityItems || [])
-        .filter((q: any) => !!(q as any).constructionCompleted)
-        .sort(
-          (a: any, b: any) =>
-            new Date((a as any).constructionCompleted).getTime() -
-            new Date((b as any).constructionCompleted).getTime()
-        );
+    const earlierCap = [...scheduledCap, ...unscheduledCap];
 
-      const unscheduledCap = (queuedCapacityItems || [])
-        .filter((q: any) => !(q as any).constructionCompleted)
-        .sort(
-          (a: any, b: any) =>
-            new Date((a as any).createdAt || 0).getTime() -
-            new Date((b as any).createdAt || 0).getTime()
-        );
+    // Start from current free budgets shown to the player
+    let projectedPopFreeAtStart = Number(baseStats.population.free || 0);
+    let projectedAreaFreeAtStart = Number(baseStats.area.free || 0);
 
-      const earlierCap = [...scheduledCap, ...unscheduledCap];
+    for (const q of earlierCap) {
+      const k = (q as any).catalogKey as string | undefined;
+      if (!k) continue;
+      const qSpec = getBuildingSpec(k as any);
 
-      // Start from current free budgets shown to the player
-      let projectedPopFreeAtStart = Number(baseStats.population.free || 0);
-      let projectedAreaFreeAtStart = Number(baseStats.area.free || 0);
+      // Apply capacity gains for items that increase capacity
+      let popCapacityGain = 0;
+      if (k === 'urban_structures') popCapacityGain += fertility;
+      else if (k === 'orbital_base') popCapacityGain += 10;
 
-      for (const q of earlierCap) {
-        const k = (q as any).catalogKey as string | undefined;
-        if (!k) continue;
-        const qSpec = getBuildingSpec(k as any);
+      let areaCapacityGain = 0;
+      if (k === 'terraform') areaCapacityGain += 5;
+      else if (k === 'multi_level_platforms') areaCapacityGain += 10;
 
-        // Apply capacity gains for items that increase capacity
-        let popCapacityGain = 0;
-        if (k === 'urban_structures') popCapacityGain += fertility;
-        else if (k === 'orbital_base') popCapacityGain += 10;
+      // Apply this queued item's own consumption footprint
+      const popReqQ = Math.max(0, Number(qSpec?.populationRequired || 0));
+      // Default area requirement to 1 when unspecified (UI standard)
+      const areaReqQ = Math.max(0, Number(qSpec?.areaRequired ?? 1));
 
-        let areaCapacityGain = 0;
-        if (k === 'terraform') areaCapacityGain += 5;
-        else if (k === 'multi_level_platforms') areaCapacityGain += 10;
+      projectedPopFreeAtStart += popCapacityGain - popReqQ;
+      projectedAreaFreeAtStart += areaCapacityGain - areaReqQ;
 
-        // Apply this queued item's own consumption footprint
-        const popReqQ = Math.max(0, Number(qSpec?.populationRequired || 0));
-        // Default area requirement to 1 when unspecified (UI standard)
-        const areaReqQ = Math.max(0, Number(qSpec?.areaRequired ?? 1));
-
-        projectedPopFreeAtStart += popCapacityGain - popReqQ;
-        projectedAreaFreeAtStart += areaCapacityGain - areaReqQ;
-
-        // If earlier queue already projects negative free capacity, treat as unsafe queue for admission purposes
-        if (projectedPopFreeAtStart < 0 || projectedAreaFreeAtStart < 0) {
-          break;
-        }
+      // If earlier queue already projects negative free capacity, treat as unsafe queue for admission purposes
+      if (projectedPopFreeAtStart < 0 || projectedAreaFreeAtStart < 0) {
+        break;
       }
+    }
 
-      // Enforce only when a real capacity context exists (capacity > 0)
-      if (popReq > 0 && baseStats.population.capacity > 0 && projectedPopFreeAtStart < popReq) {
+    // Enforce population validation - must have actual population capacity and sufficient free space
+    if (popReq > 0) {
+      if (baseStats.population.capacity <= 0) {
+        const msg = 'No population capacity available at this base to support construction.';
+        return {
+          success: false as const,
+          code: 'INSUFFICIENT_POPULATION',
+          message: msg,
+          error: msg,
+          reasons: ['insufficient_population', msg],
+          details: {
+            required: popReq,
+            used: baseStats.population.used,
+            capacity: baseStats.population.capacity,
+            free: baseStats.population.free
+          },
+        };
+      }
+      
+      if (projectedPopFreeAtStart < popReq) {
         const used = baseStats.population.used;
         const capacity = baseStats.population.capacity;
         const currentFree = baseStats.population.free;
@@ -589,9 +440,28 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
           },
         };
       }
+    }
 
-      // Enforce only when a real area context exists (total > 0)
-      if (areaReq > 0 && baseStats.area.total > 0 && projectedAreaFreeAtStart < areaReq) {
+    // Enforce area validation - must have actual area capacity and sufficient free space
+    if (areaReq > 0) {
+      if (baseStats.area.total <= 0) {
+        const msg = 'No area capacity available at this base to support construction.';
+        return {
+          success: false as const,
+          code: 'INSUFFICIENT_AREA',
+          message: msg,
+          error: msg,
+          reasons: ['insufficient_area', msg],
+          details: {
+            required: areaReq,
+            used: baseStats.area.used,
+            total: baseStats.area.total,
+            free: baseStats.area.free
+          },
+        };
+      }
+      
+      if (projectedAreaFreeAtStart < areaReq) {
         const used = baseStats.area.used;
         const total = baseStats.area.total;
         const currentFree = baseStats.area.free;
@@ -619,41 +489,15 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
           },
         };
       }
-    } catch (e) {
-      // Non-fatal: if population/area cannot be verified, skip gating to avoid blocking unrelated flows
-      console.warn('[StructuresService.start] population/area check skipped due to error', e);
     }
 
     // Persist queued construction/upgrade (inactive until completion)
     const now = new Date();
 
-    // Deterministic queue scheduling:
-    // Chain start time from the last scheduled completion at this base (or 'now' if none)
-    // Compatibility with test mocks that don't implement `.sort()` in the query chain:
-    // Fetch and sort in-memory by constructionCompleted ASC.
-    const scheduledRaw = await Building.find({
-      empireId: new mongoose.Types.ObjectId(empireId),
-      locationCoord,
-      isActive: false,
-      constructionCompleted: { $ne: null }
-    })
-      .select('constructionCompleted')
-      .lean();
-
-    const scheduled = Array.isArray(scheduledRaw)
-      ? [...scheduledRaw].sort((a: any, b: any) =>
-          new Date((a as any).constructionCompleted).getTime() -
-          new Date((b as any).constructionCompleted).getTime()
-        )
-      : [];
-
-    const lastCompletion: Date | null =
-      (scheduled && scheduled.length > 0 ? (scheduled[scheduled.length - 1] as any).constructionCompleted : null) || null;
-
-    // Always chain to the last scheduled completion when present (future or past), else start now.
-    const startAt: Date = lastCompletion ? new Date(lastCompletion as Date) : now;
-    const constructionStarted = startAt;
-    const constructionCompleted = new Date(startAt.getTime() + minutes * 60 * 1000);
+    // Queue items should initially be unscheduled (null start/completion times)
+    // They will be scheduled by BuildingService.scheduleNextQueuedForBase() when capacity is available
+    const constructionStarted: Date | null = null;
+    const constructionCompleted: Date | null = null;
 
     let building: any;
     let identityKey: string;
@@ -687,14 +531,16 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
       const insertDoc = {
         locationCoord,
         empireId: new mongoose.Types.ObjectId(empireId),
-        type: spec.mappedType as any,
+        type: buildingKey as any, // Now using catalogKey as type
         displayName: spec.name,
         catalogKey: buildingKey,
-      level: 1,
+        level: 1,
         isActive: false,
         creditsCost: creditsCost,
         pendingUpgrade: false,
-        identityKey
+        identityKey,
+        constructionStarted: constructionStarted,
+        constructionCompleted: constructionCompleted
       };
 
       // Use upsert to avoid race between concurrent starts; if a document already exists, treat as idempotent.
@@ -734,14 +580,26 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
 
       // Fetch the newly created document to return in the response (best-effort).
       building = await (Building as any).findOne({ identityKey });
+
+      // Broadcast queue addition
+      try {
+        const { getIO } = await import('../index');
+        const io = getIO();
+        (io as any)?.broadcastQueueUpdate?.(empireId, locationCoord, 'queue:item_queued', {
+          locationCoord,
+          catalogKey: buildingKey,
+          level: 1,
+          isUpgrade: false,
+        });
+      } catch {}
       if (!building) {
         // Fallback: if not fetched, synthesize a minimal DTO-compatible object to avoid failing flows/tests.
         building =
           insertedDoc ||
           {
             catalogKey: buildingKey,
-            constructionStarted,
-            constructionCompleted,
+            constructionStarted: constructionStarted,
+            constructionCompleted: constructionCompleted,
             isActive: false,
             level: 1,
             creditsCost
@@ -764,11 +622,25 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
             pendingUpgrade: true,
             creditsCost,
             identityKey,
+            constructionStarted: constructionStarted,
+            constructionCompleted: constructionCompleted,
           },
         }
       );
 
       building = await (Building as any).findOne({ _id: existing._id });
+
+      // Broadcast queue addition for upgrade
+      try {
+        const { getIO } = await import('../index');
+        const io = getIO();
+        (io as any)?.broadcastQueueUpdate?.(empireId, locationCoord, 'queue:item_queued', {
+          locationCoord,
+          catalogKey: buildingKey,
+          level: nextLevel,
+          isUpgrade: true,
+        });
+      } catch {}
     } else {
       const msg = 'Upgrade state invalid: no existing building found to upgrade.';
       return {

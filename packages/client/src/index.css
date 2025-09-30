@@ -86,3 +86,99 @@ body {
 .status-warning {
   @apply text-yellow-400;
 }
+
+/* Service Migration Styles */
+.service-error-fallback {
+  @apply game-container flex items-center justify-center;
+}
+
+.service-error-fallback h3 {
+  @apply text-red-400 text-xl mb-4;
+}
+
+.service-error-fallback button {
+  @apply game-button mt-4;
+}
+
+.service-initializing {
+  @apply game-container flex items-center justify-center;
+}
+
+.service-init-error {
+  @apply game-container flex flex-col items-center justify-center text-center;
+}
+
+.service-init-error h3 {
+  @apply text-red-400 text-xl mb-4;
+}
+
+.service-init-error button {
+  @apply game-button mt-4;
+}
+
+.loading-spinner {
+  @apply animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500;
+}
+
+.migration-debug-panel {
+  @apply fixed bottom-4 right-4 bg-gray-900 bg-opacity-95 text-white p-3 rounded-lg text-xs border border-gray-600 shadow-lg;
+  max-width: 300px;
+  z-index: 9999;
+}
+
+.migration-debug-panel h4 {
+  @apply text-sm font-semibold mb-2 text-blue-400;
+}
+
+.migration-debug-panel > div {
+  @apply mb-1;
+}
+
+/* Service Status Components */
+.network-status-compact {
+  @apply inline-flex items-center;
+}
+
+.queue-badge {
+  @apply bg-red-500 text-white text-xs rounded-full px-1 ml-1;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.sync-status-compact {
+  @apply inline-flex items-center relative;
+}
+
+.auth-status-indicator {
+  @apply inline-flex items-center space-x-2;
+}
+
+.status-dot {
+  @apply w-2 h-2 rounded-full;
+}
+
+.status-details {
+  @apply flex items-center space-x-2 text-sm;
+}
+
+.status-good {
+  @apply text-green-400;
+}
+
+.status-bad {
+  @apply text-red-400;
+}
+
+.service-loading {
+  @apply flex items-center justify-center p-4;
+}
+
+.service-conditional-loading {
+  @apply flex items-center justify-center p-8 text-gray-400;
+}
+
+.service-disconnected-warning {
+  @apply bg-yellow-900 border border-yellow-600 text-yellow-200 p-3 rounded mt-2;
+}

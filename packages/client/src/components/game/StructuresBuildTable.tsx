@@ -12,7 +12,7 @@ interface StructuresBuildTableProps {
   loading: boolean;
   onRefresh: () => void;
   onStart: (key: BuildingKey) => Promise<void> | void;
-  onQueue?: (s: BuildingSpec) => Promise<{ success: boolean; eventId?: number }>;
+  onQueue?: (key: BuildingKey) => Promise<{ success: boolean; eventId?: number }>;
   isOffline?: boolean;
   constructionPerHour?: number;
   activeConstruction?: { key: BuildingKey; completionAt: string } | null;

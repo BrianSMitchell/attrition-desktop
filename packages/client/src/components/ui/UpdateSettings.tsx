@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useUpdate } from "../../contexts/UpdateContext";
-import { useToast } from "../../contexts/ToastContext";
+import { useUIActions } from '../../stores/enhancedAppStore';
 
 /**
  * UpdateSettings Component
@@ -10,7 +10,7 @@ import { useToast } from "../../contexts/ToastContext";
  */
 const UpdateSettings: React.FC = () => {
   const { state, checkForUpdates, setAutoCheck } = useUpdate();
-  const { addToast } = useToast();
+  const { addToast } = useUIActions();
   const [isChecking, setIsChecking] = React.useState(false);
 
   // Check if we're running in desktop environment
@@ -47,23 +47,23 @@ const UpdateSettings: React.FC = () => {
           console.log('[UpdateSettings] Status details:', st);
           
           if (st.updateAvailable) {
-            addToast({ type: 'info', text: 'Update found! Check the notification to download.' });
+            addToast({ type: 'info', message: 'Update found! Check the notification to download.' });
           } else if (!st.error) {
-            addToast({ type: 'success', text: "You're running the latest version!" });
+            addToast({ type: 'success', message: "You're running the latest version!" });
           }
         } else {
           console.warn('[UpdateSettings] Status check failed:', statusResp?.error);
-          addToast({ type: 'warning', text: statusResp?.error || 'Failed to get update status' });
+          addToast({ type: 'warning', message: statusResp?.error || 'Failed to get update status' });
         }
       } catch (e) {
         console.warn('[UpdateSettings] Failed to read updater status after check', e);
-        addToast({ type: 'warning', text: 'Could not verify update status' });
+        addToast({ type: 'warning', message: 'Could not verify update status' });
       }
     } catch (error) {
       console.error('[UpdateSettings] Manual check failed:', error);
       addToast({ 
         type: 'error', 
-        text: `Failed to check for updates: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        message: `Failed to check for updates: ${error instanceof Error ? error.message : 'Unknown error'}` 
       });
     } finally {
       console.log('[UpdateSettings] Manual check completed, resetting checking state');
@@ -75,7 +75,7 @@ const UpdateSettings: React.FC = () => {
     setAutoCheck(enabled);
     addToast({ 
       type: "success", 
-      text: `Automatic update checks ${enabled ? 'enabled' : 'disabled'}` 
+      message: `Automatic update checks ${enabled ? 'enabled' : 'disabled'}` 
     });
   };
 

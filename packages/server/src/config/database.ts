@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 export async function connectDatabase(): Promise<void> {
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/space-empire-mmo';
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/attrition';
     
     await mongoose.connect(mongoUri, {
       serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s

@@ -37,7 +37,7 @@ asarUnpack:
 
 win:
   executableName: Attrition
-  # icon: build/icon.png  # Temporarily disabled for testing
+  icon: build/icon.png
   publisherName: Attrition Game Studio
   sign: null
   signAndEditExecutable: false
@@ -58,7 +58,7 @@ nsis:
   # Note: All shortcuts are handled by the launcher installer
 
 mac:
-  # icon: build/icon.png  # Temporarily disabled for testing
+  icon: build/icon.png
   category: public.app-category.games
   target:
     - target: dmg
@@ -82,7 +82,7 @@ dmg:
       type: file
 
 linux:
-  # icon: build/icon.png  # Temporarily disabled for testing
+  icon: build/icon.png
   category: Game
   target:
     - target: AppImage
@@ -116,5 +116,10 @@ publish:
 electronUpdaterCompatibility: ">= 0.1.0"
 compression: maximum
 generateUpdatesFilesForAllChannels: true
+
+# Avoid electron-builder invoking pnpm directly on Windows for native rebuilds
+# We perform native rebuild explicitly in @game/desktop scripts via electron-rebuild
+npmRebuild: false
+buildDependenciesFromSource: false
 
 # Enable blockmap for delta updates

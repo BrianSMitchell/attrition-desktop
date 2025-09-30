@@ -77,8 +77,8 @@ class UpdateService {
     this.isValid = false;
     this.autoUpdater = null;
     
-    // Initialize asynchronously
-    this.initialize();
+    // Initialize asynchronously and expose readiness promise
+    this.readyPromise = this.initialize();
   }
   
   async initialize() {

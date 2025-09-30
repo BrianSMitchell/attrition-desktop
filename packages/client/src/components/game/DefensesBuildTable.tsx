@@ -1,7 +1,5 @@
 import React from "react";
-import { useNetwork } from "../../contexts/NetworkContext";
-import { useToast } from "../../contexts/ToastContext";
-import { useAuthStore } from '../../stores/authStore';
+import { useUIActions, useEnhancedAuth, useConnectionStatus } from '../../stores/enhancedAppStore';
 import type { DefenseKey, DefenseSpec } from "@game/shared";
 import type { DefensesStatusDTO } from "../../services/defensesService";
 import BuildTable, { type Column, type Eligibility } from "./BuildTable";
@@ -15,21 +13,25 @@ import BuildTable, { type Column, type Eligibility } from "./BuildTable";
 interface DefensesBuildTableProps {
   catalog: DefenseSpec[];
   status: DefensesStatusDTO | null;
+  levels?: Partial<Record<DefenseKey, number>>;
   loading: boolean;
   onRefresh: () => void;
   onStart: (key: DefenseKey) => Promise<void> | void;
   onQueue?: (payload: any) => Promise<any>;
   locationCoord?: string;
+  citizenPerHour?: number; // for time calculation
 }
 
 const DefensesBuildTable: React.FC<DefensesBuildTableProps> = ({
   catalog,
   status,
+  levels,
   loading,
   onRefresh,
   onStart,
   onQueue,
   locationCoord,
+  citizenPerHour,
 }) => {
   const formatRequires = (d: DefenseSpec): string => {
     if (!d.techPrereqs || d.techPrereqs.length === 0) return "—";
@@ -73,7 +75,24 @@ const DefensesBuildTable: React.FC<DefensesBuildTableProps> = ({
     );
   }
 
+  const formatDuration = (credits: number, perHour: number): string => {
+    if (!(perHour > 0)) return "—";
+    const totalSeconds = Math.max(1, Math.round((credits / perHour) * 3600));
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  };
+
   const columns: Column<DefenseSpec>[] = [
+    {
+      key: "level",
+      header: "Level",
+      align: "left",
+      render: (d) => String((levels?.[d.key as DefenseKey] ?? 0)),
+    },
     {
       key: "credits",
       header: "Credits",
@@ -107,16 +126,28 @@ const DefensesBuildTable: React.FC<DefensesBuildTableProps> = ({
         return <span className={met ? "text-green-400" : "text-red-400"}>{text}</span>;
       },
     },
+    {
+      key: "time",
+      header: "Time",
+      align: "left",
+      render: (d) => {
+        if (!(typeof citizenPerHour === 'number' && citizenPerHour > 0)) return "—";
+        const text = formatDuration(d.creditsCost, citizenPerHour);
+        const tip = `ETA = Credits (${d.creditsCost.toLocaleString()}) / Citizen Capacity (${citizenPerHour.toLocaleString()} cred/h)`;
+        return <span title={tip}>{text}</span>;
+      },
+    },
   ];
 
-  const { isFullyConnected } = useNetwork();
-  const { addToast } = useToast();
-  const { empire } = useAuthStore();
+  const { isFullyConnected } = useConnectionStatus();
+  const { addToast } = useUIActions();
+  const auth = useEnhancedAuth();
+  const { empire } = auth || {};
 
   const handleStart = async (key: string) => {
     if (!isFullyConnected) {
       if (!empire) {
-        addToast({ type: 'error', text: 'Not authenticated' });
+        addToast({ type: 'error', message: 'Not authenticated' });
         return;
       }
       const payload = {
@@ -128,14 +159,14 @@ const DefensesBuildTable: React.FC<DefensesBuildTableProps> = ({
         identityKey: `${empire._id}:${locationCoord}:${key}`,
       };
       if (!window.desktop?.eventQueue) {
-        addToast({ type: 'error', text: 'Desktop API not available' });
+        addToast({ type: 'error', message: 'Desktop API not available' });
         return;
       }
       const res = await window.desktop.eventQueue.enqueue('defenses', payload, options);
       if (res?.success) {
-        addToast({ type: 'success', text: `Queued ${key} for sync` });
+        addToast({ type: 'success', message: `Queued ${key} for sync` });
       } else {
-        addToast({ type: 'error', text: res?.error || 'Failed to queue defense' });
+        addToast({ type: 'error', message: res?.error || 'Failed to queue defense' });
       }
       return;
     }

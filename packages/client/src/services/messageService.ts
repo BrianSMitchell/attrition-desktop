@@ -137,22 +137,44 @@ export const messageService = {
 
   // Mark message as read
   async markAsRead(messageId: string): Promise<ApiResponse<void>> {
+    // Validate input
+    if (!messageId || typeof messageId !== 'string') {
+      return {
+        success: false,
+        code: "INVALID_INPUT",
+        message: "Invalid message ID",
+      } as ApiResponse<void>;
+    }
+    
     try {
       const response = await api.patch<ApiResponse<void>>(`/messages/${messageId}/read`);
       return response.data;
     } catch (err) {
+      console.error('markAsRead API error:', err);
+      
       if (isApiErrorLike(err)) {
         return {
           success: false,
           code: err.code,
-          message: err.message,
+          message: err.message || 'Failed to mark message as read',
           details: err.details,
         } as ApiResponse<void>;
       }
+      
+      // Handle specific error types for better user feedback
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      if (errorMessage.toLowerCase().includes('timeout')) {
+        return {
+          success: false,
+          code: "TIMEOUT_ERROR",
+          message: "Request timed out. Please try again.",
+        } as ApiResponse<void>;
+      }
+      
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: "Network error. Please check your connection.",
       } as ApiResponse<void>;
     }
   },

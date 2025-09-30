@@ -2,7 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { isValidCoordinate, parseCoord } from '@game/shared';
 import useUniverseMapStore from '../../stores/universeMapStore';
-import universeService, { UniverseLocationData } from '../../services/universeService';
+import { gameApi } from '../../stores/services/gameApi';
+import PlanetVisual from './PlanetVisual';
+
+// Type definitions
+type UniverseLocationData = any;
 
 const PlanetPage: React.FC = () => {
   const navigate = useNavigate();
@@ -25,7 +29,7 @@ const PlanetPage: React.FC = () => {
     let mounted = true;
     setLoading(true);
     setError(null);
-    universeService.getLocationByCoord(coord!)
+    gameApi.getLocationByCoord(coord!)
       .then((res) => {
         if (!mounted) return;
         if (res.success && res.data) {
@@ -45,7 +49,7 @@ const PlanetPage: React.FC = () => {
 
   const goUniverse = () => {
     navigateToUniverse();
-    navigate('/galaxy');
+    navigate('/universe');
   };
   const goGalaxy = () => {
     if (!components) return;
@@ -63,25 +67,8 @@ const PlanetPage: React.FC = () => {
     navigate('/galaxy');
   };
 
-  const planetVisualStyle = useMemo<React.CSSProperties>(() => {
-    const type = data?.type || 'planet';
-    // Type-based color themes
-    const themes: Record<string, string> = {
-      terrestrial: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.2) 20%, #487a3a 21%, #2b4f28 60%, #132515 100%)',
-      gas_giant: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6), rgba(255,255,255,0.15) 18%, #7a62b7 20%, #4f3a8a 58%, #2a174f 100%)',
-      ice: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(255,255,255,0.4) 22%, #78a9d6 23%, #3c6d99 60%, #1c3550 100%)',
-      desert: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.2) 18%, #e0b34a 20%, #a97a2a 60%, #5e3b10 100%)',
-      volcanic: 'radial-gradient(circle at 30% 30%, rgba(255,200,200,0.7), rgba(255,200,200,0.2) 20%, #cc2b2b 22%, #7a1e1e 60%, #330d0d 100%)',
-      planet: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.2) 20%, rgba(40,80,140,1) 21%, rgba(20,40,80,1) 60%, rgba(10,20,40,1) 100%)',
-      asteroid: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6), rgba(255,255,255,0.2) 18%, #7b6f62 20%, #4a423b 60%, #26221e 100%)',
-      star: 'radial-gradient(circle at 30% 30%, rgba(255,255,200,0.9), rgba(255,255,200,0.4) 22%, #ffd27a 24%, #e0a53a 60%, #8a5a0a 100%)',
-    };
-    const background = (themes[type] || themes.planet);
-    return {
-      background,
-      boxShadow: '0 0 40px rgba(100,150,255,0.3), inset 0 0 30px rgba(0,0,0,0.6)'
-    };
-  }, [data]);
+  // Visual now handled by PlanetVisual which reads terrain/type and serves
+  // images from assets/planets via Vite publicDir. Removed gradient placeholder.
 
   // Type-aware display labels derived from API type and coordinate
   const bodyLabel = components ? components.body.toString().padStart(2, '0') : '';
@@ -166,11 +153,14 @@ const PlanetPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Planet Visual */}
         <div className="game-card flex items-center justify-center">
-          <div
-            className="w-64 h-64 md:w-80 md:h-80 rounded-full shadow-lg"
-            style={planetVisualStyle}
-            aria-label="Planet preview"
-          />
+          {isValid ? (
+            <PlanetVisual coord={coord!} className="w-64 h-64 md:w-80 md:h-80" />
+          ) : (
+            <div
+              className="w-64 h-64 md:w-80 md:h-80 rounded-full shadow-lg bg-gray-700/60"
+              aria-label="Planet preview unavailable"
+            />
+          )}
         </div>
 
         {/* Planet Details */}

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNetwork } from '../../contexts/NetworkContext';
+import { useEnhancedNetwork } from '../../stores/enhancedAppStore';
 
 const ConnectionBanner: React.FC = () => {
-  const { status: networkStatus, isFullyConnected } = useNetwork();
+  const network = useEnhancedNetwork();
   const [isVisible, setIsVisible] = useState(false);
+
+  const isFullyConnected = network.status.isOnline && network.status.isApiReachable;
 
   useEffect(() => {
     // Show banner when connection state changes
@@ -25,14 +27,14 @@ const ConnectionBanner: React.FC = () => {
   if (!isVisible) return null;
 
   const getMessage = () => {
-    if (!networkStatus.isOnline) return 'No internet connection';
-    if (!networkStatus.isApiReachable) return 'Server unreachable';
+    if (!network.status.isOnline) return 'No internet connection';
+    if (!network.status.isApiReachable) return 'Server unreachable';
     return 'Connected to server';
   };
 
   const getType = () => {
-    if (!networkStatus.isOnline) return 'offline';
-    if (!networkStatus.isApiReachable) return 'degraded';
+    if (!network.status.isOnline) return 'offline';
+    if (!network.status.isApiReachable) return 'degraded';
     return 'online';
   };
 
@@ -55,16 +57,16 @@ const ConnectionBanner: React.FC = () => {
         <div className="flex items-center space-x-2">
           <div className={`w-2 h-2 rounded-full ${isSuccess ? 'bg-green-200' : isWarning ? 'bg-yellow-200' : 'bg-red-200'}`} />
           <span>{message}</span>
-          {networkStatus.latencyMs && (
+          {network.status.latencyMs && (
             <span className="text-xs opacity-75">
-              ({networkStatus.latencyMs}ms)
+              ({network.status.latencyMs}ms)
             </span>
           )}
         </div>
         <div className="flex items-center space-x-2">
-          {!isSuccess && networkStatus.lastChecked && (
+          {!isSuccess && network.status.lastChecked && (
             <span className="text-xs opacity-75">
-              Last checked: {new Date(networkStatus.lastChecked).toLocaleTimeString()}
+              Last checked: {new Date(network.status.lastChecked).toLocaleTimeString()}
             </span>
           )}
           <button

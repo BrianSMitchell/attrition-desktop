@@ -1,9 +1,10 @@
 import React from 'react';
-import { useAuthStore } from '../../stores/authStore';
+import { useAuth } from '../../stores/enhancedAppStore';
 import BaseManagement from './BaseManagement';
 
 const BasesPage: React.FC = () => {
-  const { empire, isLoading } = useAuthStore();
+  const auth = useAuth();
+  const { empire, isLoading } = auth;
 
   if (isLoading) {
     return (

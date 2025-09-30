@@ -1,9 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { Empire, getColonizationCost } from '@game/shared';
-import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useModalStore } from '../../stores/modalStore';
-import universeService, { UniverseLocationData } from '../../services/universeService';
+import { useEnhancedAppStore } from '../../stores/enhancedAppStore';
+
+// Enhanced store compatible types
+interface UniverseLocationData {
+  coord: string;
+  type: 'planet' | 'asteroid' | 'star';
+  result?: {
+    fertility: number;
+    solarEnergy: number;
+    yields: {
+      metal: number;
+      gas: number;
+      crystals: number;
+    };
+    area?: number;
+  };
+  owner: { id: string; username: string } | null;
+  terrain?: {
+    type: string;
+  };
+  orbitPosition?: number;
+  starOverhaul?: {
+    kind: string;
+  };
+  context?: {
+    server: string;
+    galaxy: number;
+    region: number;
+    system: number;
+    body: number;
+  };
+}
 
 
 interface Territory {
@@ -38,17 +68,26 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
   // Get progressive colonization cost based on empire base count
   const colonizationCostCredits = getColonizationCost(empire.baseCount || 0, empire.hasDeletedBase || false);
 
-  // Use shared API client
-  const apiInstance = api;
   const navigate = useNavigate();
   const { closeModal } = useModalStore();
+  
+  // Enhanced store access for API calls
+  const services = useEnhancedAppStore((state) => state.services);
+  const gameApi = services?.gameApi;
 
   // Fetch empire territories
   const fetchTerritories = async () => {
+    if (!gameApi?.getTerritories) {
+      setError('Territories API not available');
+      return;
+    }
+    
     try {
-      const response = await apiInstance.get('/game/territories');
-      if (response.data.success) {
-        setTerritories(response.data.data.territories);
+      const response = await gameApi.getTerritories();
+      if (response.success) {
+        setTerritories(response.data.territories || []);
+      } else {
+        setError(response.error || 'Failed to load territories');
       }
     } catch (err) {
       console.error('Error fetching territories:', err);
@@ -73,8 +112,14 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
     setError(null);
     setLocationData(null);
 
+    if (!gameApi?.getLocationByCoord) {
+      setError('Location search API not available');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const resp = await universeService.getLocationByCoord(coord);
+      const resp = await gameApi.getLocationByCoord(coord);
       if (resp.success && resp.data) {
         setLocationData(resp.data);
       } else {
@@ -82,7 +127,7 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
         setError(resp.error || 'Location not found');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Network error. Please try again.');
+      setError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -113,16 +158,18 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
       return;
     }
 
+    if (!gameApi?.colonizeLocation) {
+      setError('Colonization API not available');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const response = await apiInstance.post('/game/territories/colonize', {
-        locationCoord: locationData.coord,
-        colonyName: colonyName.trim()
-      });
+      const response = await gameApi.colonizeLocation(locationData.coord, colonyName.trim());
 
-      if (response.data.success) {
+      if (response.success) {
         await fetchTerritories();
         onUpdate(); // Update dashboard
         setActiveTab('territories');
@@ -130,10 +177,10 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
         setColonyName('');
         setCoordinateInput('');
       } else {
-        setError(response.data.error || 'Failed to colonize location');
+        setError(response.error || 'Failed to colonize location');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Network error. Please try again.');
+      setError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }

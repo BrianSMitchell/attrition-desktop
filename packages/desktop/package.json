@@ -13,12 +13,14 @@
     "dev": "electron .",
     "start": "electron .",
     "prebuild": "pnpm --filter @game/shared build && pnpm --filter @game/client build",
-    "build": "electron-builder --config ../../config/electron-builder.yml",
-    "build:win": "electron-builder --win --config ../../config/electron-builder.yml",
-    "build:mac": "electron-builder --mac --config ../../config/electron-builder.yml",
-    "build:linux": "electron-builder --linux --config ../../config/electron-builder.yml",
-    "pack": "electron-builder --dir --config ../../config/electron-builder.yml",
-    "dist": "electron-builder --config ../../config/electron-builder.yml",
+    "postinstall": "electron-builder install-app-deps",
+    "rebuild:native": "node scripts/rebuild-native.cjs",
+    "build": "pnpm run rebuild:native && electron-builder --config ../../config/electron-builder.yml",
+    "build:win": "pnpm run rebuild:native && electron-builder --win --config ../../config/electron-builder.yml",
+    "build:mac": "pnpm run rebuild:native && electron-builder --mac --config ../../config/electron-builder.yml",
+    "build:linux": "pnpm run rebuild:native && electron-builder --linux --config ../../config/electron-builder.yml",
+    "pack": "pnpm run rebuild:native && electron-builder --dir --config ../../config/electron-builder.yml",
+    "dist": "pnpm run rebuild:native && electron-builder --config ../../config/electron-builder.yml",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:security": "jest --testNamePattern='Security'"
@@ -36,6 +38,8 @@
     "@jest/globals": "^29.7.0",
     "electron": "^31.2.0",
     "electron-builder": "^24.13.3",
-    "jest": "^29.7.0"
+    "electron-rebuild": "^3.2.9",
+    "jest": "^29.7.0",
+    "prebuild-install": "^7.1.3"
   }
 }

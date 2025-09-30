@@ -66,10 +66,13 @@ export class EconomyService {
    * Compute credits per hour from structures (buildings)
    */
   static async computeStructuresEconomy(empireId: string): Promise<number> {
-    // Get all active buildings for this empire
+    // Get all effectively active buildings for this empire (active OR being upgraded)
     const buildings = await Building.find({
       empireId: new mongoose.Types.ObjectId(empireId),
-      isActive: true,
+      $or: [
+        { isActive: true },
+        { pendingUpgrade: true }
+      ],
       constructionCompleted: { $exists: true, $ne: null }
     });
 
@@ -103,11 +106,12 @@ export class EconomyService {
 
     // Diagnostic logging
     console.log(`🏗️  Empire ${empireId} structures economy breakdown:`);
-    console.log(`   Total buildings: ${buildings.length}, Active buildings: ${buildingContributions.length}`);
+    console.log(`   Total buildings found: ${buildings.length}, Contributing buildings: ${buildingContributions.length}`);
     buildingContributions.forEach(b => {
       console.log(`   Building ${b.id}: ${b.type} → ${b.catalogKey} (level ${b.level}) = ${b.economy} × ${b.level} = ${b.contribution} credits/hour`);
     });
     console.log(`   Total structures economy: ${totalEconomy} credits/hour`);
+    console.log(`   Note: Includes buildings that are active OR being upgraded`);
 
     return totalEconomy;
   }

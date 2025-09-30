@@ -4,6 +4,11 @@ This directory contains various utility scripts organized by purpose.
 
 ## Directory Structure
 
+### Root Scripts
+Core utility scripts:
+- `pre-build-cleanup.js` - Cross-platform script to kill Electron/Node processes before building
+- `pre-build-cleanup.ps1` - Windows PowerShell version with enhanced features
+
 ### `dev/`
 Development utilities and tools:
 - `test-feedback-system.js` - Test the feedback and notification system
@@ -52,6 +57,74 @@ Many scripts require environment variables to be set:
 - Log operations for debugging and audit purposes
 - Make scripts idempotent where possible
 - Include help text or usage instructions
+
+---
+
+# Pre-Build Cleanup (Native Module Build Fix)
+
+## Problem
+When building Electron apps with native dependencies (like `better-sqlite3`), you may encounter:
+```
+Error: EPERM: operation not permitted, unlink '...\better-sqlite3\build\Release\better_sqlite3.node'
+```
+
+This happens because running Electron or Node processes have file locks on native modules.
+
+## Solution
+Use the pre-build cleanup scripts to automatically stop all Electron and Node processes before building.
+
+### Quick Start
+```bash
+# Check what processes are running (safe)
+pnpm run prebuild:clean:check
+
+# Clean up processes (with confirmation)
+node scripts/pre-build-cleanup.js
+
+# Clean up and build (automatic)
+pnpm run build:all
+```
+
+### Available Scripts
+
+#### Node.js Script (Cross-Platform)
+```bash
+# Run with confirmation prompt
+node scripts/pre-build-cleanup.js
+
+# Force kill without confirmation
+node scripts/pre-build-cleanup.js --force
+
+# Dry run (see what would be killed)
+node scripts/pre-build-cleanup.js --dry-run
+
+# Verbose output
+node scripts/pre-build-cleanup.js --verbose
+
+# Via npm scripts
+pnpm run prebuild:clean          # Force cleanup
+pnpm run prebuild:clean:check    # Dry run check
+```
+
+#### PowerShell Script (Windows Only)
+```powershell
+.\scripts\pre-build-cleanup.ps1              # With confirmation
+.\scripts\pre-build-cleanup.ps1 -Force       # Force kill
+.\scripts\pre-build-cleanup.ps1 -DryRun      # Dry run
+.\scripts\pre-build-cleanup.ps1 -Verbose     # Detailed output
+```
+
+### Integration
+The cleanup script is now automatically run before builds:
+- `pnpm run build` - Includes automatic cleanup
+- `pnpm run build:all` - Includes automatic cleanup
+
+### Features
+✅ Cross-platform (Windows, macOS, Linux)  
+✅ Safe with confirmation prompts  
+✅ Dry run mode to preview changes  
+✅ Automatically integrated into build process  
+✅ Detailed logging and verification  
 
 ---
 

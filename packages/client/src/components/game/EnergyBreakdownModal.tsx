@@ -138,35 +138,38 @@ const EnergyBreakdownModal: React.FC<Props> = ({ data }) => {
         ))}
       </Block>
 
-      {typeof totals.reservedNegative === 'number' || (breakdown.reserved && breakdown.reserved.length > 0) ? (
-        <Block title="Reserved (Queued Consumers)">
-          {typeof totals.reservedNegative === 'number' && totals.reservedNegative !== 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-300">Reserved Total</span>
-              <span className="text-yellow-300 font-mono">
-                {fmtEnergy(totals.reservedNegative)}
-              </span>
-            </div>
-          )}
+      {(typeof totals.reservedNegative === 'number' && totals.reservedNegative !== 0) || (breakdown.reserved && breakdown.reserved.length > 0) ? (
+        <Block title="Reserved (Under Construction)" total={totals.reservedNegative} totalLabel="Reserved">
           {(breakdown.reserved || []).map((r) => (
             <div key={`r-${r.key}`} className="flex justify-between text-sm">
-              <span className="text-gray-300">{r.name}</span>
-              <span className="text-yellow-300 font-mono">{fmtEnergy(r.value)}</span>
+              <span className="text-gray-300">
+                {r.name}
+                <span className="text-xs text-gray-500 ml-2">(-{Math.abs(r.value)} energy)</span>
+              </span>
+              <span className="text-yellow-300 font-mono">{fmtEnergy(Math.abs(r.value))}</span>
             </div>
           ))}
-          {!breakdown.reserved || breakdown.reserved.length === 0 ? (
-            <div className="text-sm text-gray-500">No queued reservations counted.</div>
-          ) : null}
+          {breakdown.reserved && breakdown.reserved.length > 0 && (
+            <div className="mt-2 text-xs text-gray-500">
+              These structures are currently under construction and will consume energy when completed.
+            </div>
+          )}
+          {(!breakdown.reserved || breakdown.reserved.length === 0) && totals.reservedNegative !== 0 && (
+            <div className="text-sm text-gray-400">
+              Total energy reserved: <span className="font-mono text-yellow-300">{fmtEnergy(Math.abs(totals.reservedNegative || 0))}</span>
+            </div>
+          )}
         </Block>
       ) : null}
 
       <div className="text-xs text-gray-500">
         Notes:
         <ul className="list-disc ml-5 mt-1 space-y-1">
-          <li>Baseline adds a constant +2 energy per base.</li>
-          <li>Solar/Gas plants scale by planet context (solarEnergy / gas yield).</li>
-          <li>Other structures use the catalog energyDelta per level.</li>
-          <li>Totals align with the shared helper used by both client and server.</li>
+          <li>Every base starts with +2 baseline energy</li>
+          <li>Solar plants produce: level × planet's solar energy value</li>
+          <li>Gas plants produce: level × planet's gas yield value</li>
+          <li>Other structures consume or produce fixed energy per level</li>
+          <li>Reserved energy shows structures under construction that will consume energy</li>
         </ul>
       </div>
     </div>

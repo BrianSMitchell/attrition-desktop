@@ -54,6 +54,8 @@ contextBridge.exposeInMainWorld('desktop', {
       // REMOVED: dequeueForFlush, markSent, markFailed - Internal operations only
       cleanup: (olderThanDays) => ipcRenderer.invoke('db:events:cleanup', olderThanDays),
       getPendingCount: (kind) => ipcRenderer.invoke('db:events:getPendingCount', kind ?? null),
+      flushQueue: (limit) => ipcRenderer.invoke('db:events:flushQueue', limit ?? 50),
+      getQueueMetrics: () => ipcRenderer.invoke('db:events:getQueueMetrics'),
     },
 
     // Sync state operations

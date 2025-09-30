@@ -1,48 +1,57 @@
 import * as React from 'react';
-import { HashRouter, BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './stores/authStore';
-import { NetworkProvider } from './contexts/NetworkContext';
-import { SyncProvider } from './contexts/SyncContext';
+import { BrowserRouter, HashRouter, Navigate, Route, Routes } from 'react-router-dom';
+// Remove unused NetworkProvider import
+import { useAuth, useAuthActions, useServiceState } from './stores/enhancedAppStore';
 import ConnectionBanner from './components/layout/ConnectionBanner';
-import Login from './components/auth/Login';
-import Register from './components/auth/Register';
-import Dashboard from './components/game/Dashboard';
-import Layout from './components/layout/Layout';
-import GalaxyPage from './components/game/GalaxyPage';
-import PlanetPage from './components/game/PlanetPage';
-import BasesPage from './components/game/BasesPage';
-import BasePage from './components/game/BasePage';
-import HelpPage from './components/help/HelpPage';
-import FleetPage from './components/game/FleetPage';
-import MessagesPage from './components/game/MessagesPage';
-import PerformancePage from './components/admin/PerformancePage';
-import { ToastProvider, ToastViewport } from './contexts/ToastContext';
+const Login = React.lazy(() => import('./components/auth/Login'));
+const LoginMigrationTest = React.lazy(() => import('./components/auth/LoginMigrationTest'));
+const Register = React.lazy(() => import('./components/auth/Register'));
+const Dashboard = React.lazy(() => import('./components/game/Dashboard'));
+import { LayoutWithServices as Layout } from './components/layout/LayoutWithServices';
+const GalaxyPage = React.lazy(() => import('./components/game/GalaxyPage'));
+const PlanetPage = React.lazy(() => import('./components/game/PlanetPage'));
+const UniversePage = React.lazy(() => import('./components/game/UniversePage'));
+const BasesPage = React.lazy(() => import('./components/game/BasesPage'));
+const BasePage = React.lazy(() => import('./components/game/BasePage'));
+const HelpPage = React.lazy(() => import('./components/help/HelpPage'));
+const FleetPage = React.lazy(() => import('./components/game/FleetPage'));
+const MessagesPage = React.lazy(() => import('./components/game/MessagesPage'));
+const PerformancePage = React.lazy(() => import('./components/admin/PerformancePage'));
 import { UpdateProvider } from './contexts/UpdateContext';
 import SyncFeedback from './components/ui/SyncFeedback';
 import UpdateNotification from './components/ui/UpdateNotification';
 import MessageToast from './components/ui/MessageToast';
+import ToastContainer from './components/ui/ToastContainer';
+import { prefetchVendors } from './utils/prefetch';
 
 const isDesktop = typeof window !== 'undefined' && (((window as any).desktop) || window.location.protocol === 'file:');
 const RouterComponent = isDesktop ? HashRouter : BrowserRouter;
 
 function App() {
-  const isAuthed = useAuthStore((s) => s.getIsAuthed());
-  const isLoading = useAuthStore((s) => s.isLoading);
-  // Backward-compat shim for existing ternaries that check `user ? ... : ...`
-  const user = isAuthed ? ({} as any) : null;
+  const auth = useAuth();
+  const { clearAuth } = useAuthActions();
+  
+  // Check both auth state and service readiness
+  const services = useServiceState();
+  const isAuthed = auth.user && auth.token;
+  const isLoading = auth.isLoading || (isAuthed && !services?.isReady);
+  const user = isAuthed ? auth.user : null; // Use actual user object instead of empty object
+
+  // Service initialization is now handled by ServiceProvider in Layout
+  // This prevents multiple initialization attempts and infinite loops
 
   // Listen for global auth:unauthorized to immediately clear auth state (prevents redirect oscillation)
   React.useEffect(() => {
     const handler = () => {
       try {
-        useAuthStore.getState().unauthorize();
+        clearAuth();
       } catch {}
     };
     window.addEventListener('auth:unauthorized' as any, handler);
     return () => {
       window.removeEventListener('auth:unauthorized' as any, handler);
     };
-  }, []);
+  }, [clearAuth]);
 
   if (isLoading) {
     return (
@@ -55,27 +64,49 @@ function App() {
     );
   }
 
+  // Prefetch a few tiny vendor chunks after first paint to speed up navigation
+  React.useEffect(() => {
+    prefetchVendors();
+  }, []);
+
+  // Pixi7 POC loader disabled to keep Pixi 6 build stable
+
   return (
-    <NetworkProvider>
-      <ToastProvider>
-        <UpdateProvider>
-          <SyncProvider>
-            <RouterComponent>
-              <ConnectionBanner />
-              <ToastViewport />
-              <UpdateNotification />
-              <SyncFeedback />
-              <MessageToast />
-            <div className="game-container">
+    <UpdateProvider>
+      <RouterComponent>
+        <ConnectionBanner />
+        <ToastContainer />
+        <UpdateNotification />
+        <SyncFeedback />
+        <MessageToast />
+        <div className="game-container">
             <Routes>
               {/* Public routes */}
               <Route 
                 path="/login" 
-                element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
+                element={user ? <Navigate to="/dashboard" replace /> : (
+                  <React.Suspense fallback={<div className="p-4 text-center">Loading…</div>}>
+                    <Login />
+                  </React.Suspense>
+                )}
               />
               <Route 
                 path="/register" 
-                element={user ? <Navigate to="/dashboard" replace /> : <Register />} 
+                element={user ? <Navigate to="/dashboard" replace /> : (
+                  <React.Suspense fallback={<div className="p-4 text-center">Loading…</div>}>
+                    <Register />
+                  </React.Suspense>
+                )} 
+              />
+              
+              {/* Migration test route - development only */}
+              <Route 
+                path="/login-test" 
+                element={user ? <Navigate to="/dashboard" replace /> : (
+                  <React.Suspense fallback={<div className="p-4 text-center">Loading…</div>}>
+                    <LoginMigrationTest />
+                  </React.Suspense>
+                )} 
               />
               
               {/* Protected routes */}
@@ -84,7 +115,9 @@ function App() {
                 element={
                   user ? (
                     <Layout>
-                      <Dashboard />
+                      <React.Suspense fallback={<div className="p-4 text-center">Loading…</div>}>
+                        <Dashboard />
+                      </React.Suspense>
                     </Layout>
                   ) : (
                     <Navigate to="/login" replace />
@@ -93,11 +126,28 @@ function App() {
               />
               
               <Route 
+                path="/universe" 
+                element={
+                  user ? (
+                    <Layout>
+                      <React.Suspense fallback={<div className="p-4 text-center">Loading…</div>}>
+                        <UniversePage />
+                      </React.Suspense>
+                    </Layout>
+                  ) : (
+                    <Navigate to="/login" replace />
+                  )
+                } 
+              />
+
+              <Route 
                 path="/galaxy" 
                 element={
                   user ? (
                     <Layout>
-                      <GalaxyPage />
+                      <React.Suspense fallback={<div className="p-4 text-center">Loading…</div>}>
+                        <GalaxyPage />
+                      </React.Suspense>
                     </Layout>
                   ) : (
                     <Navigate to="/login" replace />
@@ -109,7 +159,9 @@ function App() {
                 element={
                   user ? (
                     <Layout>
-                      <BasesPage />
+                      <React.Suspense fallback={<div className="p-4 text-center">Loading…</div>}>
+                        <BasesPage />
+                      </React.Suspense>
                     </Layout>
                   ) : (
                     <Navigate to="/login" replace />
@@ -121,7 +173,9 @@ function App() {
                 element={
                   user ? (
                     <Layout>
-                      <HelpPage />
+                      <React.Suspense fallback={<div className="p-4 text-center">Loading…</div>}>
+                        <HelpPage />
+                      </React.Suspense>
                     </Layout>
                   ) : (
                     <Navigate to="/login" replace />
@@ -134,7 +188,9 @@ function App() {
                 element={
                   user ? (
                     <Layout>
-                      <PlanetPage />
+                      <React.Suspense fallback={<div className="p-4 text-center">Loading…</div>}>
+                        <PlanetPage />
+                      </React.Suspense>
                     </Layout>
                   ) : (
                     <Navigate to="/login" replace />
@@ -146,7 +202,9 @@ function App() {
                 element={
                   user ? (
                     <Layout>
-                      <BasePage />
+                      <React.Suspense fallback={<div className="p-4 text-center">Loading…</div>}>
+                        <BasePage />
+                      </React.Suspense>
                     </Layout>
                   ) : (
                     <Navigate to="/login" replace />
@@ -158,7 +216,9 @@ function App() {
                 element={
                   user ? (
                     <Layout>
-                      <FleetPage />
+                      <React.Suspense fallback={<div className="p-4 text-center">Loading…</div>}>
+                        <FleetPage />
+                      </React.Suspense>
                     </Layout>
                   ) : (
                     <Navigate to="/login" replace />
@@ -171,7 +231,9 @@ function App() {
                 element={
                   user ? (
                     <Layout>
-                      <MessagesPage />
+                      <React.Suspense fallback={<div className="p-4 text-center">Loading…</div>}>
+                        <MessagesPage />
+                      </React.Suspense>
                     </Layout>
                   ) : (
                     <Navigate to="/login" replace />
@@ -184,7 +246,9 @@ function App() {
                 element={
                   user ? (
                     <Layout>
-                      <PerformancePage />
+                      <React.Suspense fallback={<div className="p-4 text-center">Loading…</div>}>
+                        <PerformancePage />
+                      </React.Suspense>
                     </Layout>
                   ) : (
                     <Navigate to="/login" replace />
@@ -206,10 +270,7 @@ function App() {
             </Routes>
           </div>
         </RouterComponent>
-          </SyncProvider>
-        </UpdateProvider>
-      </ToastProvider>
-    </NetworkProvider>
+    </UpdateProvider>
   );
 }
 

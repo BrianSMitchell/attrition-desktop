@@ -183,7 +183,7 @@ async function main() {
 
   // Note: This script imports @game/shared via its exports map which points to dist/.
   // Ensure the shared package has been built: pnpm --filter @game/shared build
-  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/space-empire-mmo';
+  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/attrition';
 
   console.log(`Connecting to MongoDB...`);
   await mongoose.connect(mongoUri, {

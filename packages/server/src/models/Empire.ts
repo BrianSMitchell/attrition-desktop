@@ -13,6 +13,7 @@ export interface EmpireDocument extends Document {
   territories: string[]; // list of coordinates
   baseCount: number; // Track number of bases for colonization cost calculation
   hasDeletedBase: boolean; // Track if empire gets 25% colonization discount
+  economyPerHour: number; // Cached total empire economy (sum of all bases)
   resources: EmpireResources;
   lastResourceUpdate?: Date;
   lastCreditPayout?: Date;
@@ -55,6 +56,10 @@ const empireSchema = new Schema<EmpireDocument>(
   hasDeletedBase: {
     type: Boolean,
     default: false,
+  },
+  economyPerHour: {
+    type: Number,
+    default: 0,
   },
   resources: {
     credits: { type: Number, default: 0 },

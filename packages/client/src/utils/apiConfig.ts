@@ -26,39 +26,30 @@ export interface ApiConfig {
  * Uses runtime detection to automatically switch between dev and production APIs
  */
 function isProductionBuild(): boolean {
-  // Method 0: Check if we're NOT in development (simple but effective)
-  // If we don't have clear dev indicators, assume production
-  const hasDevIndicators = 
+  // Force development mode via environment variable (highest priority)
+  const forceDevMode = import.meta.env.VITE_FORCE_DEV_MODE === 'true';
+  if (forceDevMode) {
+    return false;
+  }
+  
+  // Force production mode via environment variable (second priority)
+  const forceProductionMode = import.meta.env.VITE_FORCE_PRODUCTION_MODE === 'true';
+  if (forceProductionMode) {
+    return true;
+  }
+  
+  // Check for desktop development indicators
+  const hasDesktopDevIndicators = 
+    (typeof window !== 'undefined' && (window as any).desktop?.isPackaged === false) ||
     (typeof window !== 'undefined' && window.location?.href?.includes('localhost')) ||
     (typeof window !== 'undefined' && window.location?.href?.includes('127.0.0.1')) ||
     (typeof window !== 'undefined' && window.location?.href?.includes('packages/client')) ||
-    (typeof process !== 'undefined' && process.execPath?.includes('node_modules'));
+    (typeof process !== 'undefined' && process.execPath?.includes('node_modules')) ||
+    (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') ||
+    import.meta.env.DEV === true ||
+    import.meta.env.MODE === 'development';
   
-  if (!hasDevIndicators) {
-    console.log('🚀 No development indicators found - using production API');
-    console.log(`🎯 === FINAL PRODUCTION DETECTION RESULT: true (no dev indicators) ===`);
-    return true;
-  } else {
-    console.log('🔧 Development indicators found - using development API');
-    console.log(`🎯 === FINAL PRODUCTION DETECTION RESULT: false (dev indicators found) ===`);
-    return false;
-  }
-  
-  // Force production mode via environment variable (takes precedence even over detection)
-  const forceProductionMode = import.meta.env.VITE_FORCE_PRODUCTION_MODE === 'true';
-  if (forceProductionMode) {
-    console.log('🚀 Forced production mode via VITE_FORCE_PRODUCTION_MODE');
-    console.log(`🎯 === FINAL PRODUCTION DETECTION RESULT: true (forced) ===`);
-    return true;
-  }
-  
-  // Force development mode via environment variable
-  const forceDevMode = import.meta.env.VITE_FORCE_DEV_MODE === 'true';
-  if (forceDevMode) {
-    console.log('🔧 Forced development mode via VITE_FORCE_DEV_MODE');
-    console.log(`🎯 === FINAL PRODUCTION DETECTION RESULT: false (forced dev) ===`);
-    return false;
-  }
+  return !hasDesktopDevIndicators;
 }
 
 
@@ -84,16 +75,13 @@ function getApiBaseUrl(): string {
   
   if (import.meta.env.VITE_API_URL) {
     baseUrl = import.meta.env.VITE_API_URL;
-    console.log(`🖥️ Desktop Explicit API: ${baseUrl}`);
   } else if (isProduction) {
     // Production: Use HTTPS with configurable host
     const productionHost = import.meta.env.VITE_PRODUCTION_HOST || 'attrition-game.onrender.com';
     baseUrl = `https://${productionHost}/api`;
-    console.log(`🖥️ Desktop Production API: ${baseUrl}`);
   } else {
     // Development: Local server
     baseUrl = 'http://localhost:3001/api';
-    console.log(`🖥️ Desktop Development API: ${baseUrl}`);
   }
   
   return baseUrl;
@@ -137,16 +125,6 @@ export function getApiConfig(): ApiConfig {
     isDesktop: true, // Always desktop
     environment
   };
-  
-  // Log configuration with enhanced debugging
-  console.log('🖥️ Desktop API Configuration:', {
-    environment,
-    isProduction,
-    httpsEnforced,
-    apiUrl,
-    socketUrl,
-    forceDevMode: import.meta.env.VITE_FORCE_DEV_MODE
-  });
   
   // Security validation for production
   if (isProduction && !apiUrl.startsWith('https://')) {
@@ -196,6 +174,7 @@ export function validateApiSecurity(config: ApiConfig): { isSecure: boolean; war
  * Get the current API configuration (singleton pattern)
  */
 let cachedConfig: ApiConfig | null = null;
+let loggedConfigOnce = false;
 
 export function getCurrentApiConfig(): ApiConfig {
   if (!cachedConfig) {
@@ -205,6 +184,24 @@ export function getCurrentApiConfig(): ApiConfig {
     const securityCheck = validateApiSecurity(cachedConfig);
     if (!securityCheck.isSecure && cachedConfig.isProduction) {
       console.error('❌ API configuration failed security validation in production');
+    }
+
+    // Log a concise one-time summary to reduce noise in dev
+    if (!loggedConfigOnce) {
+      loggedConfigOnce = true;
+      try {
+        const forceDev = import.meta.env.VITE_FORCE_DEV_MODE === 'true';
+        const forceProd = import.meta.env.VITE_FORCE_PRODUCTION_MODE === 'true';
+        console.log('[API] Config initialized', {
+          environment: cachedConfig.environment,
+          isProduction: cachedConfig.isProduction,
+          httpsEnforced: cachedConfig.httpsEnforced,
+          apiUrl: cachedConfig.apiUrl,
+          socketUrl: cachedConfig.socketUrl,
+          forceDev,
+          forceProd,
+        });
+      } catch {}
     }
   }
   

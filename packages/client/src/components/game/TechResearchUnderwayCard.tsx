@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { Empire } from '@game/shared';
 import { getTechSpec, type TechnologyKey } from '@game/shared';
-import techService from '../../services/techService';
+import { useEnhancedAppStore } from '../../stores/enhancedAppStore';
 
 interface TechQueueItemDTO {
   _id?: string;
@@ -38,19 +38,28 @@ const TechResearchUnderwayCard: React.FC<TechResearchUnderwayCardProps> = ({ bas
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0); // for updating countdowns
+  
+  // Enhanced store access for API calls
+  const services = useEnhancedAppStore((state) => state.services);
+  const gameApi = services?.gameApi;
 
   const fetchQueue = async () => {
+    if (!gameApi.getResearchQueue) {
+      setError('Research queue API not available');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     try {
-      const res = await techService.getQueue(baseCoordFilter);
+      const res = await gameApi.getResearchQueue(baseCoordFilter);
       if (res.success) {
-        setQueue(res.data?.queue || []);
+        setQueue(res.data || []);
       } else {
         setError(res.error || 'Failed to load technology research queue');
       }
     } catch (err: any) {
-      setError(err?.response?.data?.error || 'Network error while loading tech research queue');
+      setError('Network error while loading tech research queue');
     } finally {
       setLoading(false);
     }
@@ -58,9 +67,16 @@ const TechResearchUnderwayCard: React.FC<TechResearchUnderwayCardProps> = ({ bas
 
   useEffect(() => {
     fetchQueue();
-    // auto-refresh countdown every 30s
-    const id = setInterval(() => setTick((t) => t + 1), 30000);
-    return () => clearInterval(id);
+    // Update progress bars every 30 seconds
+    const tickId = setInterval(() => setTick((t) => t + 1), 30000);
+    // Fetch fresh data every 60 seconds for real-time updates
+    const fetchId = setInterval(() => {
+      fetchQueue();
+    }, 60000);
+    return () => {
+      clearInterval(tickId);
+      clearInterval(fetchId);
+    };
   }, [baseCoordFilter]);
 
   const active = useMemo(

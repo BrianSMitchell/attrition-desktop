@@ -193,7 +193,21 @@ const MessagesPage: React.FC = () => {
                   {currentMessages.map((message) => (
                     <div
                       key={message._id}
-                      onClick={() => setSelectedMessage(message)}
+                      onClick={() => {
+                        try {
+                          clearError(); // Clear any previous errors
+                          
+                          // Validate message data before selecting
+                          if (!message || !message._id) {
+                            console.error('Invalid message data:', message);
+                            return;
+                          }
+                          
+                          setSelectedMessage(message);
+                        } catch (error) {
+                          console.error('Error selecting message:', error);
+                        }
+                      }}
                       className={`p-3 rounded cursor-pointer transition-colors ${
                         selectedMessage?._id === message._id
                           ? 'bg-blue-900/50 border border-blue-700'

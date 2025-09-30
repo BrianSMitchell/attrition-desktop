@@ -2,7 +2,7 @@ import api from './api';
 
 export interface BaseStatsDTO {
   area: { total: number; used: number; free: number };
-  energy: { produced: number; consumed: number; balance: number };
+  energy: { produced: number; consumed: number; balance: number; rawBalance?: number; projectedBalance?: number };
   population: { used: number; capacity: number; free: number };
   ownerIncomeCredPerHour: number;
 }

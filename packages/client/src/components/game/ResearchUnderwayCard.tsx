@@ -1,13 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import api from '../../services/api';
 import type { Empire, ResearchProject } from '@game/shared';
+import { useEnhancedAppStore } from '../../stores/enhancedAppStore';
 
 interface ResearchUnderwayCardProps {
   empire: Empire;
 }
-
-// Use shared API client
-const apiInstance = api;
 
 const getResearchIcon = (type: string) => {
   const icons: Record<string, string> = {
@@ -31,19 +28,28 @@ const ResearchUnderwayCard: React.FC<ResearchUnderwayCardProps> = ({ }) => {
   const [projects, setProjects] = useState<ResearchProject[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Enhanced store access for API calls
+  const services = useEnhancedAppStore((state) => state.services);
+  const gameApi = services?.gameApi;
 
   const fetchResearch = async () => {
+    if (!gameApi.getResearchProjects) {
+      setError('Research projects API not available');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     try {
-      const res = await apiInstance.get('/game/research');
-      if (res.data?.success) {
-        setProjects(res.data.data.researchProjects as ResearchProject[]);
+      const res = await gameApi.getResearchProjects();
+      if (res.success) {
+        setProjects(res.data?.researchProjects || []);
       } else {
-        setError(res.data?.error || 'Failed to load research');
+        setError(res.error || 'Failed to load research');
       }
     } catch (err: any) {
-      setError(err?.response?.data?.error || 'Network error while loading research');
+      setError('Network error while loading research');
     } finally {
       setLoading(false);
     }
@@ -51,6 +57,11 @@ const ResearchUnderwayCard: React.FC<ResearchUnderwayCardProps> = ({ }) => {
 
   useEffect(() => {
     fetchResearch();
+    // Fetch fresh research data every 60 seconds for real-time updates
+    const fetchId = setInterval(() => {
+      fetchResearch();
+    }, 60000);
+    return () => clearInterval(fetchId);
   }, []);
 
   const active = projects.filter((p) => !p.isCompleted);

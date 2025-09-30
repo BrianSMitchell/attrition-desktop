@@ -4,7 +4,6 @@ import { Colony, Building } from '@game/shared';
 
 interface BaseData extends Omit<Colony, 'buildings'> {
   buildings: Building[];
-  constructionQueue: Building[];
 }
 
 interface BaseState {

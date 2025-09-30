@@ -1,10 +1,12 @@
 import mongoose from 'mongoose';
 import { Building } from '../models/Building';
 import { Location } from '../models/Location';
+import { DefenseQueue } from '../models/DefenseQueue';
 import {
   getBuildingSpec,
   type BuildingKey,
   computeEnergyBalance,
+  getDefensesList,
 } from '@game/shared';
 
 /**
@@ -24,6 +26,8 @@ export interface BaseStatsDTO {
     produced: number;
     consumed: number;
     balance: number;
+    rawBalance?: number; // exposed for UI parity without reservations
+    projectedBalance?: number; // alias of balance for clarity
   };
   population: {
     used: number;
@@ -60,29 +64,28 @@ const location = await Location.findOne({ coord: locationCoord })
     const solarEnergy = Math.max(0, Number((location as any)?.result?.solarEnergy ?? 0));
     const gasResource = Math.max(0, Number((location as any)?.result?.yields?.gas ?? 0));
 
-    // 2) Active buildings at this base for this empire
-    // Include pending upgrades as effectively active for display budgets:
-    // - Upgrades: pendingUpgrade === true, isActive === false (keep counting current level)
-    // - New constructions: pendingUpgrade === false, isActive === false (do not count yet)
+    // 2) Get all buildings for this empire at this location
     const buildings = await Building.find({
       empireId: new mongoose.Types.ObjectId(empireId),
       locationCoord,
     })
-      .select('level catalogKey isActive pendingUpgrade')
+      .select('level catalogKey isActive pendingUpgrade constructionStarted constructionCompleted')
       .lean();
 
     let areaUsed = 0;
     let areaReserved = 0;
-    const energyInputs: Array<{ key: string; level: number; isActive: boolean; isQueuedConsumer?: boolean }> = [];
     let populationUsed = 0;
     let populationReserved = 0;
     let populationCapacity = 0;
     let ownerIncome = 0;
 
-    for (const b of (buildings || [])) {
-      // Treat pending upgrades as effectively active so current level continues contributing during upgrade
-      const effectiveActive = (b as any).isActive === true || (b as any).pendingUpgrade === true;
+    // Separate active buildings from those under construction
+    const activeBuildings: Array<{ key: string; level: number; isActive: boolean }> = [];
+    const constructionQueue: Array<{ key: string; level: number }> = [];
 
+    for (const b of (buildings || [])) {
+      const isActive = (b as any).isActive === true;
+      const pendingUpgrade = (b as any).pendingUpgrade === true;
       const level = Math.max(0, Number((b as any).level || 0));
       const catalogKey = (b as any).catalogKey as BuildingKey | undefined;
 
@@ -92,50 +95,118 @@ const location = await Location.findOne({ coord: locationCoord })
       }
 
       const spec = getBuildingSpec(catalogKey);
-
-      // Area / Energy / Population accounting
       const areaReq = Math.max(0, Number(spec.areaRequired ?? 0));
       const popReq = Math.max(0, Number(spec.populationRequired ?? 0));
-      const queuedNew = (b as any).isActive === false && (b as any).pendingUpgrade !== true;
 
-      if (effectiveActive) {
-        // Effective active (includes pendingUpgrade): count fully
+      const countsAsActive = (isActive || pendingUpgrade) && level > 0;
+      const isUnderConstruction = !isActive && (b as any).constructionCompleted; // queued step exists
+
+      if (countsAsActive) {
+        // Count current active level even while upgrading (pendingUpgrade=true)
+        activeBuildings.push({ key: catalogKey, level, isActive: true });
         areaUsed += level * areaReq;
-        const delta = Number(spec?.energyDelta || 0);
-        const input: { key: string; level: number; isActive: boolean; isQueuedConsumer?: boolean } = { key: catalogKey, level, isActive: true };
-        // If this is a pending upgrade and the next level would consume energy, pre-reserve one step
-        if ((b as any).pendingUpgrade === true && delta < 0) {
-          input.isQueuedConsumer = true;
-          areaReserved += areaReq;
-          populationReserved += popReq;
-        }
-        energyInputs.push(input);
         populationUsed += level * popReq;
-      } else if (queuedNew) {
-        // Queued new construction: reserve usage and only reserve negative energy
-        areaReserved += level * areaReq;
-        const delta = Number(spec?.energyDelta || 0);
-        energyInputs.push({ key: catalogKey, level, isActive: false, isQueuedConsumer: delta < 0 });
-        populationReserved += level * popReq;
-      } else {
-        // Inactive but not queued new (e.g., safety fallback) — ignore
+
+        // Population capacity from Urban Structures
+        if (catalogKey === 'urban_structures') {
+          populationCapacity += level * fertility;
+        }
+
+        // Owner Income (credits/hour)
+        const econ = Math.max(0, Number(spec.economy || 0));
+        ownerIncome += level * econ;
       }
 
-      // Population (capacity) from Urban Structures: per level equals fertility
-      if (catalogKey === 'urban_structures') {
-        populationCapacity += level * fertility;
+      if (isUnderConstruction) {
+        // Under construction - count reservation for the next step only
+        const targetLevel = level > 0 ? level + 1 : 1; // If upgrading, next level; if new, level 1
+        constructionQueue.push({ key: catalogKey, level: targetLevel });
+        // Reserve area and population for this single step
+        areaReserved += areaReq;
+        populationReserved += popReq;
       }
-
-      // Owner Income (credits/hour)
-      const econ = Math.max(0, Number(spec.economy || 0));
-      ownerIncome += level * econ;
     }
 
-    const { produced: energyProduced, consumed: energyConsumed, balance, reservedNegative } = computeEnergyBalance({
-      buildingsAtBase: energyInputs,
+    // Calculate current energy (active buildings only)
+    const currentEnergy = computeEnergyBalance({
+      buildingsAtBase: activeBuildings,
       location: { solarEnergy, gasYield: gasResource },
+      includeQueuedReservations: false, // Don't include reservations in current balance
     });
-    const projectedBalance = balance + reservedNegative;
+
+    // Incorporate completed defenses into energy (consumption/production)
+    // Each completed defense queue item counts as one level of that defense at the base.
+    const completedDefenses = await DefenseQueue.find({
+      empireId: new mongoose.Types.ObjectId(empireId),
+      locationCoord,
+      status: 'completed',
+    })
+      .select('defenseKey')
+      .lean();
+
+    const defenseSpecByKey = new Map<string, { energyDelta: number; name: string }>();
+    for (const d of getDefensesList()) {
+      defenseSpecByKey.set(String((d as any).key), { energyDelta: Number((d as any).energyDelta || 0), name: String((d as any).name || String((d as any).key)) });
+    }
+
+    const defenseCountByKey = new Map<string, number>();
+    for (const it of (completedDefenses || [])) {
+      const k = String((it as any).defenseKey || '');
+      if (!k) continue;
+      defenseCountByKey.set(k, (defenseCountByKey.get(k) || 0) + 1);
+    }
+
+    let defenseProduced = 0;
+    let defenseConsumed = 0;
+    for (const [k, count] of defenseCountByKey.entries()) {
+      const spec = defenseSpecByKey.get(k);
+      const delta = Number(spec?.energyDelta || 0);
+      if (delta >= 0) defenseProduced += count * delta;
+      else defenseConsumed += count * Math.abs(delta);
+    }
+
+    const producedWithDef = currentEnergy.produced + defenseProduced;
+    const consumedWithDef = currentEnergy.consumed + defenseConsumed;
+    const rawBalanceWithDef = producedWithDef - consumedWithDef;
+
+    // Calculate projected energy (with construction queue) and reserve queued negatives (buildings + defenses)
+    let projectedBalance = rawBalanceWithDef;
+    let reservedNegative = 0;
+
+    if (constructionQueue.length > 0) {
+      // Only count negative energy deltas from the construction queue
+      for (const item of constructionQueue) {
+        const spec = getBuildingSpec(item.key as BuildingKey);
+        const delta = Number(spec?.energyDelta || 0);
+        if (delta < 0) {
+          reservedNegative += delta; // Single step reservation
+        }
+      }
+    }
+
+    // Also reserve queued negative energy from scheduled defense items at this base
+    try {
+      const now = new Date();
+      const scheduledDefense = await DefenseQueue.find({
+        empireId: new mongoose.Types.ObjectId(empireId),
+        locationCoord,
+        status: 'pending',
+        completesAt: { $gt: now },
+      })
+        .select('defenseKey')
+        .lean();
+
+      for (const it of (scheduledDefense || [])) {
+        const k = String((it as any).defenseKey || '');
+        if (!k) continue;
+        const spec = defenseSpecByKey.get(k);
+        const delta = Number(spec?.energyDelta || 0);
+        if (delta < 0) reservedNegative += delta; // single step reservation per queued defense
+      }
+    } catch {}
+
+    projectedBalance = rawBalanceWithDef + reservedNegative;
+
     const areaFree = Math.max(0, areaTotal - (areaUsed + areaReserved));
     const populationFree = Math.max(0, populationCapacity - (populationUsed + populationReserved));
 
@@ -146,9 +217,11 @@ const location = await Location.findOne({ coord: locationCoord })
         free: areaFree,
       },
       energy: {
-        produced: energyProduced,
-        consumed: energyConsumed,
-        balance: projectedBalance, // show balance including queued negative reservations
+        produced: producedWithDef,
+        consumed: consumedWithDef,
+        balance: projectedBalance, // For backwards compatibility, show projected when construction/defense is active
+        rawBalance: rawBalanceWithDef, // Current balance including completed defenses and without reservations
+        projectedBalance: projectedBalance, // Includes reservations from structures and scheduled defenses
       },
       population: {
         used: populationUsed + populationReserved,
