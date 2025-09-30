@@ -24,7 +24,8 @@
     "dist": "pnpm run rebuild:native && electron-builder --config ../../config/electron-builder.yml",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:security": "jest --testNamePattern='Security'"
+    "test:security": "jest --testNamePattern='Security'",
+    "cleanup:error-queue": "node scripts/cleanup-error-queue.js"
   },
   "dependencies": {
     "@game/shared": "workspace:*",
