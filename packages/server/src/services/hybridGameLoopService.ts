@@ -33,11 +33,15 @@ export class HybridGameLoopService {
    */
   start(): void {
     if (this.isRunning) {
-      console.log('Hybrid game loop is already running');
+      if (process.env.DEBUG_RESOURCES === 'true') {
+        console.log('Hybrid game loop is already running');
+      }
       return;
     }
 
-    console.log('🎮 Starting HYBRID game loop with optimized intervals');
+    if (process.env.DEBUG_RESOURCES === 'true') {
+      console.log('🎮 Starting HYBRID game loop with optimized intervals');
+    }
     this.isRunning = true;
 
     // CRITICAL SYSTEMS: Check completions frequently (10 seconds)
@@ -70,10 +74,12 @@ export class HybridGameLoopService {
       }
     }, 300000); // 5 minutes
 
-    console.log('✅ Hybrid game loop started:');
-    console.log('   🔄 Completions: Every 10 seconds (responsive)');
-    console.log('   💰 Resources: Every 60 seconds (efficient)');
-    console.log('   🧹 Maintenance: Every 5 minutes (lightweight)');
+    if (process.env.DEBUG_RESOURCES === 'true') {
+      console.log('✅ Hybrid game loop started:');
+      console.log('   🔄 Completions: Every 10 seconds (responsive)');
+      console.log('   💰 Resources: Every 60 seconds (efficient)');
+      console.log('   🧹 Maintenance: Every 5 minutes (lightweight)');
+    }
   }
 
   /**
@@ -94,7 +100,9 @@ export class HybridGameLoopService {
     }
     
     this.isRunning = false;
-    console.log('🛑 Hybrid game loop stopped');
+    if (process.env.DEBUG_RESOURCES === 'true') {
+      console.log('🛑 Hybrid game loop stopped');
+    }
   }
 
   /**
@@ -102,7 +110,9 @@ export class HybridGameLoopService {
    * Call this whenever a user performs an action (login, build, etc.)
    */
   async checkUserCompletions(empireId: string): Promise<void> {
-    console.log(`🔍 Checking completions for active empire: ${empireId}`);
+    if (process.env.DEBUG_RESOURCES === 'true') {
+      console.log(`🔍 Checking completions for active empire: ${empireId}`);
+    }
     
     try {
       const results = await Promise.all([
@@ -137,9 +147,11 @@ export class HybridGameLoopService {
       // Only log if there was actual activity
       const totalActivity = techStats.completed + unitStats.completed + defenseStats.completed + fleetArrivals;
       if (totalActivity > 0) {
-        console.log(
-          `[HybridLoop] completions: tech=${techStats.completed} units=${unitStats.completed} defense=${defenseStats.completed} fleets=${fleetArrivals}`
-        );
+        if (process.env.DEBUG_RESOURCES === 'true') {
+          console.log(
+            `[HybridLoop] completions: tech=${techStats.completed} units=${unitStats.completed} defense=${defenseStats.completed} fleets=${fleetArrivals}`
+          );
+        }
       }
     } catch (error) {
       console.error('❌ Error in completion processing:', error);
@@ -176,7 +188,9 @@ export class HybridGameLoopService {
         }
       }
 
-      console.log(`[HybridLoop] resources updated: ${updated}/${activeEmpires.length} empires`);
+      if (process.env.DEBUG_RESOURCES === 'true') {
+        console.log(`[HybridLoop] resources updated: ${updated}/${activeEmpires.length} empires`);
+      }
     } catch (error) {
       console.error('Error in resource updates:', error);
     }
@@ -186,7 +200,9 @@ export class HybridGameLoopService {
    * INFREQUENT: Process maintenance tasks (5 minute interval)
    */
   private async processMaintenanceTasks(): Promise<void> {
-    console.log('🧹 Running maintenance tasks...');
+    if (process.env.DEBUG_RESOURCES === 'true') {
+      console.log('🧹 Running maintenance tasks...');
+    }
     
     try {
       // Complete finished research projects
@@ -196,7 +212,9 @@ export class HybridGameLoopService {
       const techActivated = await this.activatePendingTech();
 
       if (researchCompleted > 0 || techActivated.activated > 0) {
-        console.log(`[HybridLoop] maintenance: research=${researchCompleted} techActivated=${techActivated.activated}`);
+        if (process.env.DEBUG_RESOURCES === 'true') {
+          console.log(`[HybridLoop] maintenance: research=${researchCompleted} techActivated=${techActivated.activated}`);
+        }
       }
     } catch (error) {
       console.error('❌ Error in maintenance tasks:', error);

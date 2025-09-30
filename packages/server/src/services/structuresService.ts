@@ -574,7 +574,9 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
 
       if (!didInsert) {
         // Another request already queued the same item
-        console.log(`[StructuresService.start] idempotent existing queued for identityKey=${identityKey}`);
+        if (process.env.DEBUG_RESOURCES === 'true') {
+          console.log(`[StructuresService.start] idempotent existing queued for identityKey=${identityKey}`);
+        }
         return formatAlreadyInProgress('structures', identityKey, buildingKey);
       }
 

@@ -267,7 +267,9 @@ export class UnitsService {
     } catch (err: any) {
       // Handle duplicate key race (unique partial index on identityKey,status=pending)
       if (err?.code === 11000) {
-        console.log(`[UnitsService.start] idempotent duplicate key for identityKey=${identityKey}`);
+        if (process.env.DEBUG_RESOURCES === 'true') {
+          console.log(`[UnitsService.start] idempotent duplicate key for identityKey=${identityKey}`);
+        }
         return formatAlreadyInProgress('units', identityKey, unitKey);
       }
       throw err;

@@ -9,10 +9,13 @@ if (import.meta.env.DEV) {
 import ServiceApp from './ServiceApp.tsx'
 import './index.css'
 import { schedulePrefetch } from './prefetch'
+import ErrorBoundary from './components/ui/ErrorBoundary'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ServiceApp />
+    <ErrorBoundary>
+      <ServiceApp />
+    </ErrorBoundary>
   </React.StrictMode>,
 )
 

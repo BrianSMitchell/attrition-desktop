@@ -32,7 +32,9 @@ export class EmpireEconomyService {
       empire.economyPerHour = totalEconomy;
       await empire.save();
 
-      console.log(`💰 Empire ${empireId} (${empire.name}) economy updated: ${totalEconomy} credits/hour (cached)`);
+      if (process.env.DEBUG_RESOURCES === 'true') {
+        console.log(`💰 Empire ${empireId} (${empire.name}) economy updated: ${totalEconomy} credits/hour (cached)`);
+      }
       
       return totalEconomy;
     } catch (error) {
@@ -54,7 +56,9 @@ export class EmpireEconomyService {
 
       // If economy hasn't been cached yet, calculate it once
       if (empire.economyPerHour === undefined || empire.economyPerHour === null) {
-        console.log(`⚠️ Empire ${empireId} economy not cached, calculating...`);
+        if (process.env.DEBUG_RESOURCES === 'true') {
+          console.log(`⚠️ Empire ${empireId} economy not cached, calculating...`);
+        }
         return await this.updateEmpireEconomy(empireId);
       }
 
@@ -72,7 +76,9 @@ export class EmpireEconomyService {
   static async recalculateAllEmpires(): Promise<void> {
     try {
       const empires = await Empire.find().select('_id name');
-      console.log(`🔄 Recalculating economy for ${empires.length} empires...`);
+      if (process.env.DEBUG_RESOURCES === 'true') {
+        console.log(`🔄 Recalculating economy for ${empires.length} empires...`);
+      }
 
       for (const empire of empires) {
         try {
@@ -82,7 +88,9 @@ export class EmpireEconomyService {
         }
       }
 
-      console.log(`✅ Completed empire economy recalculation`);
+      if (process.env.DEBUG_RESOURCES === 'true') {
+        console.log(`✅ Completed empire economy recalculation`);
+      }
     } catch (error) {
       console.error('Error recalculating all empire economies:', error);
       throw error;
@@ -95,7 +103,9 @@ export class EmpireEconomyService {
    */
   static async onBuildingChange(empireId: string, changeDescription?: string): Promise<void> {
     try {
-      console.log(`🏗️ Building change for empire ${empireId}: ${changeDescription || 'update'}`);
+      if (process.env.DEBUG_RESOURCES === 'true') {
+        console.log(`🏗️ Building change for empire ${empireId}: ${changeDescription || 'update'}`);
+      }
       await this.updateEmpireEconomy(empireId);
     } catch (error) {
       console.error(`Error updating empire economy after building change:`, error);
@@ -108,7 +118,9 @@ export class EmpireEconomyService {
    */
   static async onResearchComplete(empireId: string, researchName?: string): Promise<void> {
     try {
-      console.log(`🔬 Research completed for empire ${empireId}: ${researchName || 'unknown'}`);
+      if (process.env.DEBUG_RESOURCES === 'true') {
+        console.log(`🔬 Research completed for empire ${empireId}: ${researchName || 'unknown'}`);
+      }
       await this.updateEmpireEconomy(empireId);
     } catch (error) {
       console.error(`Error updating empire economy after research completion:`, error);

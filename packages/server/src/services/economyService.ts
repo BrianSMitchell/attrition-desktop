@@ -104,14 +104,16 @@ export class EconomyService {
       });
     }
 
-    // Diagnostic logging
-    console.log(`🏗️  Empire ${empireId} structures economy breakdown:`);
-    console.log(`   Total buildings found: ${buildings.length}, Contributing buildings: ${buildingContributions.length}`);
-    buildingContributions.forEach(b => {
-      console.log(`   Building ${b.id}: ${b.type} → ${b.catalogKey} (level ${b.level}) = ${b.economy} × ${b.level} = ${b.contribution} credits/hour`);
-    });
-    console.log(`   Total structures economy: ${totalEconomy} credits/hour`);
-    console.log(`   Note: Includes buildings that are active OR being upgraded`);
+    // Diagnostic logging (dev only)
+    if (process.env.DEBUG_RESOURCES === 'true') {
+      console.log(`🏗️  Empire ${empireId} structures economy breakdown:`);
+      console.log(`   Total buildings found: ${buildings.length}, Contributing buildings: ${buildingContributions.length}`);
+      buildingContributions.forEach(b => {
+        console.log(`   Building ${b.id}: ${b.type} → ${b.catalogKey} (level ${b.level}) = ${b.economy} × ${b.level} = ${b.contribution} credits/hour`);
+      });
+      console.log(`   Total structures economy: ${totalEconomy} credits/hour`);
+      console.log(`   Note: Includes buildings that are active OR being upgraded`);
+    }
 
     return totalEconomy;
   }

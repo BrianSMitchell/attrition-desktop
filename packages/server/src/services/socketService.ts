@@ -35,7 +35,9 @@ export function setupSocketIO(io: Server): void {
 
   io.on('connection', (socket) => {
     const user = socket.data.user;
-    console.log(`🔌 User ${user.username} connected via Socket.IO`);
+    if (process.env.DEBUG_RESOURCES === 'true') {
+      console.log(`🔌 User ${user.username} connected via Socket.IO`);
+    }
 
     // Track online unique users (per authenticated user)
     try {
@@ -145,7 +147,9 @@ export function setupSocketIO(io: Server): void {
         });
       } catch {}
 
-      console.log(`🔌 User ${user.username} disconnected: ${reason}`);
+      if (process.env.DEBUG_RESOURCES === 'true') {
+        console.log(`🔌 User ${user.username} disconnected: ${reason}`);
+      }
     });
 
     // Send welcome message
