@@ -25,7 +25,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:security": "jest --testNamePattern='Security'",
-    "cleanup:error-queue": "node scripts/cleanup-error-queue.js"
+    "cleanup:error-queue": "node scripts/cleanup-error-queue.js",
+    "cleanup:error-queue:electron": "electron ./scripts/cleanup-error-queue-electron.js"
   },
   "dependencies": {
     "@game/shared": "workspace:*",
