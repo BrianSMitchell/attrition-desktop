@@ -30,6 +30,12 @@ import { initSocketManager } from './utils/socketManager';
 // Load environment variables
 dotenv.config();
 
+// Initialize logger (optional console patch)
+try {
+  const { initLogger } = await import('./utils/logger');
+  initLogger();
+} catch {}
+
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)
   : ["http://localhost:5173", "http://localhost:5174", "null", "file://"];
