@@ -263,6 +263,21 @@ const createPopulationBreakdownHandler = (base: any, baseStats: any, openModal: 
   }
 };
 
+// Citizens capacity breakdown (uses /game/capacities)
+const createCitizensBreakdownHandler = (base: any, _baseStats: any, openModal: any) => async () => {
+  try {
+    if (!base?.locationCoord) return;
+    const capacitiesRes = await gameApi.getCapacities(base.locationCoord);
+    if (!capacitiesRes.success || !capacitiesRes.data) return;
+    openModal('capacity_breakdown', {
+      coord: base.locationCoord,
+      capacities: capacitiesRes.data,
+    });
+  } catch {
+    // non-fatal
+  }
+};
+
 export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
   base,
   baseStats,
@@ -275,6 +290,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
   const handleAreaBreakdown = createAreaBreakdownHandler(base, baseStats, openModal);
   const handleEnergyBreakdown = createEnergyBreakdownHandler(base, baseStats, openModal);
   const handlePopulationBreakdown = createPopulationBreakdownHandler(base, baseStats, openModal);
+  const handleCitizensBreakdown = createCitizensBreakdownHandler(base, baseStats, openModal);
   
   return (
     <>
@@ -297,7 +313,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
 
       {/* Stats */}
       <div className="game-card">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           <StatItem
             label="Area"
             main={
@@ -366,6 +382,37 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                 >
                   View breakdown ⟶
                 </button>
+              ) : undefined
+            }
+          />
+
+          <StatItem
+            label="Citizens"
+            main={
+              baseStats ? (
+                <span className="font-mono">
+                  {baseStats.citizens?.count?.toLocaleString?.() ?? '0'}
+                </span>
+              ) : (
+                '—'
+              )
+            }
+            sub={
+              baseStats ? (
+                <div className="flex items-center gap-3">
+                  {Number.isFinite(baseStats.citizens?.perHour as any) && (
+                    <span className="text-sm text-gray-400" title="Citizens generated per hour">
+                      +{(baseStats.citizens!.perHour).toLocaleString()}/hr
+                    </span>
+                  )}
+                  <button
+                    onClick={handleCitizensBreakdown}
+                    className="text-sm text-blue-400 hover:text-blue-300"
+                    title="View citizen capacity breakdown"
+                  >
+                    View breakdown ⟶
+                  </button>
+                </div>
               ) : undefined
             }
           />

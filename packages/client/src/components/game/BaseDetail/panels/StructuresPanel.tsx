@@ -29,6 +29,8 @@ export interface StructuresPanelProps {
   planetCrystalsYield: number | undefined;
   planetSolarEnergy: number | undefined;
   planetFertility: number | undefined;
+  /** Current tech levels (from Research status) used for requirement checks */
+  techLevels?: Record<string, number>;
   /** Event handlers */
   onRefresh: () => void;
   onStart: (structureKey: BuildingKey) => Promise<void>;
@@ -48,6 +50,7 @@ export const StructuresPanel: React.FC<StructuresPanelProps> = ({
   planetCrystalsYield,
   planetSolarEnergy,
   planetFertility,
+  techLevels,
   onRefresh,
   onStart,
   onQueue
@@ -82,6 +85,7 @@ export const StructuresPanel: React.FC<StructuresPanelProps> = ({
           planetCrystalsYield={planetCrystalsYield}
           planetSolarEnergy={planetSolarEnergy}
           planetFertility={planetFertility}
+          techLevels={techLevels}
           onStart={onStart}
           onQueue={onQueue}
         />

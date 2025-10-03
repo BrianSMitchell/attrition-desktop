@@ -22,6 +22,7 @@
     "@pixi/graphics": "7.4.3",
     "@pixi/sprite": "7.4.3",
     "@pixi/text": "7.4.3",
+    "@pixi/unsafe-eval": "7.4.3",
     "axios": "^1.6.7",
     "eventemitter3": "^5.0.1",
     "immer": "^10.1.3",

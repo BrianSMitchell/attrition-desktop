@@ -1,7 +1,8 @@
 import { Empire } from '../models/Empire';
 import { EconomyService } from './economyService';
-import { EmpireEconomyService } from './EmpireEconomyService';
+import { EmpireEconomyService } from './empireEconomyService';
 import { ResourceCost } from '@game/shared';
+import { CreditLedgerService } from './creditLedgerService';
 
 export class ResourceService {
   
@@ -119,6 +120,18 @@ export class ResourceService {
     }
 
     await empire.save();
+
+    // Log payout transaction (non-blocking)
+    if (wholeCredits > 0) {
+      CreditLedgerService.logTransaction({
+        empireId,
+        amount: wholeCredits,
+        type: 'payout',
+        note: `Periodic payout (${periodMinutes}m)`,
+        meta: { periodsElapsed, creditsPerHour },
+        balanceAfter: empire.resources.credits,
+      }).catch(() => {});
+    }
 
     // Debug: Log final state (only in debug mode) - no need for additional DB query
     if (process.env.DEBUG_RESOURCES === 'true') {

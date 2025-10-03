@@ -308,6 +308,7 @@ export interface ClassifiedCapacityBreakdown {
   location: CapacityBreakdownItem[];
   tech: CapacityBreakdownItem[];
   commander: CapacityBreakdownItem[];
+  citizen: CapacityBreakdownItem[];
   other: CapacityBreakdownItem[];
 }
 
@@ -329,6 +330,7 @@ export function classifyCapacityBreakdown(items: CapacityBreakdownItem[] = []): 
     location: [],
     tech: [],
     commander: [],
+    citizen: [],
     other: [],
   };
 
@@ -352,6 +354,8 @@ export function classifyCapacityBreakdown(items: CapacityBreakdownItem[] = []): 
       result.tech.push(item);
     } else if (src === 'Commander Bonus') {
       result.commander.push(item);
+    } else if (src === 'Citizens Bonus') {
+      result.citizen.push(item);
     } else {
       result.other.push(item);
     }

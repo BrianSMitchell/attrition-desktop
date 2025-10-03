@@ -221,8 +221,8 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
         if (!hasReq) {
           return <span className="text-gray-400">{text}</span>;
         }
-        // Get current tech levels from research data (passed as prop)
-        const currentTechLevels = techLevels || {};
+        // Get current tech levels (prefer explicit prop; fall back to status.techLevels if present)
+        const currentTechLevels = techLevels || (status as any)?.techLevels || {};
         // Check if all tech prerequisites are met
         const met = s.techPrereqs.every((p) => {
           const currentLevel = Math.max(0, currentTechLevels[p.key] ?? 0);

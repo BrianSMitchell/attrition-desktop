@@ -26,15 +26,14 @@ import { gameLoop } from './services/gameLoopService';
 import { hybridGameLoop } from './services/hybridGameLoopService';
 import { httpsHealthCheckHandler, HttpsHealthMonitor } from './utils/httpsHealthCheck';
 import { initSocketManager } from './utils/socketManager';
+import securityRoutes from './routes/security';
 
 // Load environment variables
 dotenv.config();
 
 // Initialize logger (optional console patch)
-try {
-  const { initLogger } = await import('./utils/logger');
-  initLogger();
-} catch {}
+import { initLogger } from './utils/logger';
+initLogger();
 
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)
@@ -179,7 +178,7 @@ app.use('/api/messages', sessionInvalidationMiddleware);
 
 // API routes
 app.use('/api/auth', authRoutes);
-app.use('/api/security', require('./routes/security').default); // Security monitoring endpoints
+app.use('/api/security', securityRoutes); // Security monitoring endpoints
 app.use('/api/game', gameRoutes);
 app.use('/api/universe', universeRoutes);
 app.use('/api/sync', syncRoutes);

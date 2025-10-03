@@ -55,6 +55,7 @@ const Section: React.FC<{ title: string; result: CapacityResult }> = ({ title, r
       <GroupBlock label="Location" items={groups.location} />
       <GroupBlock label="Tech" items={groups.tech} />
       <GroupBlock label="Commander" items={groups.commander} />
+      <GroupBlock label="Citizen Bonus" items={(groups as any).citizen} />
       <GroupBlock label="Other" items={groups.other} />
     </div>
   );

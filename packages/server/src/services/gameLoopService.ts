@@ -10,6 +10,7 @@ import { CapacityService } from './capacityService';
 import { TechService } from './techService';
 import { getTechSpec, getTechCreditCostForLevel, getUnitSpec } from '@game/shared';
 import { emitFleetUpdate } from '../utils/socketManager';
+import { BaseCitizenService } from './baseCitizenService';
 
 export class GameLoopService {
   private static instance: GameLoopService;
@@ -572,6 +573,12 @@ export class GameLoopService {
           const empireId = (empire._id as mongoose.Types.ObjectId).toString();
           await ResourceService.updateEmpireResources(empireId);
           await ResourceService.updateEmpireCreditsAligned(empireId);
+          // NEW: accrue base citizens per empire across all owned bases
+          try {
+            await BaseCitizenService.updateEmpireBases(empireId);
+          } catch (e) {
+            console.error('[GameLoop] citizen accrual error', e);
+          }
           updated++;
         } catch (error) {
           errors++;

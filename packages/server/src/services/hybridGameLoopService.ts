@@ -181,6 +181,9 @@ export class HybridGameLoopService {
           const empireId = (empire._id as mongoose.Types.ObjectId).toString();
           await ResourceService.updateEmpireResources(empireId);
           await ResourceService.updateEmpireCreditsAligned(empireId);
+          // Update per-base citizens for this empire
+          const { BaseCitizenService } = await import('./baseCitizenService');
+          await BaseCitizenService.updateEmpireBases(empireId);
           updated++;
         } catch (error) {
           errors++;

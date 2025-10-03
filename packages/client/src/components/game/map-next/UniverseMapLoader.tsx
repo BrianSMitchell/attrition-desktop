@@ -7,15 +7,11 @@ const UniverseMapLoader = React.forwardRef<UniverseMapRef, UniverseMapProps>((pr
   const [Inner, setInner] = React.useState<any>(null)
 
   React.useEffect(() => {
-    // Build path at runtime to avoid static analysis
-    const seg1 = 'Universe'
-    const seg2 = 'Map'
-    const path = `./${seg1}${seg2}`
-
+    // Use a static import path so Vite can include and hash the chunk correctly
     let cancelled = false
     ;(async () => {
       try {
-        const mod = await import(/* @vite-ignore */ path)
+        const mod = await import('./UniverseMap')
         if (!cancelled) {
           setInner(() => mod.default)
         }

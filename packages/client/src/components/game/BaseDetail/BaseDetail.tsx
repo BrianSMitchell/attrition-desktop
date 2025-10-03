@@ -111,6 +111,33 @@ export const BaseDetail: React.FC<BaseDetailProps> = ({
     }
   }, [activePanel, base?.locationCoord]); // gameActions is stable from Zustand, no need to include
 
+  // Auto-refresh Units requirements when tech levels or shipyard levels change
+  // This keeps the Production page's "Requires" section in sync after completing research
+  // or building shipyards without forcing the user to click Refresh.
+  useEffect(() => {
+    if (activePanel !== 'fleet') return; // only refresh while on the Production tab
+    if (!base?.locationCoord) return;
+
+    // Trigger a refresh of Units status when prerequisites change.
+    // We compute fingerprints in the dependency array below and just invoke the loader here.
+    Promise.resolve().then(() => {
+      gameActions.loadUnitsData(base.locationCoord);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePanel, base?.locationCoord, JSON.stringify(gameState?.research?.status?.techLevels || {}), gameState?.structures?.status?.currentLevels?.['shipyards'], gameState?.structures?.status?.currentLevels?.['orbital_shipyards']]);
+
+  // Auto-refresh Research requirements when research lab levels change
+  // Keeps the "Requires N lab levels at this base (have Y)" and Labs count in sync
+  useEffect(() => {
+    if (activePanel !== 'research') return; // only while on Research tab
+    if (!base?.locationCoord) return;
+
+    Promise.resolve().then(() => {
+      gameActions.loadResearchData(base.locationCoord);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePanel, base?.locationCoord, gameState?.structures?.status?.currentLevels?.['research_labs']]);
+
   // Compute fallback overview data from enhanced store when props are empty
   const computeFallbackBuildings = React.useCallback(() => {
     const out: any[] = [];
@@ -354,6 +381,7 @@ export const BaseDetail: React.FC<BaseDetailProps> = ({
           planetCrystalsYield={gameState?.structures?.planetYields?.crystalsYield}
           planetSolarEnergy={gameState?.structures?.planetYields?.solarEnergy}
           planetFertility={gameState?.structures?.planetYields?.fertility}
+          techLevels={gameState?.research?.status?.techLevels || {}}
           onRefresh={() => {
             gameActions.loadStructuresData(base.locationCoord);
           }}

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { Empire, EmpireDocument } from '../models/Empire';
 import { Location } from '../models/Location';
+import { CreditLedgerService } from './creditLedgerService';
 import { Building } from '../models/Building';
 import { CapacityService } from './capacityService';
 import { UnitQueue } from '../models/UnitQueue';
@@ -278,6 +279,14 @@ export class UnitsService {
     // Deduct credits only after queue creation succeeds
     empire.resources.credits -= creditsCost;
     await empire.save();
+    // Log unit production charge
+    CreditLedgerService.logTransaction({
+      empireId,
+      amount: -creditsCost,
+      type: 'unit_production',
+      note: `Start unit ${unitKey} at ${locationCoord}`,
+      meta: { locationCoord, unitKey, queueId: queueItem._id?.toString?.() },
+    }).catch(() => {});
 
     return formatSuccess(
       {

@@ -40,7 +40,10 @@ router.post('/register', registerRateLimit, asyncHandler(async (req: Request, re
     });
   }
 
-  const { email, username, password } = validation.data;
+  let { email, username, password } = validation.data;
+
+  // Normalize email to lowercase to ensure consistent uniqueness checks and login behavior
+  email = email.trim().toLowerCase();
 
   // Check if user already exists
   const existingUser = await User.findOne({
@@ -206,12 +209,52 @@ router.post('/login', loginRateLimit, accountLockout, asyncHandler(async (req: R
 
   const { email, password } = validation.data;
 
+  // Normalize email to lowercase for login lookup
+  const lookupEmail = email.trim().toLowerCase();
+
+  // Legacy compatibility: migrate old password field -> passwordHash if found
+  // (handles older databases where the field was named 'password' or stored in plain text)
+  try {
+    const raw = await User.collection.findOne({ email: lookupEmail });
+    if (raw && !raw.passwordHash && raw.password) {
+      const legacy = String(raw.password);
+      // Detect if legacy value looks like a bcrypt hash ($2a/$2b/$2y...)
+      const looksHashed = /^\$2[aby]?\$\d{2}\$/.test(legacy);
+      if (looksHashed) {
+        await User.updateOne({ _id: raw._id }, {
+          $set: { passwordHash: legacy },
+          $unset: { password: '' },
+        });
+      } else {
+        // Plaintext legacy: hash it now to migrate safely
+        const bcrypt = (await import('bcryptjs')).default;
+        const salt = await bcrypt.genSalt(12);
+        const hashed = await bcrypt.hash(legacy, salt);
+        await User.updateOne({ _id: raw._id }, {
+          $set: { passwordHash: hashed },
+          $unset: { password: '' },
+        });
+      }
+    }
+  } catch (e) {
+    // Non-fatal: continue with normal flow
+    console.warn('[auth.login] legacy password migration skipped:', (e as Error).message);
+  }
+
   // Find user and include password for comparison
-  const user = await User.findOne({ email }).select('+passwordHash');
+  const user = await User.findOne({ email: lookupEmail }).select('+passwordHash');
   
   const clientIP = req.ip || 'unknown';
   
   if (!user || !(await user.comparePassword(password))) {
+    // Development-only diagnostic to clarify reason for 401
+    if (process.env.DEBUG_AUTH === 'true') {
+      console.log('[auth.login] authentication failed', {
+        reason: !user ? 'user_not_found' : 'password_mismatch',
+        email: lookupEmail,
+        timestamp: new Date().toISOString()
+      });
+    }
     // Track failed login attempt
     trackFailedLogin(req);
     

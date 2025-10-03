@@ -34,6 +34,10 @@ export interface BaseStatsDTO {
     capacity: number;
     free: number;
   };
+  citizens: {
+    count: number;
+    perHour: number;
+  };
   ownerIncomeCredPerHour: number;
 }
 
@@ -210,6 +214,20 @@ const location = await Location.findOne({ coord: locationCoord })
     const areaFree = Math.max(0, areaTotal - (areaUsed + areaReserved));
     const populationFree = Math.max(0, populationCapacity - (populationUsed + populationReserved));
 
+    // Citizens: fetch per-hour from CapacityService and current count from Colony
+    let citizensPerHour = 0;
+    let citizensCount = 0;
+    try {
+      const { CapacityService } = require('./capacityService');
+      const { Colony } = require('../models/Colony');
+      const caps = await CapacityService.getBaseCapacities(empireId, locationCoord);
+      citizensPerHour = Math.max(0, Number((caps as any)?.citizen?.value || 0));
+      const colony = await Colony.findOne({ empireId: new mongoose.Types.ObjectId(empireId), locationCoord })
+        .select('citizens')
+        .lean();
+      citizensCount = Math.max(0, Number((colony as any)?.citizens || 0));
+    } catch {}
+
     return {
       area: {
         total: areaTotal,
@@ -227,6 +245,10 @@ const location = await Location.findOne({ coord: locationCoord })
         used: populationUsed + populationReserved,
         capacity: populationCapacity,
         free: populationFree,
+      },
+      citizens: {
+        count: citizensCount,
+        perHour: citizensPerHour,
       },
       ownerIncomeCredPerHour: ownerIncome,
     };

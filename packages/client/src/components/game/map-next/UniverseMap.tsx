@@ -1,6 +1,8 @@
 import * as React from 'react';
+import '@pixi/unsafe-eval'
 import * as PIXI from 'pixi.js'
 import { MapEngine } from './MapEngine';
+import { BackgroundManager } from './effects/BackgroundManager';
 import { ViewManager } from './views/ViewManager';
 import { ViewCoordinator } from './views/ViewCoordinator';
 import { parseCoordinate } from './data/mapDataLoader';
@@ -228,42 +230,14 @@ const DEBUG = false; // Disabled to avoid import.meta issues
 
       // Create view coordinator with wrapped callbacks OR update existing one
       const wrappedOnSelectLocation = (location: MapLocation) => {
-        // Always forward to parent first
+        // Always forward to parent first (routing/store will drive the actual view switch)
         if (onSelectLocationRef.current) {
           console.log('[UniverseMap] Location selected (forwarding to parent):', location);
           onSelectLocationRef.current(location);
         }
-
-        // Proactively switch Pixi view so UI updates immediately on click
-        try {
-          const vcRef = viewCoordinatorRef.current;
-          if (!vcRef) return;
-
-          // Derive server from store (fallback to 'A')
-          const storeState = useUniverseMapStore.getState();
-          const server = storeState.selectedCoordinate?.server || 'A';
-
-          if (location.level === 'galaxy' && typeof location.galaxy === 'number') {
-            vcRef.setContext(server, location.galaxy, 0, 0);
-            vcRef.setCurrentView('galaxy');
-          } else if (location.level === 'region' && typeof location.galaxy === 'number' && location.region) {
-            const regionNum = parseInt(location.region, 10) || 0;
-            vcRef.setContext(server, location.galaxy, regionNum, 0);
-            vcRef.setCurrentView('region');
-          } else if (
-            location.level === 'system' &&
-            typeof location.galaxy === 'number' &&
-            location.region &&
-            location.system
-          ) {
-            const regionNum = parseInt(location.region, 10) || 0;
-            const systemNum = parseInt(location.system, 10) || 0;
-            vcRef.setContext(server, location.galaxy, regionNum, systemNum);
-            vcRef.setCurrentView('system');
-          }
-        } catch (e) {
-          console.warn('[UniverseMap] Immediate view switch failed:', e);
-        }
+        // IMPORTANT: Do not also switch Pixi view here.
+        // The parent typically triggers navigation (e.g., to GalaxyPage/RegionPage), which unmounts this component.
+        // Kicking off a local view switch just before unmount causes stale-engine renders and crashes.
       };
       
       const wrappedOnHoverLocation = onHoverLocationRef.current ? (location: MapLocation | null) => {
@@ -330,42 +304,38 @@ const DEBUG = false; // Disabled to avoid import.meta issues
         console.log('[UniverseMap] Creating enhanced BackgroundManager...');
         const preferredBg = spaceBackgroundAvifUrl || spaceBackgroundWebpUrl || spaceBackgroundPngUrl;
 
-        // Dynamically import BackgroundManager to further defer heavy effects
-        (async () => {
-          const bmPath = './effects/BackgroundManager';
-          const mod = await import(/* @vite-ignore */ bmPath);
-          const BackgroundManager = (mod.BackgroundManager ?? mod.default);
-          const backgroundManager = new BackgroundManager({
-            width: bounds.width,
-            height: bounds.height,
-            starCount: 180,  // Increased for multi-layer effect
-            nebulaCount: 6,  // Enable nebula effects
-            backgroundImagePath: preferredBg,
-            enableParallax: true,
-            enableAdvancedEffects: true
-          });
-          
-          console.log('[UniverseMap] BackgroundManager created, getting container...');
-          const bgContainer = backgroundManager.getContainer();
-          console.log('[UniverseMap] Background container:', {
-            exists: !!bgContainer,
-            children: bgContainer?.children?.length || 0,
-            visible: bgContainer?.visible,
-            alpha: bgContainer?.alpha
-          });
-          
-          // Add background container to the background layer
-          background.addChild(bgContainer);
-          console.log('[UniverseMap] Background container added to background layer');
-          console.log('[UniverseMap] Background layer children count:', background.children.length);
-          
-          // Store reference on engine for ticker updates
-          (engine as any).backgroundManager = backgroundManager;
-          console.log('[UniverseMap] Background manager stored on engine:', !!(engine as any).backgroundManager);
-          
-          // Wait for background to fully initialize
-          try {
-            await backgroundManager.getInitializationPromise();
+        // Statically import BackgroundManager so Vite bundles the chunk with a hashed filename
+        const backgroundManager = new BackgroundManager({
+          width: bounds.width,
+          height: bounds.height,
+          starCount: 180,  // Increased for multi-layer effect
+          nebulaCount: 6,  // Enable nebula effects
+          backgroundImagePath: preferredBg,
+          enableParallax: true,
+          enableAdvancedEffects: true
+        });
+        
+        console.log('[UniverseMap] BackgroundManager created, getting container...');
+        const bgContainer = backgroundManager.getContainer();
+        console.log('[UniverseMap] Background container:', {
+          exists: !!bgContainer,
+          children: bgContainer?.children?.length || 0,
+          visible: bgContainer?.visible,
+          alpha: bgContainer?.alpha
+        });
+        
+        // Add background container to the background layer
+        background.addChild(bgContainer);
+        console.log('[UniverseMap] Background container added to background layer');
+        console.log('[UniverseMap] Background layer children count:', background.children.length);
+        
+        // Store reference on engine for ticker updates
+        (engine as any).backgroundManager = backgroundManager;
+        console.log('[UniverseMap] Background manager stored on engine:', !!(engine as any).backgroundManager);
+        
+        // Wait for background to fully initialize
+        backgroundManager.getInitializationPromise()
+          .then(() => {
             console.log('[UniverseMap] ===== BACKGROUND FULLY INITIALIZED =====');
             const finalContainer = backgroundManager.getContainer();
             console.log('[UniverseMap] Final container state:', {
@@ -374,23 +344,12 @@ const DEBUG = false; // Disabled to avoid import.meta issues
               alpha: finalContainer.alpha,
               position: { x: finalContainer.x, y: finalContainer.y }
             });
-          } catch (error) {
+          })
+          .catch((error) => {
             console.error('[UniverseMap] Background initialization failed:', error);
-          }
-          
-          console.log('[UniverseMap] ===== COSMIC BACKGROUND SETUP COMPLETE =====');
-        })().catch((error) => {
-          console.error('[UniverseMap] ===== BACKGROUND CREATION FAILED =====');
-          console.error('[UniverseMap] Error:', error);
-          // Create a simple test background to verify the layer works
-          console.log('[UniverseMap] Creating test background...');
-          const testBg = new Graphics();
-          testBg.beginFill(0x001122, 0.8); // Dark blue for visibility
-          testBg.drawRect(0, 0, bounds.width, bounds.height);
-          testBg.endFill();
-          background.addChild(testBg);
-          console.log('[UniverseMap] Test background created and added');
-        });
+          });
+        
+        console.log('[UniverseMap] ===== COSMIC BACKGROUND SETUP COMPLETE =====');
       } catch (error) {
         console.error('[UniverseMap] ===== BACKGROUND CREATION FAILED (sync) =====');
         console.error('[UniverseMap] Error:', error);
@@ -457,7 +416,8 @@ const DEBUG = false; // Disabled to avoid import.meta issues
           console.log('[UniverseMap] Setting initial view:', viewLevel);
           // Force render by temporarily setting current view level to something else
           console.log('[UniverseMap] Forcing view render by temporarily changing level');
-          const tempLevel = vc.getCurrentViewLevel() === 'universe' ? 'galaxy' : 'universe';
+          // Force a render by making the current level the opposite of the TARGET level
+          const tempLevel = viewLevel === 'galaxy' ? 'universe' : 'galaxy';
           (vc as any).currentViewLevel = tempLevel; // Temporarily change the level to force re-render
           console.log('[UniverseMap] Temporarily set level to:', tempLevel);
           return vc.setCurrentView(viewLevel);

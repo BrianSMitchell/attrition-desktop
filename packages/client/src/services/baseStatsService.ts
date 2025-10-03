@@ -4,6 +4,7 @@ export interface BaseStatsDTO {
   area: { total: number; used: number; free: number };
   energy: { produced: number; consumed: number; balance: number; rawBalance?: number; projectedBalance?: number };
   population: { used: number; capacity: number; free: number };
+  citizens: { count: number; perHour: number };
   ownerIncomeCredPerHour: number;
 }
 

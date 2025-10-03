@@ -1,15 +1,59 @@
 import mongoose from 'mongoose';
+import { supabase } from './supabase';
+import dotenv from 'dotenv';
 
+dotenv.config();
+
+const isProduction = process.env.NODE_ENV === 'production';
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+export { supabase };
+
+/**
+ * Database configuration
+ * - Development: Uses MongoDB
+ * - Production: Uses Supabase
+ */
+export const dbConfig = {
+  isProduction,
+  isDevelopment,
+  useSupabase: isProduction,
+  useMongoDB: !isProduction, // Use MongoDB for dev, test, or when not explicitly production
+};
+
+/**
+ * Initialize database connection based on environment
+ */
 export async function connectDatabase(): Promise<void> {
+  console.log('\n═══════════════════════════════════════');
+  console.log('  DATABASE CONFIGURATION');
+  console.log('═══════════════════════════════════════');
+  console.log(`  Environment:     ${process.env.NODE_ENV || 'development'}`);
+  console.log(`  Database Type:   ${dbConfig.useSupabase ? 'SUPABASE' : 'MONGODB'}`);
+  console.log('═══════════════════════════════════════\n');
+
+  if (dbConfig.useMongoDB) {
+    await connectMongoDB();
+  }
+  
+  if (dbConfig.useSupabase) {
+    await verifySupabaseConnection();
+  }
+}
+
+/**
+ * Connect to MongoDB (Development/Test)
+ */
+async function connectMongoDB(): Promise<void> {
   try {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/attrition';
     
     await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-      socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     });
 
-    console.log('✅ Connected to MongoDB');
+    console.log('✅ Connected to MongoDB (Development)');
     
     // Handle connection events
     mongoose.connection.on('error', (error) => {
@@ -17,7 +61,7 @@ export async function connectDatabase(): Promise<void> {
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.warn('⚠️ MongoDB disconnected');
+      console.warn('⚠️  MongoDB disconnected');
     });
 
     mongoose.connection.on('reconnected', () => {
@@ -26,17 +70,52 @@ export async function connectDatabase(): Promise<void> {
 
   } catch (error) {
     console.error('❌ Failed to connect to MongoDB:', error);
-    console.log('⚠️ Server will continue without database connection for testing');
-    // Don't throw error - allow server to start for testing
+    console.log('⚠️  Server will continue without database connection for testing');
   }
 }
 
-export async function disconnectDatabase(): Promise<void> {
+/**
+ * Verify Supabase connection (Production)
+ */
+async function verifySupabaseConnection(): Promise<void> {
   try {
-    await mongoose.disconnect();
-    console.log('✅ Disconnected from MongoDB');
+    // Simple query to verify connection
+    const { error } = await supabase.from('users').select('count').limit(1);
+    
+    if (error && error.code !== 'PGRST116') { // PGRST116 = empty table, which is OK
+      throw error;
+    }
+    
+    console.log('✅ Connected to Supabase (Production)');
   } catch (error) {
-    console.error('❌ Error disconnecting from MongoDB:', error);
+    console.error('❌ Supabase connection error:', error);
     throw error;
   }
+}
+
+/**
+ * Close database connections
+ */
+export async function disconnectDatabase(): Promise<void> {
+  if (dbConfig.useMongoDB) {
+    try {
+      await mongoose.disconnect();
+      console.log('✅ Disconnected from MongoDB');
+    } catch (error) {
+      console.error('❌ Error disconnecting from MongoDB:', error);
+      throw error;
+    }
+  }
+  
+  // Supabase doesn't need explicit closing
+  if (dbConfig.useSupabase) {
+    console.log('✅ Supabase session closed');
+  }
+}
+
+/**
+ * Get current database type
+ */
+export function getDatabaseType(): 'mongodb' | 'supabase' {
+  return dbConfig.useSupabase ? 'supabase' : 'mongodb';
 }

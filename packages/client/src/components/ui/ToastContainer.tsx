@@ -65,7 +65,7 @@ const ToastContainer: React.FC = () => {
 
           {/* Message */}
           <div className="flex-1 text-sm font-medium">
-            {toast.message}
+            {typeof toast.message === 'string' ? toast.message : JSON.stringify(toast.message)}
           </div>
 
           {/* Close button */}

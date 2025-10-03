@@ -62,10 +62,10 @@ export const logger = createLogger()
  */
 export function initLogger() {
   const gatedInfo: LogMethod = (...args) => {
-    if (isInfoEnabled()) console.__orig_info ? console.__orig_info(...args) : console.log(...args)
+    if (isInfoEnabled()) (console as any).__orig_info ? (console as any).__orig_info(...args) : console.log(...args)
   }
   const gatedDebug: LogMethod = (...args) => {
-    if (isInfoEnabled()) console.__orig_debug ? console.__orig_debug(...args) : console.log(...args)
+    if (isInfoEnabled()) (console as any).__orig_debug ? (console as any).__orig_debug(...args) : console.log(...args)
   }
 
   // Preserve original methods to avoid recursion

@@ -321,8 +321,15 @@ api.interceptors.response.use(
         ? { code: "TIMEOUT", message: "Request timed out" }
         : { code: "NETWORK_ERROR", message: "Network error" };
 
-    return Promise.reject(normalized);
+return Promise.reject(normalized);
   }
 );
 
+// --- Convenience API helpers ---
+export async function getCreditHistory(limit: number = 50): Promise<{ history: Array<{ _id: string; amount: number; type: string; note: string | null; balanceAfter: number | null; createdAt: string }> }> {
+  const resp = await api.get('/game/credits/history', { params: { limit } });
+  return resp.data?.data ?? { history: [] };
+}
+
 export default api;
+

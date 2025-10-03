@@ -3,6 +3,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { authRateLimit } from '../middleware/rateLimiting';
 import { securityMonitor, SecurityEventType } from '../utils/securityMonitor';
+import jwt from 'jsonwebtoken';
 
 const router: Router = Router();
 
@@ -164,7 +165,7 @@ router.delete('/sessions', asyncHandler(async (req: AuthRequest, res: Response) 
   }
   
   // Get current token JTI to preserve current session
-  const currentTokenDecoded = require('jsonwebtoken').decode(currentToken) as { jti?: string };
+  const currentTokenDecoded = jwt.decode(currentToken) as { jti?: string };
   const currentJti = currentTokenDecoded?.jti;
   
   // Find and revoke all other sessions

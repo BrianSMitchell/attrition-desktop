@@ -70,7 +70,7 @@ const UpdateNotification: React.FC = () => {
           <div className="flex-shrink-0 w-5 h-5 rounded-full bg-red-400 mt-0.5"></div>
           <div className="flex-1">
             <h4 className="font-medium text-red-100">Update Error</h4>
-            <p className="text-sm text-red-200 mt-1">{state.error}</p>
+            <p className="text-sm text-red-200 mt-1">{typeof state.error === 'string' ? state.error : JSON.stringify(state.error)}</p>
             <div className="flex space-x-2 mt-3">
               <button
                 onClick={() => checkForUpdates()}
@@ -210,7 +210,7 @@ const UpdateNotification: React.FC = () => {
                   What's New
                 </summary>
                 <div className="mt-1 text-xs text-orange-200 max-h-32 overflow-y-auto">
-                  {state.updateInfo.releaseNotes}
+                  {typeof state.updateInfo.releaseNotes === 'string' ? state.updateInfo.releaseNotes : JSON.stringify(state.updateInfo.releaseNotes)}
                 </div>
               </details>
             )}

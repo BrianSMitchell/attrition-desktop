@@ -6,7 +6,7 @@ dotenv.config();
 
 // Import the models and services
 import { Empire } from '../src/models/Empire';
-import { EmpireEconomyService } from '../src/services/EmpireEconomyService';
+import { EmpireEconomyService } from '../src/services/empireEconomyService';
 import { ResourceService } from '../src/services/resourceService';
 
 async function testEconomyFlow() {

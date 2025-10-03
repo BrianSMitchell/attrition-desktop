@@ -12,6 +12,7 @@ import {
 import { Location } from '../models/Location';
 import { CapacityService } from './capacityService';
 import { TechQueue } from '../models/TechQueue';
+import { CreditLedgerService } from './creditLedgerService';
 
 export interface TechStatus {
   techLevels: Partial<Record<TechnologyKey, number>>;
@@ -46,12 +47,12 @@ function mapFromEmpireTechLevels(empire: EmpireDocument): Partial<Record<Technol
 export class TechService {
   private static didSyncIndexes = false;
   static async getBaseLabTotal(empireId: string, locationCoord: string): Promise<number> {
-    // Sum levels for research_lab buildings at this base
+    // Sum levels for research_labs at this base. Treat pendingUpgrade as active so current level remains counted while upgrading.
     const buildings = await Building.find({
       empireId: new mongoose.Types.ObjectId(empireId),
       locationCoord,
       catalogKey: 'research_labs',
-      isActive: true,
+      $or: [{ isActive: true }, { pendingUpgrade: true }],
     }).select('level');
 
     return buildings.reduce((sum: number, b: any) => sum + (b.level || 0), 0);
@@ -110,6 +111,15 @@ export class TechService {
     // Deduct credits and set tech level to 1
     const l1Cost = getTechCreditCostForLevel(spec, 1);
     empire.resources.credits -= l1Cost;
+    // Log immediate unlock charge
+    CreditLedgerService.logTransaction({
+      empireId,
+      amount: -l1Cost,
+      type: 'research',
+      note: `Unlock ${techKey} level 1 at ${locationCoord}`,
+      meta: { locationCoord, techKey, level: 1 },
+      balanceAfter: empire.resources.credits,
+    }).catch(() => {});
 
     // Set in Map
     const mapVal = (empire as any).techLevels as Map<string, number> | undefined;
@@ -350,6 +360,14 @@ export class TechService {
     // Deduct credits only after queue creation succeeds
     empire.resources.credits -= creditsCost;
     await empire.save();
+    // Log queued research charge
+    CreditLedgerService.logTransaction({
+      empireId,
+      amount: -creditsCost,
+      type: 'research',
+      note: `Start research ${techKey}→${desiredLevel} at ${locationCoord}`,
+      meta: { locationCoord, techKey, level: desiredLevel, queueId: queueItem._id?.toString?.() },
+    }).catch(() => {});
 
     return {
       success: true as const,

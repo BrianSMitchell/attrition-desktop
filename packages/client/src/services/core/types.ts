@@ -85,6 +85,7 @@ export interface INetworkManager extends BaseManager {
 export interface IAuthManager extends BaseManager {
   getState(): AuthState;
   login(email: string, password: string): Promise<boolean>;
+  register(email: string, username: string, password: string): Promise<boolean>;
   logout(): Promise<void>;
   refreshToken(): Promise<boolean>;
   checkAuthStatus(): Promise<boolean>;

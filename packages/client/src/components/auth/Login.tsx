@@ -106,10 +106,10 @@ const LoginComponent: React.FC = () => {
     return retryAttempt < 2 && transientErrors.some(e => error.includes(e));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Extracted attempt logic so retries don't depend on React synthetic events
+  const attemptLogin = async () => {
     auth.clearError();
-    
+
     // Basic validation
     if (!email.trim() || !password.trim()) {
       addToast('error', 'Please enter both email and password');
@@ -121,7 +121,7 @@ const LoginComponent: React.FC = () => {
       addToast('warning', 'Authentication service is initializing. Please wait a moment...');
       return;
     }
-    
+
     try {
       // Handle credential saving/clearing based on remember me state
       if (rememberMe) {
@@ -129,16 +129,16 @@ const LoginComponent: React.FC = () => {
       } else {
         clearCredentials();
       }
-      
+
       const success = await auth.login(email, password);
-      
+
       if (success) {
         // Success handled by service integration (user state updated automatically)
         setRetryAttempt(0);
-        
+
         // Enhanced success feedback
         addToast('success', `Welcome back${auth.user?.username ? `, ${auth.user.username}` : ''}!`);
-        
+
         // Clear form on successful login
         if (!rememberMe) {
           setEmail('');
@@ -147,19 +147,19 @@ const LoginComponent: React.FC = () => {
       } else {
         // Enhanced error handling
         const errorMessage = getContextualErrorMessage(auth.error || 'Login failed');
-        
+
         // Auto-retry logic for transient failures
         if (shouldAutoRetry(auth.error || '')) {
           setRetryAttempt(prev => prev + 1);
           addToast('info', `Login failed, retrying... (${retryAttempt + 1}/2)`);
-          
-          // Retry after short delay
+
+          // Retry after short delay without reusing the synthetic event
           setTimeout(() => {
-            handleSubmit(e);
+            void attemptLogin();
           }, 1000);
           return;
         }
-        
+
         setRetryAttempt(0);
         addToast('error', errorMessage);
       }
@@ -169,6 +169,11 @@ const LoginComponent: React.FC = () => {
       const contextualMessage = getContextualErrorMessage(errorMessage);
       addToast('error', contextualMessage);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await attemptLogin();
   };
 
   // Service status indicator

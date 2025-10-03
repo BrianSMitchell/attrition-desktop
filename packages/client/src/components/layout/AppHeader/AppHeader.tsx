@@ -60,12 +60,18 @@ export const AppHeader: React.FC = () => {
           {/* Resource Display */}
           {auth.empire && (
             <div className="flex items-center space-x-4">
-              <ResourceDisplay
-                name="credits"
-                value={auth.empire.resources.credits}
-                icon="💰"
-                className="text-empire-gold"
-              />
+              <button
+                onClick={() => openModal('credits_history')}
+                className="hover:opacity-90 focus:outline-none"
+                title="View credits history"
+              >
+                <ResourceDisplay
+                  name="credits"
+                  value={auth.empire.resources.credits}
+                  icon="💰"
+                  className="text-empire-gold"
+                />
+              </button>
             </div>
           )}
 

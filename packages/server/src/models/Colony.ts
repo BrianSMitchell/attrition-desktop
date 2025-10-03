@@ -5,6 +5,10 @@ export interface ColonyDocument extends Document {
   locationCoord: string;
   name: string;
   buildings: mongoose.Types.ObjectId[];
+  // Citizens system
+  citizens: number;
+  lastCitizenUpdate?: Date;
+  citizenRemainderMilli: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +39,10 @@ const colonySchema = new Schema<ColonyDocument>(
         ref: 'Building',
       },
     ],
+    // Citizens system defaults
+    citizens: { type: Number, default: 0 },
+    lastCitizenUpdate: { type: Date },
+    citizenRemainderMilli: { type: Number, default: 0 },
   },
   {
     timestamps: true,

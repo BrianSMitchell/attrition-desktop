@@ -4,9 +4,22 @@
 // Run with: pnpm -F @game/desktop run cleanup:error-queue:electron
 
 import { app } from 'electron'
-import desktopDb from '../src/db.js'
+import path from 'node:path'
+import os from 'node:os'
 
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
+
+function getTargetUserDataPath() {
+  if (process.platform === 'win32') {
+    const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming')
+    return path.join(appData, '@game', 'desktop')
+  }
+  if (process.platform === 'darwin') {
+    return path.join(os.homedir(), 'Library', 'Application Support', '@game', 'desktop')
+  }
+  const config = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config')
+  return path.join(config, '@game', 'desktop')
+}
 
 async function main() {
   console.log('🗄️  Attrition Desktop - Error Queue Cleanup (Electron)')
@@ -14,6 +27,12 @@ async function main() {
 
   try {
     await app.whenReady()
+    // Ensure Electron uses the same userData path as the desktop app
+    const desiredUserData = getTargetUserDataPath()
+    app.setPath('userData', desiredUserData)
+    console.log(`[Desktop] userData set to: ${app.getPath('userData')}`)
+    // Import desktopDb AFTER setting userData so it picks up the correct path
+    const { default: desktopDb } = await import('../src/db.js')
     const db = desktopDb.init()
 
     const before = desktopDb.getPendingEventsCount('error')

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { BrowserRouter, HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 // Remove unused NetworkProvider import
-import { useAuth, useAuthActions, useServiceState } from './stores/enhancedAppStore';
+import { useAuth, useAuthActions } from './stores/enhancedAppStore';
 import ConnectionBanner from './components/layout/ConnectionBanner';
 const Login = React.lazy(() => import('./components/auth/Login'));
 const LoginMigrationTest = React.lazy(() => import('./components/auth/LoginMigrationTest'));
@@ -32,9 +32,11 @@ function App() {
   const { clearAuth } = useAuthActions();
   
   // Check both auth state and service readiness
-  const services = useServiceState();
   const isAuthed = auth.user && auth.token;
-  const isLoading = auth.isLoading || (isAuthed && !services?.isReady);
+  // IMPORTANT: Do not gate the entire app on services.isReady.
+  // The ServiceProvider inside the Layout handles service initialization and its own fallback UI.
+  // Gating here can cause a permanent loading screen if services cleanup runs and never flips isReady.
+  const isLoading = auth.isLoading; 
   const user = isAuthed ? auth.user : null; // Use actual user object instead of empty object
 
   // Service initialization is now handled by ServiceProvider in Layout

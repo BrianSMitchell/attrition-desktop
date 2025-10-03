@@ -13,6 +13,7 @@ import PopulationBreakdownModal from './PopulationBreakdownModal';
 import StructureLevelsModal from './StructureLevelsModal';
 import { STRUCTURE_LEVEL_META } from './levelTables/structures';
 import ResearchLevelsModal from './ResearchLevelsModal';
+import CreditHistoryModal from './CreditHistoryModal';
 import { RESEARCH_LEVEL_META } from './levelTables/research';
 
 interface ModalManagerProps {
@@ -37,6 +38,8 @@ const ModalManager: React.FC<ModalManagerProps> = ({ empire, onUpdate }) => {
         return '🚀 Fleet Management';
       case 'game_info':
         return '📘 Game Info';
+      case 'credits_history':
+        return '💰 Credits History';
       case 'capacity_breakdown':
         return '📊 Capacity Breakdown';
       case 'energy_breakdown':
@@ -79,6 +82,8 @@ const ModalManager: React.FC<ModalManagerProps> = ({ empire, onUpdate }) => {
         return 'md' as const;
       case 'research_levels_table':
         return 'md' as const;
+      case 'credits_history':
+        return 'lg' as const;
       default:
         return 'lg' as const;
     }
@@ -149,6 +154,10 @@ const ModalManager: React.FC<ModalManagerProps> = ({ empire, onUpdate }) => {
           <ResearchLevelsModal
             techKey={data?.techKey}
           />
+        );
+      case 'credits_history':
+        return (
+          <CreditHistoryModal />
         );
       default:
         return (

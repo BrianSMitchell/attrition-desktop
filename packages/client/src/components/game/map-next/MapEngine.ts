@@ -1,4 +1,5 @@
 import * as PIXI from 'pixi.js'
+import '@pixi/unsafe-eval'
 
 type TApplication = InstanceType<typeof PIXI.Application>;
 type TContainer = InstanceType<typeof PIXI.Container>;

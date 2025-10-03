@@ -23,7 +23,8 @@ export class CapacityService {
       const level = Math.max(0, Number((b as any).level || 0));
       const effectiveActive = (b as any).isActive === true || (b as any).pendingUpgrade === true;
       if (effectiveActive) {
-        activeLevels.set(key, Math.max(activeLevels.get(key) || 0, level));
+        // Sum levels across instances
+        activeLevels.set(key, (activeLevels.get(key) || 0) + level);
       }
     }
 
@@ -34,10 +35,31 @@ export class CapacityService {
       metalYield = Math.max(0, Number((loc as any)?.result?.yields?.metal || 0));
     } catch {}
 
-    const construction = this.computeConstruction(activeLevels, metalYield);
-    const production = this.computeProduction(activeLevels, metalYield);
-    const research = this.computeResearch(activeLevels);
+    // Baseline capacities
+    let construction = this.computeConstruction(activeLevels, metalYield);
+    let production = this.computeProduction(activeLevels, metalYield);
+    let research = this.computeResearch(activeLevels);
     const citizen = this.computeCitizen(activeLevels);
+
+    // Citizens-based percent bonus: +1% per 1,000 citizens (fractional)
+    try {
+      const { Colony } = require('../models/Colony');
+      const colony = await Colony.findOne({ empireId: new mongoose.Types.ObjectId(empireId), locationCoord })
+        .select('citizens')
+        .lean();
+      const citizens = Math.max(0, Number((colony as any)?.citizens || 0));
+      const pct = citizens / 100000; // 1000 citizens -> 0.01 (1%)
+      if (pct > 0) {
+        // Apply to each capacity and annotate breakdown
+        const applyPct = (res: CapacityResult): CapacityResult => ({
+          value: Math.round(res.value * (1 + pct)),
+          breakdown: [...(res.breakdown || []), { source: 'Citizens Bonus', value: pct, kind: 'percent' }],
+        });
+        construction = applyPct(construction);
+        production = applyPct(production);
+        research = applyPct(research);
+      }
+    } catch {}
 
     return { construction, production, research, citizen };
   }

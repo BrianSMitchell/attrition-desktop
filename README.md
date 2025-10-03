@@ -1,6 +1,6 @@
 # Attrition
 
-A strategic desktop space empire game built with Electron, React, Node.js, and MongoDB. This is a desktop-only application that combines rich client-side features with secure server connectivity.
+A strategic desktop space empire game built with Electron, React, Node.js, and a dual-database architecture (MongoDB for development, Supabase for production). This is a desktop-only application that combines rich client-side features with secure server connectivity.
 
 ## Project Structure
 
@@ -45,12 +45,16 @@ attrition/
 ### Backend (@game/server)
 - **Node.js** - Runtime
 - **Express** - Web framework
-- **MongoDB** - Database
-- **Mongoose** - ODM
+- **MongoDB** - Development database
+- **Supabase (PostgreSQL)** - Production database
+- **Mongoose** - MongoDB ODM
+- **@supabase/supabase-js** - Supabase client
 - **JWT** - Authentication
 - **bcryptjs** - Password hashing
 - **Socket.io** - Real-time communication
 - **TypeScript** - Type safety
+
+**Database Strategy**: Automatically uses MongoDB for `development` and Supabase for `production` based on `NODE_ENV`. See [DATABASE_MIGRATION.md](./DATABASE_MIGRATION.md) for details.
 
 ### Shared (@game/shared)
 - **TypeScript** - Shared types and interfaces
@@ -63,7 +67,8 @@ attrition/
 
 - Node.js 18+ 
 - PNPM (recommended) or npm
-- MongoDB (local installation or MongoDB Atlas)
+- **For Development**: MongoDB (local installation or Docker)
+- **For Production**: Supabase account (database managed in cloud)
 
 ### Installation
 

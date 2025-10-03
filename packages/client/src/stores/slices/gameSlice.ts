@@ -485,6 +485,12 @@ const createGameSlice: StateCreator<
         console.warn('Failed to load defense queue:', queueResponse.error);
       }
       
+      // Load capacities (for citizen production rate)
+      const capacitiesResponse = await gameApi.getCapacities(baseCoord);
+      if (!capacitiesResponse.success) {
+        console.warn('Failed to load capacities:', capacitiesResponse.error);
+      }
+      
       // Extract current levels from defenses data
       const currentLevels: Record<string, number> = {};
       if (defensesResponse.data?.defenseLevels) {
@@ -504,7 +510,9 @@ const createGameSlice: StateCreator<
           currentLevels
         },
         queue: queueResponse.data || [],
-        citizenPerHour: 50, // This might come from a different API
+        citizenPerHour: (capacitiesResponse.success && (capacitiesResponse.data as any)?.citizen?.value)
+          ? (capacitiesResponse.data as any).citizen.value
+          : 0,
         // Include current defense levels for display
         currentLevels,
       });

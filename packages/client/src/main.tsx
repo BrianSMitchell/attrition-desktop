@@ -1,4 +1,3 @@
-import React from 'react'
 import ReactDOM from 'react-dom/client'
 // Enable PIXI dev eval shim only in development to avoid unsafe-eval in production builds
 if (import.meta.env.DEV) {
@@ -12,11 +11,9 @@ import { schedulePrefetch } from './prefetch'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <ServiceApp />
-    </ErrorBoundary>
-  </React.StrictMode>,
+  <ErrorBoundary>
+    <ServiceApp />
+  </ErrorBoundary>,
 )
 
 // Schedule small, non-Pixi prefetches after first paint

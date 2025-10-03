@@ -99,6 +99,7 @@ export const useEnhancedAuthActions = () => useEnhancedAppStore((state) => ({
   getIsAuthed: state.getIsAuthed,
   // Enhanced service-integrated actions
   loginWithService: state.loginWithService,
+  registerWithService: state.registerWithService,
   logoutWithService: state.logoutWithService,
   refreshAuthStatus: state.refreshAuthStatus,
   syncAuthWithService: state.syncAuthWithService,
@@ -276,10 +277,17 @@ export const cleanupEnhancedAppStore = async () => {
     // Cleanup the service layer
     await store.cleanupServicesInStore();
     
+    // IMPORTANT: allow future re-initialization after cleanup/errors
+    isInitialized = false;
+    initializationPromise = null;
+    
     console.log('✅ EnhancedAppStore: Cleanup completed');
   } catch (error) {
     console.error('❌ EnhancedAppStore: Cleanup failed:', error);
     // Don't throw on cleanup errors
+    // Still clear flags so the app can attempt a fresh init on next mount
+    isInitialized = false;
+    initializationPromise = null;
   }
 };
 

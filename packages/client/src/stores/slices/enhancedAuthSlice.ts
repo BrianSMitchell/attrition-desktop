@@ -31,6 +31,7 @@ export interface EnhancedAuthSlice {
   
   // Enhanced service-integrated actions
   loginWithService: (email: string, password: string) => Promise<boolean>;
+  registerWithService: (email: string, username: string, password: string) => Promise<boolean>;
   logoutWithService: () => Promise<void>;
   refreshAuthStatus: () => Promise<void>;
   syncAuthWithService: (serviceState: ServiceAuthState) => void;
@@ -158,12 +159,28 @@ const createEnhancedAuthSlice: StateCreator<
           throw new Error('Services not initialized');
         }
 
-        const success = await services.getAuthManager().login(email, password);
+        // Capture the auth manager reference before awaiting to avoid races
+        const authManager = services.getAuthManager();
+        const success = await authManager.login(email, password);
         
         if (success) {
-          // Sync the store state with the service state
-          const serviceState = services.getAuthManager().getState();
-          syncAuthWithService(serviceState);
+          // Try to read state from the captured manager first (resilient to service teardown)
+          try {
+            const serviceState = authManager.getState();
+            syncAuthWithService(serviceState);
+          } catch (readErr) {
+            // As a fallback, re-check current services and read again if available
+            try {
+              const currentServices = getServices();
+              if (currentServices.isReady()) {
+                const state2 = currentServices.getAuthManager().getState();
+                syncAuthWithService(state2);
+              }
+            } catch (fallbackErr) {
+              // Final fallback: leave store state as-is; AuthManager has already persisted token
+              console.warn('Auth: Unable to sync store state after login (services may have been reset)');
+            }
+          }
           
           console.log('✅ Auth: Login successful, store synced with service');
           return true;
@@ -174,6 +191,50 @@ const createEnhancedAuthSlice: StateCreator<
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Login failed';
         console.error('❌ Auth: Login error:', error);
+        setError(message);
+        return false;
+      } finally {
+        setAuthLoading(false);
+      }
+    },
+
+    registerWithService: async (email: string, username: string, password: string): Promise<boolean> => {
+      const { setAuthLoading, setError, syncAuthWithService } = get();
+      setAuthLoading(true);
+      setError(null);
+      try {
+        let services;
+        try {
+          services = getServices();
+        } catch (e) {
+          throw new Error('Services not available');
+        }
+        if (!services.isReady()) {
+          throw new Error('Services not initialized');
+        }
+        const authManager = services.getAuthManager();
+        // @ts-ignore register added to IAuthManager
+        const success = await (authManager as any).register(email, username, password);
+        if (success) {
+          try {
+            const serviceState = authManager.getState();
+            syncAuthWithService(serviceState);
+          } catch {
+            try {
+              const s2 = getServices();
+              if (s2.isReady()) {
+                syncAuthWithService(s2.getAuthManager().getState());
+              }
+            } catch {}
+          }
+          return true;
+        } else {
+          setError('Registration failed');
+          return false;
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Registration failed';
+        console.error('❌ Auth: Register error:', error);
         setError(message);
         return false;
       } finally {

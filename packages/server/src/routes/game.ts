@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import mongoose from 'mongoose';
 import { Empire } from '../models/Empire';
+import { CreditLedgerService } from '../services/creditLedgerService';
 import { Colony } from '../models/Colony';
 import { ResearchProject } from '../models/ResearchProject';
 import { TechQueue } from '../models/TechQueue';
@@ -8,6 +9,7 @@ import { UnitQueue } from '../models/UnitQueue';
 import { Building } from '../models/Building';
 import { DefenseQueue } from '../models/DefenseQueue';
 import { Fleet } from '../models/Fleet';
+import { CreditTransaction } from '../models/CreditTransaction';
 import { User } from '../models/User';
 import { Location } from '../models/Location';
 import { asyncHandler } from '../middleware/errorHandler';
@@ -56,22 +58,52 @@ router.get('/dashboard', asyncHandler(async (req: AuthRequest, res: Response) =>
   // Get user's empire
   let empire = await Empire.findOne({ userId: user._id });
   
-  // If no empire exists, this is a new player
+  // If no empire exists, bootstrap one automatically in development to avoid empty dashboards
   if (!empire) {
-    return res.json({
-      success: true,
-      data: {
-        user,
-        empire: null,
-        isNewPlayer: false,
-        serverInfo: {
-          name: 'Alpha Server',
-          version: '1.0.0',
-          playersOnline: getOnlineUniqueUsersCount(),
-          universeSize: { width: 100, height: 100 }
-        }
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        const displayName = (user as any)?.username || (user as any)?.email?.split?.('@')?.[0] || 'Commander';
+        empire = new Empire({
+          userId: user._id,
+          name: `${displayName}'s Empire`,
+          resources: { credits: 1000, energy: 0 },
+          baseCount: 0,
+          economyPerHour: 0,
+        } as any);
+        await empire.save();
+      } catch (e) {
+        console.warn('Auto-creation of empire failed, falling back to new-player payload:', e);
+        return res.json({
+          success: true,
+          data: {
+            user,
+            empire: null,
+            isNewPlayer: true,
+            serverInfo: {
+              name: 'Alpha Server',
+              version: '1.0.0',
+              playersOnline: getOnlineUniqueUsersCount(),
+              universeSize: { width: 100, height: 100 }
+            }
+          }
+        });
       }
-    });
+    } else {
+      return res.json({
+        success: true,
+        data: {
+          user,
+          empire: null,
+          isNewPlayer: true,
+          serverInfo: {
+            name: 'Alpha Server',
+            version: '1.0.0',
+            playersOnline: getOnlineUniqueUsersCount(),
+            universeSize: { width: 100, height: 100 }
+          }
+        }
+      });
+    }
   }
 
   // Update empire resources before returning data
@@ -167,6 +199,28 @@ router.post('/empire/update-resources', asyncHandler(async (req: AuthRequest, re
   });
 }));
 
+
+// Credit history for current empire
+router.get('/credits/history', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const empire = await Empire.findOne({ userId: req.user!._id });
+  if (!empire) {
+    return res.status(404).json({ success: false, error: 'Empire not found' });
+  }
+  const limitRaw = Number(req.query.limit || 50);
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(1, limitRaw), 200) : 50;
+  const txns = await CreditTransaction.find({ empireId: empire._id })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+  return res.json({ success: true, data: { history: (txns || []).map(t => ({
+    _id: t._id?.toString?.(),
+    amount: t.amount,
+    type: t.type,
+    note: t.note || null,
+    balanceAfter: typeof (t as any).balanceAfter === 'number' ? (t as any).balanceAfter : null,
+    createdAt: t.createdAt,
+  })) } });
+}));
 
 // Territory Management Routes
 
@@ -272,6 +326,15 @@ router.post('/territories/colonize', asyncHandler(async (req: AuthRequest, res: 
 
   // Deduct credits
   empire.resources.credits -= colonizationCostCredits;
+  // Log transaction (best-effort)
+  CreditLedgerService.logTransaction({
+    empireId: (empire._id as mongoose.Types.ObjectId),
+    amount: -colonizationCostCredits,
+    type: 'colonization',
+    note: `Colonized ${locationCoord}`,
+    meta: { locationCoord, colonyName },
+    balanceAfter: empire.resources.credits,
+  }).catch(() => {});
 
   // Increment base count and reset deletion discount
   empire.baseCount += 1;
@@ -1848,6 +1911,13 @@ router.post('/bases/:coord/structures/:key/construct', asyncHandler(async (req: 
     { _id: empire._id },
     { $inc: { 'resources.credits': -cost } }
   );
+  CreditLedgerService.logTransaction({
+    empireId: (empire._id as mongoose.Types.ObjectId),
+    amount: -cost,
+    type: 'construction',
+    note: `Start construction: ${key} at ${coord}`,
+    meta: { coord, key },
+  }).catch(() => {});
 
   // Start construction
   if (!existingActive) {
@@ -2010,6 +2080,13 @@ router.delete('/bases/:coord/structures/cancel', asyncHandler(async (req: AuthRe
       { _id: empire._id },
       { $inc: { 'resources.credits': refundedCredits } }
     );
+    CreditLedgerService.logTransaction({
+      empireId: (empire._id as mongoose.Types.ObjectId),
+      amount: refundedCredits,
+      type: 'construction_refund',
+      note: `Cancel construction: ${key} at ${coord}`,
+      meta: { coord, key },
+    }).catch(() => {});
   }
 
   return res.json({
@@ -2068,6 +2145,13 @@ router.delete('/tech/queue/:id', asyncHandler(async (req: AuthRequest, res: Resp
       refundedCredits = credits;
       (empire as any).resources.credits = Number((empire as any).resources.credits || 0) + credits;
       await empire.save();
+      CreditLedgerService.logTransaction({
+        empireId: (empire._id as mongoose.Types.ObjectId),
+        amount: credits,
+        type: 'research_refund',
+        note: `Cancel research ${item.techKey} at ${item.locationCoord}`,
+        meta: { techKey: item.techKey, level: item.level, locationCoord: item.locationCoord },
+      }).catch(() => {});
     }
   } catch {
     // If spec lookup fails, skip refund silently to avoid throwing; status still changes

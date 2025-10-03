@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ModalType = 'research' | 'galaxy' | 'fleet' | 'game_info' | 'capacity_breakdown' | 'energy_breakdown' | 'area_breakdown' | 'population_breakdown' | 'levels_table' | 'research_levels_table' | null;
+export type ModalType = 'research' | 'galaxy' | 'fleet' | 'game_info' | 'capacity_breakdown' | 'energy_breakdown' | 'area_breakdown' | 'population_breakdown' | 'levels_table' | 'research_levels_table' | 'credits_history' | null;
 
 interface ModalState {
   isOpen: boolean;

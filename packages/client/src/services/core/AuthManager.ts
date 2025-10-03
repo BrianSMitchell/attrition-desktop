@@ -71,6 +71,19 @@ export class AuthManager implements IAuthManager {
     });
   }
 
+  async register(email: string, username: string, password: string): Promise<boolean> {
+    return this.mutex.acquire('auth-operation', async () => {
+      try {
+        return await this.circuitBreaker.execute(async () => {
+          return await this.performRegister(email, username, password);
+        });
+      } catch (error) {
+        console.error('🔐 AuthManager: Register failed:', error);
+        return false;
+      }
+    });
+  }
+
   async logout(): Promise<void> {
     return this.mutex.acquire('auth-operation', async () => {
       console.log('🔐 AuthManager: Logging out...');
@@ -247,6 +260,57 @@ export class AuthManager implements IAuthManager {
     });
 
     return response.json();
+  }
+
+  private async apiRegister(email: string, username: string, password: string): Promise<ApiResponse<AuthResponse>> {
+    const apiConfig = getCurrentApiConfig();
+    const response = await fetch(`${apiConfig.apiUrl}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, username, password }),
+    });
+    return response.json();
+  }
+
+  private async performRegister(email: string, username: string, password: string): Promise<boolean> {
+    if (this.options.enableLogging) {
+      console.log('🔐 AuthManager: Performing register...');
+    }
+
+    let response: ApiResponse<AuthResponse>;
+
+    if (this.isDesktop() && (window as any).desktop?.auth?.register) {
+      response = await (window as any).desktop.auth.register(email, username, password);
+    } else {
+      response = await this.apiRegister(email, username, password);
+    }
+
+    if (response.success && response.data) {
+      const { user, empire, token } = response.data;
+
+      await this.storeSecureToken(token);
+      if ((response.data as any).refreshToken) {
+        await this.storeRefreshToken((response.data as any).refreshToken);
+      }
+
+      this.updateState({
+        user,
+        empire: empire || null,
+        token,
+        isAuthenticated: true,
+      });
+
+      this.scheduleTokenRefresh(token);
+
+      if (this.options.enableLogging) {
+        console.log('🔐 AuthManager: Register successful');
+      }
+      return true;
+    }
+
+    return false;
   }
 
   private async restoreAuthState(): Promise<void> {
