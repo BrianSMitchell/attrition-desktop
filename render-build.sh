@@ -5,31 +5,26 @@ set -e
 
 echo "Starting Render build process..."
 echo "Node version: $(node --version)"
-echo "NPM version: $(npm --version)"
 
-# Install dependencies for shared package only
-echo "Installing shared package dependencies..."
-cd packages/shared
-npm install --production=false
-cd ../..
+# Install pnpm globally if not present
+if ! command -v pnpm &> /dev/null; then
+    echo "Installing pnpm..."
+    npm install -g pnpm@8.15.0
+fi
 
-# Install dependencies for server package only
-echo "Installing server package dependencies..."
-cd packages/server
-npm install --production=false
-cd ../..
+echo "PNPM version: $(pnpm --version)"
+
+# Install all workspace dependencies (but only for shared and server)
+echo "Installing workspace dependencies..."
+pnpm install --frozen-lockfile --filter @game/shared --filter @game/server
 
 # Build shared package first
 echo "Building shared package..."
-cd packages/shared
-npm run build
-cd ../..
+pnpm --filter @game/shared build
 
 # Build server package
 echo "Building server package..."
-cd packages/server
-npm run build
-cd ../..
+pnpm --filter @game/server build
 
 echo "Build completed successfully!"
 echo "Artifacts:"
