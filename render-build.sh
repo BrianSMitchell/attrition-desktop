@@ -10,13 +10,13 @@ echo "NPM version: $(npm --version)"
 # Install dependencies for shared package only
 echo "Installing shared package dependencies..."
 cd packages/shared
-npm ci --include=prod --include=dev
+npm install --production=false
 cd ../..
 
 # Install dependencies for server package only
 echo "Installing server package dependencies..."
 cd packages/server
-npm ci --include=prod --include=dev
+npm install --production=false
 cd ../..
 
 # Build shared package first
