@@ -15,8 +15,9 @@ fi
 echo "PNPM version: $(pnpm --version)"
 
 # Install all workspace dependencies (but only for shared and server)
+# Use --ignore-scripts to prevent desktop package's postinstall from running
 echo "Installing workspace dependencies..."
-pnpm install --frozen-lockfile --filter @game/shared --filter @game/server
+pnpm install --frozen-lockfile --filter @game/shared --filter @game/server --ignore-scripts
 
 # Build shared package first
 echo "Building shared package..."
