@@ -22,6 +22,8 @@ import { securityMonitor, SecurityEventType } from '../utils/securityMonitor';
 import { sessionInvalidationService } from '../middleware/sessionInvalidation';
 
 const router: Router = Router();
+import { getDatabaseType } from '../config/database';
+import { registerSupabase, loginSupabase } from '../services/authSupabase';
 
 // Security event logging
 const logSecurityEvent = (event: string, details: any) => {
@@ -30,6 +32,9 @@ const logSecurityEvent = (event: string, details: any) => {
 
 // Register new user
 router.post('/register', registerRateLimit, asyncHandler(async (req: Request, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    return registerSupabase(req, res);
+  }
   // Validate input
   const validation = validateRegister(req.body);
   if (!validation.success) {
@@ -197,6 +202,9 @@ router.post('/register', registerRateLimit, asyncHandler(async (req: Request, re
 
 // Login user
 router.post('/login', loginRateLimit, accountLockout, asyncHandler(async (req: Request, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    return loginSupabase(req, res);
+  }
   // Validate input
   const validation = validateLogin(req.body);
   if (!validation.success) {

@@ -255,10 +255,15 @@ async function startServer() {
           console.log(`🔒 SSL/TLS: Handled by reverse proxy (Render/CloudFlare/etc.)`);
           console.log(`✅ SECURITY: HTTPS enforced at reverse proxy level`);
           
-          // Start hybrid game loop with optimized intervals
-          console.log(`🎮 Starting HYBRID game loop (responsive completions + efficient resources)`);
-          console.log(`💰 Credit payouts every ${process.env.CREDIT_PAYOUT_PERIOD_MINUTES || '1'} minute(s)`);
-          hybridGameLoop.start();
+          // Start hybrid game loop (production gated)
+          const loopEnabled = (process.env.GAME_LOOP_ENABLED ?? 'false').toLowerCase() !== 'false';
+          if (loopEnabled) {
+            console.log(`🎮 Starting HYBRID game loop (responsive completions + efficient resources)`);
+            console.log(`💰 Credit payouts every ${process.env.CREDIT_PAYOUT_PERIOD_MINUTES || '1'} minute(s)`);
+            hybridGameLoop.start();
+          } else {
+            console.log('⏸️ HYBRID game loop disabled (GAME_LOOP_ENABLED=false)');
+          }
         });
         
         setupSocketIO(io);
@@ -294,10 +299,15 @@ async function startServer() {
           console.log(`✅ HTTPS ENFORCEMENT: All HTTP requests redirected to HTTPS`);
           console.log(`✅ SECURITY: Production server running in HTTPS-only mode`);
           
-          // Start hybrid game loop with optimized intervals
-          console.log(`🎮 Starting HYBRID game loop (responsive completions + efficient resources)`);
-          console.log(`💰 Credit payouts every ${process.env.CREDIT_PAYOUT_PERIOD_MINUTES || '1'} minute(s)`);
-          hybridGameLoop.start();
+          // Start hybrid game loop (production gated)
+          const loopEnabled = (process.env.GAME_LOOP_ENABLED ?? 'false').toLowerCase() !== 'false';
+          if (loopEnabled) {
+            console.log(`🎮 Starting HYBRID game loop (responsive completions + efficient resources)`);
+            console.log(`💰 Credit payouts every ${process.env.CREDIT_PAYOUT_PERIOD_MINUTES || '1'} minute(s)`);
+            hybridGameLoop.start();
+          } else {
+            console.log('⏸️ HYBRID game loop disabled (GAME_LOOP_ENABLED=false)');
+          }
         });
       }
       
@@ -372,10 +382,15 @@ async function startServer() {
         initSocketManager(io); // Initialize socket manager for global access
       }
       
-      // Start hybrid game loop for development
-      console.log(`🎮 Starting HYBRID game loop (responsive completions + efficient resources)`);
-      console.log(`💰 Credit payouts every ${process.env.CREDIT_PAYOUT_PERIOD_MINUTES || '1'} minute(s)`);
-      hybridGameLoop.start();
+      // Start hybrid game loop for development (enabled by default)
+      const devLoopEnabled = (process.env.GAME_LOOP_ENABLED ?? 'true').toLowerCase() !== 'false';
+      if (devLoopEnabled) {
+        console.log(`🎮 Starting HYBRID game loop (responsive completions + efficient resources)`);
+        console.log(`💰 Credit payouts every ${process.env.CREDIT_PAYOUT_PERIOD_MINUTES || '1'} minute(s)`);
+        hybridGameLoop.start();
+      } else {
+        console.log('⏸️ HYBRID game loop disabled (GAME_LOOP_ENABLED=false)');
+      }
     }
     
   } catch (error) {
