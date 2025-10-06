@@ -292,7 +292,7 @@ ipcMain.handle('tokens:hasRefresh', async () => {
  * Perform a refresh using the stored refresh token without exposing it to the renderer.
  * Returns: { ok: boolean, token?: string }
  */
-ipcMain.handle('auth:refresh', async () => {
+ipcMain.handle('auth:refresh', async (event) => {
   try {
     const refreshToken = await keytar.getPassword(APP_ID, 'refresh');
     if (!refreshToken) {
@@ -301,6 +301,13 @@ ipcMain.handle('auth:refresh', async () => {
     }
 
     const url = `${API_BASE_URL.replace(/\/$/, '')}/auth/refresh`;
+
+    // NEW: forward renderer headers for device fingerprint consistency
+    const userAgent =
+      (event?.sender?.getUserAgent && event.sender.getUserAgent()) ||
+      (BrowserWindow.getAllWindows()[0]?.webContents?.getUserAgent && BrowserWindow.getAllWindows()[0].webContents.getUserAgent()) ||
+      'node';
+    const acceptLanguage = app.getLocale?.() || 'en-US';
     
     // Retry mechanism for server startup - retry up to 3 times with delays
     let lastError;
@@ -309,7 +316,7 @@ ipcMain.handle('auth:refresh', async () => {
         const result = await httpRequest({
           url,
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'User-Agent': userAgent, 'Accept-Language': acceptLanguage },
           body: JSON.stringify({ refreshToken }),
           timeoutMs: 10000,
           tag: 'auth:refresh'
@@ -380,7 +387,7 @@ ipcMain.handle('auth:refresh', async () => {
  * Perform login/register in main so refresh token never touches the renderer.
  * On success: store refreshToken to OS keychain and return sanitized payload without it.
  */
-ipcMain.handle('auth:login', async (_event, { email, password }) => {
+ipcMain.handle('auth:login', async (event, { email, password }) => {
   console.log('[AUTH] Login attempt via IPC:', { email, password: password ? '[PRESENT]' : '[MISSING]' });
   
   // Basic input validation
@@ -391,10 +398,15 @@ ipcMain.handle('auth:login', async (_event, { email, password }) => {
   try {
     const url = `${API_BASE_URL.replace(/\/$/, '')}/auth/login`;
     console.log('[AUTH] Making login request to:', url);
+    const userAgent =
+      (event?.sender?.getUserAgent && event.sender.getUserAgent()) ||
+      (BrowserWindow.getAllWindows()[0]?.webContents?.getUserAgent && BrowserWindow.getAllWindows()[0].webContents.getUserAgent()) ||
+      'node';
+    const acceptLanguage = app.getLocale?.() || 'en-US';
     const result = await httpRequest({
       url,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'User-Agent': userAgent, 'Accept-Language': acceptLanguage },
       body: JSON.stringify({ email, password }),
       timeoutMs: 10000,
       tag: 'auth:login'
@@ -445,14 +457,21 @@ ipcMain.handle('auth:login', async (_event, { email, password }) => {
 });
 
 // SIMPLE DIRECT REGISTRATION - No security middleware, just works
-ipcMain.handle('auth:register', async (_event, { email, username, password }) => {
+ipcMain.handle('auth:register', async (event, { email, username, password }) => {
   console.log('[AUTH] Direct registration attempt:', { email, username });
   try {
     const url = `${API_BASE_URL.replace(/\/$/, '')}/auth/register`;
+
+    const userAgent =
+      (event?.sender?.getUserAgent && event.sender.getUserAgent()) ||
+      (BrowserWindow.getAllWindows()[0]?.webContents?.getUserAgent && BrowserWindow.getAllWindows()[0].webContents.getUserAgent()) ||
+      'node';
+    const acceptLanguage = app.getLocale?.() || 'en-US';
+
     const result = await httpRequest({
       url,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'User-Agent': userAgent, 'Accept-Language': acceptLanguage },
       body: JSON.stringify({ email, username, password }),
       timeoutMs: 10000,
       tag: 'auth:register'
