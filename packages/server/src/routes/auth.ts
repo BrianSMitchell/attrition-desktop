@@ -20,6 +20,8 @@ import {
 } from '../middleware/rateLimiting';
 import { securityMonitor, SecurityEventType } from '../utils/securityMonitor';
 import { sessionInvalidationService } from '../middleware/sessionInvalidation';
+import { getDatabaseType } from '../config/database';
+import { supabase } from '../config/supabase';
 
 const router: Router = Router();
 import { getDatabaseType } from '../config/database';
@@ -452,7 +454,23 @@ router.use('/me', (req: Request, res: Response, next) => {
 
 // Get current user profile
 router.get('/me', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
-  const empire = await Empire.findOne({ userId: req.user!._id });
+  let empire: any = null;
+
+  if (getDatabaseType() === 'supabase') {
+    const userId = (req.user as any)?._id || (req.user as any)?.id;
+    if (userId) {
+      const { data, error } = await supabase
+        .from('empires')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+      if (!error && data) {
+        empire = data;
+      }
+    }
+  } else {
+    empire = await Empire.findOne({ userId: req.user!._id });
+  }
   
   res.json({
     success: true,
