@@ -4,6 +4,8 @@ import { Location } from '../models/Location';
 import { generateUniverse } from '../scripts/generateUniverse';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { isValidCoordinate, parseCoord } from '@game/shared';
+import { getDatabaseType } from '../config/database';
+import { supabase } from '../config/supabase';
 
 // Interface for populated location documents
 interface PopulatedLocation {
@@ -51,6 +53,53 @@ router.get('/coord/:coord', authenticate, async (req: AuthRequest, res) => {
       });
     }
     
+    if (getDatabaseType() === 'supabase') {
+      const { data: row } = await supabase
+        .from('locations')
+        .select('*')
+        .eq('coord', coord)
+        .maybeSingle();
+
+      if (!row) {
+        return res.status(404).json({ success: false, error: 'Location not found' });
+      }
+
+      // Optionally load owner username
+      let ownerInfo: any = null;
+      if ((row as any).owner_id) {
+        const u = await supabase
+          .from('users')
+          .select('id, username')
+          .eq('id', (row as any).owner_id)
+          .maybeSingle();
+        if (u.data) ownerInfo = { id: u.data.id, username: u.data.username };
+      }
+
+      const coordComponents = parseCoord(coord);
+      return res.json({
+        success: true,
+        data: {
+          coord: row.coord,
+          type: row.type,
+          owner: ownerInfo,
+          orbitPosition: (row as any).orbit_position ?? null,
+          terrain: (row as any).terrain ?? null,
+          positionBase: (row as any).position_base ?? null,
+          starApplied: (row as any).star_applied ?? null,
+          result: (row as any).result ?? null,
+          starOverhaul: (row as any).star_overhaul ?? null,
+          context: {
+            server: coordComponents.server,
+            galaxy: coordComponents.galaxy,
+            region: coordComponents.region,
+            system: coordComponents.system,
+            body: coordComponents.body,
+          },
+          createdAt: (row as any).created_at ?? null,
+        },
+      });
+    }
+
     // Find location in database
     const location = await Location.findOne({ coord }).populate('owner', 'username') as PopulatedLocation | null;
     
@@ -130,6 +179,34 @@ router.get('/system/:server/:galaxy/:region/:system', authenticate, async (req: 
     // Build coordinate pattern for this system
     const coordPattern = `^${server}${galaxy.padStart(2, '0')}:${region.padStart(2, '0')}:${system.padStart(2, '0')}:`;
     
+    if (getDatabaseType() === 'supabase')) {
+      const prefix = `${server}${galaxy.padStart(2,'0')}:${region.padStart(2,'0')}:${system.padStart(2,'0')}:`;
+      const { data: rows } = await supabase
+        .from('locations')
+        .select('*')
+        .like('coord', `${prefix}%`)
+        .order('coord', { ascending: true });
+
+      const response = {
+        success: true,
+        data: {
+          system: { server, galaxy: galaxyNum, region: regionNum, system: systemNum },
+          bodies: (rows || []).map((body: any) => ({
+            coord: body.coord,
+            type: body.type,
+            owner: body.owner_id ? { id: body.owner_id, username: null } : null,
+            orbitPosition: body.orbit_position ?? null,
+            terrain: body.terrain ?? null,
+            positionBase: body.position_base ?? null,
+            starApplied: body.star_applied ?? null,
+            result: body.result ?? null,
+            starOverhaul: body.star_overhaul ?? null,
+          })),
+        },
+      };
+      return res.json(response);
+    }
+
     // Find all bodies in this system
     const bodies = await Location.find({
       coord: { $regex: coordPattern }
@@ -181,6 +258,18 @@ router.get('/user/:userId/locations', authenticate, async (req: AuthRequest, res
   try {
     const { userId } = req.params;
     
+    if (getDatabaseType() === 'supabase') {
+      const { data: rows } = await supabase
+        .from('locations')
+        .select('coord, type, created_at')
+        .eq('owner_id', userId)
+        .order('coord');
+      return res.json({
+        success: true,
+        data: { userId, locations: (rows || []).map((r: any) => ({ coord: r.coord, type: r.type, createdAt: r.created_at })) },
+      });
+    }
+
     // Find all locations owned by this user
     const locations = await Location.find({ owner: userId }).sort({ coord: 1 });
     

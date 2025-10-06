@@ -1286,6 +1286,70 @@ router.delete('/units/queue/:id', asyncHandler(async (req: AuthRequest, res: Res
  * Returns compact info per base: name, location, economy, occupier, construction, production, research
  */
 router.get('/bases/summary', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    // Load user and empire (by user_id then by users.empire_id)
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('id, username, email, empire_id')
+      .eq('id', userId)
+      .single();
+
+    let { data: empireRow } = await supabase
+      .from('empires')
+      .select('id, territories')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!empireRow && userRow?.empire_id) {
+      const byId = await supabase
+        .from('empires')
+        .select('id, territories')
+        .eq('id', userRow.empire_id)
+        .maybeSingle();
+      empireRow = byId.data as any;
+    }
+
+    if (!empireRow) {
+      return res.json({ success: true, data: { bases: [] } });
+    }
+
+    const coords: string[] = Array.isArray((empireRow as any).territories) ? (empireRow as any).territories : [];
+    if (!coords.length) {
+      return res.json({ success: true, data: { bases: [] } });
+    }
+
+    // Load locations and colonies
+    const [locRes, colRes] = await Promise.all([
+      supabase.from('locations').select('coord').in('coord', coords),
+      supabase.from('colonies').select('location_coord, name').eq('empire_id', (empireRow as any).id).in('location_coord', coords),
+    ]);
+
+    const locations = locRes.data || [];
+    const colonies = colRes.data || [];
+    const colonyByCoord = new Map<string, any>((colonies as any[]).map((c) => [c.location_coord, c]));
+
+    const bases = (locations as any[]).map((loc) => {
+      const coord = String(loc.coord);
+      const colony = colonyByCoord.get(coord);
+      return {
+        baseId: coord,
+        name: colony?.name || `Base ${coord}`,
+        location: coord,
+        economy: { metalPerHour: 0, energyPerHour: 0, researchPerHour: 0 },
+        occupier: null,
+        construction: { queued: 0 },
+        production: { queued: 0 },
+        defenses: { queued: 0 },
+        research: null,
+      };
+    });
+
+    return res.json({ success: true, data: { bases } });
+  }
+
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
