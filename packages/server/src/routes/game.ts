@@ -81,15 +81,97 @@ router.get('/dashboard', asyncHandler(async (req: AuthRequest, res: Response) =>
     // Supabase path
     const userId = user?._id || user?.id;
 
-    // Fetch empire
-    const { data: empireRow } = await supabase
+    // Read authoritative user row to discover empire_id
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('id, username, email, empire_id, starting_coordinate')
+      .eq('id', userId)
+      .single();
+
+    // Try to fetch empire by user_id first
+    let { data: empireRow } = await supabase
       .from('empires')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
+
+    // Fallback: if user has an explicit empire_id, read by id
+    if (!empireRow && userRow?.empire_id) {
+      const byId = await supabase
+        .from('empires')
+        .select('*')
+        .eq('id', userRow.empire_id)
+        .maybeSingle();
+      empireRow = byId.data as any;
+    }
+
+    // If still no empire, auto-bootstrap one to prevent client crashes
+    if (!empireRow) {
+      // Pick an unowned planet
+      const pick = await supabase
+        .from('locations')
+        .select('coord')
+        .eq('type', 'planet')
+        .is('owner_id', null)
+        .limit(1)
+        .single();
+
+      if (pick.data?.coord) {
+        const coord = pick.data.coord as string;
+
+        // Claim the planet
+        await supabase
+          .from('locations')
+          .update({ owner_id: userId })
+          .eq('coord', coord)
+          .is('owner_id', null);
+
+        // Create empire
+        const displayName = (userRow?.username || userRow?.email?.split?.('@')?.[0] || 'Commander') as string;
+        const insertEmpire = await supabase
+          .from('empires')
+          .insert({
+            user_id: userId,
+            name: `${displayName}`,
+            home_system: coord,
+            territories: [coord],
+            credits: 100,
+            energy: 0,
+          })
+          .select('*')
+          .single();
+
+        if (insertEmpire.data) {
+          empireRow = insertEmpire.data as any;
+
+          // Create colony and starter building (best-effort)
+          await supabase
+            .from('colonies')
+            .insert({ empire_id: empireRow.id, location_coord: coord, name: 'Home Base' });
+
+          await supabase
+            .from('buildings')
+            .insert({
+              empire_id: empireRow.id,
+              location_coord: coord,
+              catalog_key: 'urban_structures',
+              level: 1,
+              is_active: true,
+              construction_completed: new Date().toISOString(),
+              credits_cost: 0,
+            });
+
+          // Update user linkage
+          await supabase
+            .from('users')
+            .update({ empire_id: empireRow.id, starting_coordinate: coord })
+            .eq('id', userId);
+        }
+      }
+    }
 
     if (!empireRow) {
-      // In production, return new-player payload without auto-creating
+      // Could not create or find; return new-player payload but avoid crashes client-side
       return res.json({
         success: true,
         data: {

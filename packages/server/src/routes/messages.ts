@@ -20,16 +20,46 @@ router.get('/summary', authenticate, asyncHandler(async (req: AuthRequest, res: 
   const userId = (req.user as any)?._id || (req.user as any)?.id || (req.user as any)?.userId;
 
   if (getDatabaseType() === 'supabase') {
-    // Temporary implementation for production: return zeros until message schema is finalized
-    // TODO: replace with Supabase count queries when message schema is confirmed
+    const uid = String(userId);
+
+    // Perform counts using Supabase exact counts (head requests to avoid payloads)
+    const [inboxRes, sentRes, unreadRes] = await Promise.all([
+      supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('to_user_id', uid),
+      supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('from_user_id', uid),
+      supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('to_user_id', uid)
+        .eq('is_read', false),
+    ]);
+
+    const inboxCount = inboxRes.error ? 0 : (inboxRes.count ?? 0);
+    const sentCount = sentRes.error ? 0 : (sentRes.count ?? 0);
+    const unreadMessages = unreadRes.error ? 0 : (unreadRes.count ?? 0);
+    const totalMessages = inboxCount + sentCount;
+
+    if (inboxRes.error || sentRes.error || unreadRes.error) {
+      // Log minimal error context; return what we have
+      return res.status(200).json({
+        success: true,
+        data: { totalMessages, unreadMessages, inboxCount, sentCount },
+        warnings: [
+          inboxRes.error?.message,
+          sentRes.error?.message,
+          unreadRes.error?.message,
+        ].filter(Boolean),
+      });
+    }
+
     return res.json({
       success: true,
-      data: {
-        totalMessages: 0,
-        unreadMessages: 0,
-        inboxCount: 0,
-        sentCount: 0,
-      }
+      data: { totalMessages, unreadMessages, inboxCount, sentCount },
     });
   }
 

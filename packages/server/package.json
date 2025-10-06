@@ -28,7 +28,11 @@
     "metrics:export": "ts-node src/scripts/testing-dashboard-cli.ts metrics export",
     "report:daily": "ts-node src/scripts/testing-dashboard-cli.ts report daily",
     "report:weekly": "ts-node src/scripts/testing-dashboard-cli.ts report weekly",
-    "testing:status": "ts-node src/scripts/testing-dashboard-cli.ts status"
+    "testing:status": "ts-node src/scripts/testing-dashboard-cli.ts status",
+    "seed:supabase": "ts-node src/scripts/supabaseSeedUniverse.ts",
+    "backfill:starters": "ts-node src/scripts/supabaseBackfillStarters.ts",
+    "universe:generate:supabase": "ts-node src/scripts/generateUniverseSupabase.ts",
+    "universe:wipe": "ts-node src/scripts/wipeUniverseSupabase.ts"
   },
   "dependencies": {
     "@game/shared": "workspace:*",

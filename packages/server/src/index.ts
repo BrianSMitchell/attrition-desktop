@@ -27,6 +27,7 @@ import { hybridGameLoop } from './services/hybridGameLoopService';
 import { httpsHealthCheckHandler, HttpsHealthMonitor, shouldStartHttpsHealthMonitor } from './utils/httpsHealthCheck';
 import { initSocketManager } from './utils/socketManager';
 import securityRoutes from './routes/security';
+import adminRoutes from './routes/admin';
 import { isReverseProxySSL } from './utils/runtimeEnv';
 
 // Load environment variables
@@ -203,6 +204,9 @@ app.use('/api/sync', syncRoutes);
 app.use('/api/messages', messageRoutes);
 // Temporary alias to match client path while we migrate
 app.use('/api/game/messages', messageRoutes);
+
+// Admin maintenance routes (guarded by ADMIN_MAINTENANCE_SECRET)
+app.use('/api/admin', adminRoutes);
 
 // Socket.IO will be setup in startServer() function
 
