@@ -25,6 +25,8 @@ import { CapacityService } from '../services/capacityService';
 import { EconomyService } from '../services/economyService';
 import { getTechnologyList, TechnologyKey, getBuildingsList, BuildingKey, getDefensesList, DefenseKey, getUnitsList, UnitKey, getUnitSpec, getTechSpec, getStructureCreditCostForLevel, getBuildingSpec, getTechCreditCostForLevel, computeEnergyBalance } from '@game/shared';
 import { FleetMovementService } from '../services/fleetMovementService';
+import { getDatabaseType } from '../config/database';
+import { supabase } from '../config/supabase';
 
 const router: Router = Router();
 
@@ -51,20 +53,110 @@ function computeTechnologyScore(empire: any): number {
 // All game routes require authentication
 router.use(authenticate);
 
+// Helper (temporary): compute economy per hour using a simple catalog mapping
+function computeEconomyPerHourFromBuildings(buildings: Array<{ catalog_key?: string; level?: number; is_active?: boolean }>): number {
+  let total = 0;
+  for (const b of buildings) {
+    if (!b.is_active) continue;
+    const key = (b.catalog_key || '').toLowerCase();
+    const lvl = Number(b.level || 1);
+    // Simple mapping (can be refined later or loaded from shared catalog)
+    switch (key) {
+      case 'urban_structures':
+      case 'habitat':
+        total += 50 * lvl; // placeholder yield per hour per level
+        break;
+      default:
+        break;
+    }
+  }
+  return total;
+}
+
 // Get game dashboard data
 router.get('/dashboard', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user!;
+  const user = req.user! as any;
+
+  if (getDatabaseType() === 'supabase') {
+    // Supabase path
+    const userId = user?._id || user?.id;
+
+    // Fetch empire
+    const { data: empireRow } = await supabase
+      .from('empires')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (!empireRow) {
+      // In production, return new-player payload without auto-creating
+      return res.json({
+        success: true,
+        data: {
+          user,
+          empire: null,
+          isNewPlayer: true,
+          serverInfo: {
+            name: 'Alpha Server',
+            version: '1.0.0',
+            playersOnline: getOnlineUniqueUsersCount(),
+            universeSize: { width: 100, height: 100 }
+          }
+        }
+      });
+    }
+
+    // Load active buildings and compute economy/hour (temporary Node-side calc)
+    const { data: buildings } = await supabase
+      .from('buildings')
+      .select('catalog_key, level, is_active')
+      .eq('empire_id', empireRow.id);
+
+    const creditsPerHour = computeEconomyPerHourFromBuildings(buildings || []);
+    const resourcesGained = 0; // placeholder until accrual strategy is defined
+    const technologyScore = 0; // placeholder until research tables are integrated
+    const fleetScore = 0;
+    const level = Math.pow(creditsPerHour * 100 + fleetScore + technologyScore, 0.25);
+
+    const profile = {
+      economyPerHour: creditsPerHour,
+      fleetScore,
+      technologyScore,
+      level,
+    };
+
+    return res.json({
+      success: true,
+      data: {
+        user,
+        empire: empireRow,
+        resourcesGained,
+        creditsPerHour,
+        profile,
+        isNewPlayer: false,
+        serverInfo: {
+          name: 'Alpha Server',
+          version: '1.0.0',
+          playersOnline: getOnlineUniqueUsersCount(),
+          universeSize: { width: 100, height: 100 }
+        }
+      }
+    });
+  }
+
+  // MongoDB (legacy) path
+  const userLegacy = req.user!;
   
   // Get user's empire
-  let empire = await Empire.findOne({ userId: user._id });
+  let empire = await Empire.findOne({ userId: userLegacy._id });
   
   // If no empire exists, bootstrap one automatically in development to avoid empty dashboards
   if (!empire) {
     if (process.env.NODE_ENV !== 'production') {
       try {
-        const displayName = (user as any)?.username || (user as any)?.email?.split?.('@')?.[0] || 'Commander';
+        const displayName = (userLegacy as any)?.username || (userLegacy as any)?.email?.split?.('@')?.[0] || 'Commander';
         empire = new Empire({
-          userId: user._id,
+          userId: userLegacy._id,
           name: `${displayName}'s Empire`,
           resources: { credits: 1000, energy: 0 },
           baseCount: 0,
@@ -76,7 +168,7 @@ router.get('/dashboard', asyncHandler(async (req: AuthRequest, res: Response) =>
         return res.json({
           success: true,
           data: {
-            user,
+            user: userLegacy,
             empire: null,
             isNewPlayer: true,
             serverInfo: {
@@ -92,7 +184,7 @@ router.get('/dashboard', asyncHandler(async (req: AuthRequest, res: Response) =>
       return res.json({
         success: true,
         data: {
-          user,
+          user: userLegacy,
           empire: null,
           isNewPlayer: true,
           serverInfo: {
@@ -125,7 +217,7 @@ router.get('/dashboard', asyncHandler(async (req: AuthRequest, res: Response) =>
   res.json({
     success: true,
     data: {
-      user,
+      user: userLegacy,
       empire: resourceUpdate.empire,
       resourcesGained: resourceUpdate.resourcesGained,
       creditsPerHour: resourceUpdate.creditsPerHour,
