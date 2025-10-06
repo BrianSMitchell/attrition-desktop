@@ -24,7 +24,6 @@ import { getDatabaseType } from '../config/database';
 import { supabase } from '../config/supabase';
 
 const router: Router = Router();
-import { getDatabaseType } from '../config/database';
 import { registerSupabase, loginSupabase } from '../services/authSupabase';
 
 // Security event logging
