@@ -101,11 +101,19 @@ export const authenticate = asyncHandler(async (req: AuthRequest, res: Response,
     // Check device fingerprint binding (if present in token)
     if (decoded.deviceFingerprint) {
       const similarity = compareDeviceFingerprints(currentFingerprint, decoded.deviceFingerprint);
+
+      // Configurable threshold (defaults to 0.3 to tolerate IP-network shifts behind CDNs/proxies)
+      const threshold = (() => {
+        const raw = process.env.DEVICE_BINDING_THRESHOLD;
+        const n = raw ? Number(raw) : NaN;
+        return Number.isFinite(n) ? n : 0.3;
+      })();
       
       // Allow some flexibility but detect major changes
-      if (similarity < 0.7) {
+      if (similarity < threshold) {
         console.warn(`[SECURITY] Suspicious device fingerprint mismatch for user ${decoded.userId}:`, {
           similarity,
+          threshold,
           current: sanitizeFingerprint(currentFingerprint),
           token: sanitizeFingerprint(decoded.deviceFingerprint)
         });
