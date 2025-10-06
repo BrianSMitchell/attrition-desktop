@@ -1,6 +1,8 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
+import { getDatabaseType } from '../config/database';
+import { supabase } from '../config/supabase';
 import { parseCoord } from '@game/shared';
 
 const onlineUserSocketCounts = new Map<string, number>();
@@ -20,10 +22,32 @@ export function setupSocketIO(io: Server): void {
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
-      const user = await User.findById(decoded.userId);
-      
-      if (!user) {
-        return next(new Error('User not found'));
+
+      let user: any = null;
+      if (getDatabaseType() === 'supabase') {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, email, username, empire_id, starting_coordinate')
+          .eq('id', decoded.userId)
+          .single();
+        if (error || !data) {
+          return next(new Error('User not found'));
+        }
+        user = {
+          _id: data.id,
+          id: data.id,
+          email: data.email,
+          username: data.username,
+          gameProfile: {
+            startingCoordinate: data.starting_coordinate || null,
+            empireId: data.empire_id || null,
+          },
+        };
+      } else {
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return next(new Error('User not found'));
+        }
       }
 
       socket.data.user = user;

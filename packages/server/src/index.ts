@@ -201,6 +201,8 @@ app.use('/api/game', gameRoutes);
 app.use('/api/universe', universeRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/messages', messageRoutes);
+// Temporary alias to match client path while we migrate
+app.use('/api/game/messages', messageRoutes);
 
 // Socket.IO will be setup in startServer() function
 

@@ -3,20 +3,37 @@ import { authenticate } from '../middleware/auth';
 import { Request, Response, NextFunction } from 'express';
 
 interface AuthRequest extends Request {
-  user?: { userId: string };
+  user?: any;
 }
 import { asyncHandler } from '../middleware/errorHandler';
 import { Message } from '../models/Message';
 import { User } from '../models/User';
 import { Empire } from '../models/Empire';
 import mongoose from 'mongoose';
+import { getDatabaseType } from '../config/database';
+import { supabase } from '../config/supabase';
 
 const router = express.Router();
 
 // Get message summary (unread count, etc.)
 router.get('/summary', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
-  const userId = req.user!.userId;
+  const userId = (req.user as any)?._id || (req.user as any)?.id || (req.user as any)?.userId;
 
+  if (getDatabaseType() === 'supabase') {
+    // Temporary implementation for production: return zeros until message schema is finalized
+    // TODO: replace with Supabase count queries when message schema is confirmed
+    return res.json({
+      success: true,
+      data: {
+        totalMessages: 0,
+        unreadMessages: 0,
+        inboxCount: 0,
+        sentCount: 0,
+      }
+    });
+  }
+
+  // MongoDB path
   // Count total messages
   const totalMessages = await Message.countDocuments({
     $or: [
