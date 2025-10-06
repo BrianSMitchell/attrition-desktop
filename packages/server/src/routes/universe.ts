@@ -179,7 +179,7 @@ router.get('/system/:server/:galaxy/:region/:system', authenticate, async (req: 
     // Build coordinate pattern for this system
     const coordPattern = `^${server}${galaxy.padStart(2, '0')}:${region.padStart(2, '0')}:${system.padStart(2, '0')}:`;
     
-    if (getDatabaseType() === 'supabase')) {
+    if (getDatabaseType() === 'supabase') {
       const prefix = `${server}${galaxy.padStart(2,'0')}:${region.padStart(2,'0')}:${system.padStart(2,'0')}:`;
       const { data: rows } = await supabase
         .from('locations')
