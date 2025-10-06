@@ -430,6 +430,26 @@ router.post('/refresh', refreshRateLimit, asyncHandler(async (req: Request, res:
   }
 }));
 
+// Temporary trace logging for /auth/me
+router.use('/me', (req: Request, res: Response, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    try {
+      console.log('[TRACE] /api/auth/me', {
+        method: req.method,
+        status: res.statusCode,
+        ua: req.get('User-Agent') || 'unknown',
+        ip: req.ip,
+        xff: req.get('X-Forwarded-For') || undefined,
+        proto: req.get('X-Forwarded-Proto') || (req.secure ? 'https' : 'http'),
+        hasAuthHeader: !!req.headers.authorization,
+        durationMs: Date.now() - start,
+      });
+    } catch {}
+  });
+  next();
+});
+
 // Get current user profile
 router.get('/me', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
   const empire = await Empire.findOne({ userId: req.user!._id });

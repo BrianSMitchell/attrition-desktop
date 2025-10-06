@@ -136,7 +136,24 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Public server status endpoint
+// Public server status endpoint with temporary trace logging
+app.use('/api/status', (req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    try {
+      console.log('[TRACE] /api/status', {
+        method: req.method,
+        status: res.statusCode,
+        ua: req.get('User-Agent') || 'unknown',
+        ip: req.ip,
+        xff: req.get('X-Forwarded-For') || undefined,
+        proto: req.get('X-Forwarded-Proto') || (req.secure ? 'https' : 'http'),
+        durationMs: Date.now() - start,
+      });
+    } catch {}
+  });
+  next();
+});
 app.get('/api/status', (req, res) => {
   try {
     const uptimeSeconds = Math.floor((Date.now() - serverStart) / 1000);
