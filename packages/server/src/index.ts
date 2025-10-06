@@ -24,9 +24,10 @@ import { tlsMonitoringMiddleware, tlsSecurityStatusHandler } from './utils/tlsVa
 import { setupSocketIO, getOnlineUniqueUsersCount } from './services/socketService';
 import { gameLoop } from './services/gameLoopService';
 import { hybridGameLoop } from './services/hybridGameLoopService';
-import { httpsHealthCheckHandler, HttpsHealthMonitor } from './utils/httpsHealthCheck';
+import { httpsHealthCheckHandler, HttpsHealthMonitor, shouldStartHttpsHealthMonitor } from './utils/httpsHealthCheck';
 import { initSocketManager } from './utils/socketManager';
 import securityRoutes from './routes/security';
+import { isReverseProxySSL } from './utils/runtimeEnv';
 
 // Load environment variables
 dotenv.config();
@@ -220,7 +221,7 @@ async function startServer() {
       console.log('🔐 Production mode: HTTPS enforcement enabled');
       
       // Check if SSL is handled by reverse proxy (Render, CloudFlare, etc.)
-      const useReverseProxySSL = process.env.USE_REVERSE_PROXY_SSL === 'true' || process.env.RENDER === 'true';
+      const useReverseProxySSL = isReverseProxySSL();
       
       if (useReverseProxySSL) {
         console.log('🔒 Using reverse proxy SSL termination (Render/CloudFlare/etc.)');
@@ -315,11 +316,15 @@ async function startServer() {
       setupSocketIO(io);
       initSocketManager(io); // Initialize socket manager for global access
       
-      // Start HTTPS health monitoring in production
-      httpsHealthMonitor = new HttpsHealthMonitor(HTTPS_PORT, PORT, 'localhost');
-      const monitoringInterval = parseInt(process.env.HTTPS_HEALTH_CHECK_INTERVAL_MINUTES || '60', 10);
-      httpsHealthMonitor.start(monitoringInterval);
-      console.log(`🔍 HTTPS health monitoring started (every ${monitoringInterval} minutes)`);
+      // Start HTTPS health monitoring in production ONLY when not using reverse proxy SSL
+      if (useReverseProxySSL) {
+        console.log('🔒 HTTPS health monitoring disabled: reverse proxy SSL termination detected (e.g., Render)');
+      } else if (shouldStartHttpsHealthMonitor(false)) {
+        httpsHealthMonitor = new HttpsHealthMonitor(HTTPS_PORT, PORT, 'localhost');
+        const monitoringInterval = parseInt(process.env.HTTPS_HEALTH_CHECK_INTERVAL_MINUTES || '60', 10);
+        httpsHealthMonitor.start(monitoringInterval);
+        console.log(`🔐 HTTPS health monitoring started (every ${monitoringInterval} minutes)`);
+      }
       
     } else {
       // Development/Test: HTTP server with optional HTTPS
@@ -481,6 +486,8 @@ process.on('unhandledRejection', (reason, promise) => {
   shutdown();
 });
 
-startServer();
+if ((process.env.NODE_ENV || '').toLowerCase() !== 'test') {
+  startServer();
+}
 
 export { app, io };

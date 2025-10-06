@@ -18,13 +18,23 @@ jest.mock('../services/baseStatsService');
 jest.mock('../services/capacityService');
 
 describe('Energy Validation Integration', () => {
+  let originalObjectId: any;
+
   beforeEach(() => {
     jest.clearAllMocks();
     
-    // Mock mongoose ObjectId creation
-    (mongoose.Types.ObjectId as jest.Mock) = jest.fn().mockImplementation((id?: any) => {
-      return { toString: () => String(id || 'mock-id') } as any;
-    });
+    // Mock mongoose ObjectId creation (preserve and restore after)
+    originalObjectId = (mongoose as any).Types.ObjectId;
+    (mongoose as any).Types.ObjectId = jest.fn((id?: any) => ({
+      toString: () => String(id || 'mock-id')
+    })) as any;
+  });
+
+  afterEach(() => {
+    // Restore original ObjectId
+    if (originalObjectId) {
+      (mongoose as any).Types.ObjectId = originalObjectId;
+    }
   });
 
   const setupBaseMocks = (empireId: string, locationCoord: string) => {
@@ -62,14 +72,18 @@ describe('Energy Validation Integration', () => {
     setupBaseMocks(empireId, locationCoord);
 
     // Mock existing buildings: 2 solar plants (level 2 each) = +20 energy (2*2*5)
-    (Building.find as jest.Mock) = jest.fn().mockResolvedValue([
+    (Building.find as jest.Mock) = jest.fn().mockReturnValue({
+      select: () => ({
+        lean: () => Promise.resolve([
       {
         catalogKey: 'solar_plants',
         level: 2,
         isActive: true,
         pendingUpgrade: false
       }
-    ]);
+        ])
+      })
+    });
 
     // Mock base stats showing positive energy balance
     (BaseStatsService.getBaseStats as jest.Mock) = jest.fn().mockResolvedValue({
@@ -116,7 +130,9 @@ describe('Energy Validation Integration', () => {
     setupBaseMocks(empireId, locationCoord);
 
     // Mock existing buildings: no energy producers, only baseline +2
-    (Building.find as jest.Mock) = jest.fn().mockResolvedValue([]);
+    (Building.find as jest.Mock) = jest.fn().mockReturnValue({
+      select: () => ({ lean: () => Promise.resolve([]) })
+    });
 
     // Mock base stats showing minimal energy balance
     (BaseStatsService.getBaseStats as jest.Mock) = jest.fn().mockResolvedValue({
@@ -127,7 +143,9 @@ describe('Energy Validation Integration', () => {
     } as any);
 
     // Now add multiple queued consumers to push projection negative
-    (Building.find as jest.Mock) = jest.fn().mockResolvedValue([
+(Building.find as jest.Mock) = jest.fn().mockReturnValue({
+      select: () => ({
+        lean: () => Promise.resolve([
       {
         catalogKey: 'metal_refineries',
         level: 1,
@@ -142,7 +160,9 @@ describe('Energy Validation Integration', () => {
         pendingUpgrade: false,
         constructionCompleted: new Date()
       }
-    ]);
+        ])
+      })
+    });
 
     // Mock no existing building of this type
     (Building.findOne as jest.Mock) = jest.fn().mockResolvedValue(null);
@@ -166,14 +186,18 @@ describe('Energy Validation Integration', () => {
     setupBaseMocks(empireId, locationCoord);
 
     // Mock existing buildings that create negative energy balance
-    (Building.find as jest.Mock) = jest.fn().mockResolvedValue([
+    (Building.find as jest.Mock) = jest.fn().mockReturnValue({
+      select: () => ({
+        lean: () => Promise.resolve([
       {
         catalogKey: 'research_labs',
         level: 5,
         isActive: true,
         pendingUpgrade: false
       }
-    ]);
+        ])
+      })
+    });
 
     // Mock base stats showing negative energy balance
     (BaseStatsService.getBaseStats as jest.Mock) = jest.fn().mockResolvedValue({

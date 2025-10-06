@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { isReverseProxySSL } from '../utils/runtimeEnv';
 
 /**
  * HTTPS Enforcement Middleware
@@ -45,6 +46,7 @@ export function createHttpsRedirectMiddleware(config: HttpsRedirectConfig = {}) 
   } = config;
 
   return function httpsRedirectMiddleware(req: Request, res: Response, next: NextFunction) {
+    const reverseProxy = isReverseProxySSL();
     // Skip HTTPS enforcement in development unless explicitly forced
     if (process.env.NODE_ENV !== 'production' && !forceHttps) {
       return next();
@@ -89,14 +91,21 @@ export function createHttpsRedirectMiddleware(config: HttpsRedirectConfig = {}) 
       
       // Enhanced logging based on environment
       if (process.env.NODE_ENV === 'production') {
-        console.warn(`🔒 PRODUCTION HTTP→HTTPS redirect:`, {
+        // Suppress noisy WARN logs for known exempt paths under reverse proxy mode
+        const shouldWarn = !(reverseProxy && isExempt);
+        if (shouldWarn) {
+          console.warn(`🔒 PRODUCTION HTTP→HTTPS redirect:`, {
           ...clientInfo,
           redirectTo: redirectUrl,
           severity: 'WARNING',
           message: 'Insecure HTTP request redirected to HTTPS in production'
         });
+        } else {
+          // Downgrade to INFO for exempt health/status checks in reverse proxy mode
+          console.log(`ℹ️ PRODUCTION redirect (exempt path in reverse proxy mode): ${req.method} ${req.originalUrl} → ${redirectUrl}`);
+        }
       } else {
-        console.log(`🔒 HTTP → HTTPS redirect: ${req.method} ${req.originalUrl} → ${redirectUrl}`);
+        console.log(`🔐 HTTP → HTTPS redirect: ${req.method} ${req.originalUrl} → ${redirectUrl}`);
       }
 
       // Enhanced security headers for production redirects

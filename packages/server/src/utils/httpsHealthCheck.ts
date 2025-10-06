@@ -1,6 +1,7 @@
 import https from 'https';
 import http from 'http';
 import { Request, Response } from 'express';
+import { isReverseProxySSL } from './runtimeEnv';
 
 /**
  * HTTPS Health Check and Validation Utilities
@@ -301,6 +302,30 @@ async function checkSecurityHeaders(hostname: string, port: number) {
  * Express route handler for HTTPS health check endpoint
  */
 export function httpsHealthCheckHandler(req: Request, res: Response) {
+  // If running behind a reverse proxy that terminates TLS (e.g., Render),
+  // local HTTPS is not expected to be listening. Short-circuit with a friendly response.
+  const reverseProxySSL = isReverseProxySSL();
+  if (reverseProxySSL) {
+    const timestamp = new Date().toISOString();
+    return res.status(200).json({
+      success: true,
+      data: {
+        healthy: true,
+        timestamp,
+        checks: {
+          httpsListening: false,
+          httpRedirects: true,
+          certificateValid: true,
+          securityHeaders: true,
+          errorDetails: [
+            'Reverse proxy SSL termination detected; local HTTPS endpoint not expected. Skipping local checks.'
+          ]
+        }
+      },
+      message: 'Using reverse proxy SSL (e.g., Render). Local HTTPS health checks are skipped.'
+    });
+  }
+
   const httpsPort = parseInt(process.env.HTTPS_PORT || '443', 10);
   const httpPort = parseInt(process.env.PORT || '80', 10);
   const hostname = req.get('host')?.split(':')[0] || 'localhost';
@@ -315,7 +340,7 @@ export function httpsHealthCheckHandler(req: Request, res: Response) {
       });
     })
     .catch((error) => {
-      console.error('❌ HTTPS health check endpoint error:', error);
+      console.error('âŒ HTTPS health check endpoint error:', error);
       res.status(500).json({
         success: false,
         error: 'HTTPS health check failed',
@@ -327,6 +352,10 @@ export function httpsHealthCheckHandler(req: Request, res: Response) {
 /**
  * Periodic HTTPS health monitoring
  */
+export function shouldStartHttpsHealthMonitor(reverseProxy: boolean): boolean {
+  return !reverseProxy;
+}
+
 export class HttpsHealthMonitor {
   private intervalId: NodeJS.Timeout | null = null;
   private lastResult: HttpsHealthCheckResult | null = null;
