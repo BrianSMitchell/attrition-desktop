@@ -11,14 +11,21 @@ export { supabase };
 
 /**
  * Database configuration
- * - Development: Uses MongoDB
- * - Production: Uses Supabase
+ *
+ * Default behavior (no env override):
+ * - Development: MongoDB
+ * - Production: Supabase
+ *
+ * Override with environment variable:
+ * - DB_TYPE=mongodb | supabase
  */
+const DB_TYPE = (process.env.DB_TYPE || (isProduction ? 'supabase' : 'mongodb')).toLowerCase();
+
 export const dbConfig = {
   isProduction,
   isDevelopment,
-  useSupabase: isProduction,
-  useMongoDB: !isProduction, // Use MongoDB for dev, test, or when not explicitly production
+  useSupabase: DB_TYPE === 'supabase',
+  useMongoDB: DB_TYPE === 'mongodb',
 };
 
 /**
@@ -30,6 +37,9 @@ export async function connectDatabase(): Promise<void> {
   console.log('═══════════════════════════════════════');
   console.log(`  Environment:     ${process.env.NODE_ENV || 'development'}`);
   console.log(`  Database Type:   ${dbConfig.useSupabase ? 'SUPABASE' : 'MONGODB'}`);
+  if (process.env.DB_TYPE) {
+    console.log(`  DB_TYPE override: ${process.env.DB_TYPE}`);
+  }
   console.log('═══════════════════════════════════════\n');
 
   if (dbConfig.useMongoDB) {
