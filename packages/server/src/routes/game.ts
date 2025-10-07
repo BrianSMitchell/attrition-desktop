@@ -1228,7 +1228,7 @@ router.post('/tech/start', asyncHandler(async (req: AuthRequest, res: Response) 
     const result = await SupabaseTechService.start(userId, empireId, locationCoord, techKey as any);
     if (!result.success) {
       const statusCode = (result as any).code === 'ALREADY_IN_PROGRESS' ? 409 : 400;
-      return res.status(statusCode).json({ success: false, ...result });
+      return res.status(statusCode).json(result);
     }
     return res.json({ success: true, data: (result as any).data, message: (result as any).message });
   }
