@@ -1921,6 +1921,27 @@ router.get('/base-stats/:coord', asyncHandler(async (req: AuthRequest, res: Resp
  * Computes Construction/Production/Research capacities for a base.
  */
 router.get('/capacities/:coord', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const { coord } = req.params;
+    if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });
+
+    const { SupabaseCapacityService } = require('../services/bases/SupabaseCapacityService');
+    const caps = await SupabaseCapacityService.getBaseCapacities(empireId, coord);
+    return res.json({ success: true, data: caps });
+  }
+
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });

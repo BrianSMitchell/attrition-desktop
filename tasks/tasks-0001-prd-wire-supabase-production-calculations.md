@@ -36,7 +36,7 @@
 
 - [ ] 3.0 Base Stats & Capacities (Supabase)
 - [x] 3.1 Base stats: area/energy/population budgets via Supabase `locations.result`, `star_applied`, aggregated active buildings.
-  - [ ] 3.2 Capacities: construction/production/research per base mirroring existing server helpers with Supabase data.
+- [x] 3.2 Capacities: construction/production/research per base mirroring existing server helpers with Supabase data.
 
 - [ ] 4.0 Structures (Supabase) – list + start/cancel
   - [ ] 4.1 Structures list: `constructionPerHour`, levels per `catalog_key`, `creditsCostNext`, `activeConstruction` ETA if present.
