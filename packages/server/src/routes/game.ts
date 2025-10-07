@@ -1397,8 +1397,37 @@ router.get('/units/catalog', asyncHandler(async (_req: AuthRequest, res: Respons
 
 router.get('/units/status', asyncHandler(async (req: AuthRequest, res: Response) => {
   if (getDatabaseType() === 'supabase') {
-    // Minimal placeholder for Supabase; units not modeled yet
-    return res.json({ success: true, data: { status: { capacities: {}, eligibility: {} } } });
+    // Resolve user -> empire id
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('id, empire_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    let { data: empireRow } = await supabase
+      .from('empires')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!empireRow && (userRow as any)?.empire_id) {
+      const byId = await supabase
+        .from('empires')
+        .select('id')
+        .eq('id', (userRow as any).empire_id)
+        .maybeSingle();
+      empireRow = byId.data as any;
+    }
+
+    if (!empireRow) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const { SupabaseUnitsService } = await import('../services/units/SupabaseUnitsService');
+    const locationCoord = String(req.query.locationCoord || '').trim() || undefined;
+    const status = await SupabaseUnitsService.getStatus((empireRow as any).id, locationCoord);
+    return res.json({ success: true, data: { status } });
   }
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
@@ -1410,6 +1439,56 @@ router.get('/units/status', asyncHandler(async (req: AuthRequest, res: Response)
 }));
 
 router.post('/units/start', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('id, empire_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    let { data: empireRow } = await supabase
+      .from('empires')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!empireRow && (userRow as any)?.empire_id) {
+      const byId = await supabase
+        .from('empires')
+        .select('id')
+        .eq('id', (userRow as any).empire_id)
+        .maybeSingle();
+      empireRow = byId.data as any;
+    }
+
+    if (!empireRow) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const { locationCoord, unitKey } = req.body as { locationCoord?: string; unitKey?: UnitKey };
+    if (!locationCoord || !unitKey) {
+      return res.status(400).json({ success: false, error: 'locationCoord and unitKey are required' });
+    }
+
+    const { SupabaseUnitsService } = await import('../services/units/SupabaseUnitsService');
+    const result = await SupabaseUnitsService.start(userId, (empireRow as any).id, locationCoord, unitKey);
+    if (!(result as any).success) {
+      const errorResponse: any = {
+        success: false,
+        error: (result as any).error ?? (result as any).message,
+        message: (result as any).message ?? (result as any).error,
+      };
+      if ((result as any).code) errorResponse.code = (result as any).code;
+      if ((result as any).details) errorResponse.details = (result as any).details;
+      if ((result as any).reasons) errorResponse.reasons = (result as any).reasons;
+      const statusCode = (result as any).code === 'ALREADY_IN_PROGRESS' ? 409 : 400;
+      return res.status(statusCode).json(errorResponse);
+    }
+
+    return res.json({ success: true, data: (result as any).data, message: (result as any).message });
+  }
+
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
@@ -1452,8 +1531,59 @@ router.post('/units/start', asyncHandler(async (req: AuthRequest, res: Response)
  */
 router.get('/units/queue', asyncHandler(async (req: AuthRequest, res: Response) => {
   if (getDatabaseType() === 'supabase') {
-    // Not implemented yet in Supabase schema; return empty queue
-    return res.json({ success: true, data: { queue: [] } });
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('id, empire_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    let { data: empireRow } = await supabase
+      .from('empires')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!empireRow && (userRow as any)?.empire_id) {
+      const byId = await supabase
+        .from('empires')
+        .select('id')
+        .eq('id', (userRow as any).empire_id)
+        .maybeSingle();
+      empireRow = byId.data as any;
+    }
+
+    if (!empireRow) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const base = String(req.query.base || '').trim() || undefined;
+    const { SupabaseUnitsService } = await import('../services/units/SupabaseUnitsService');
+    const queue = await SupabaseUnitsService.getQueue((empireRow as any).id, base);
+
+    const transformed = (queue || []).map((item: any) => {
+      const key = String(item.unit_key || '');
+      let unitName = key;
+      let creditsCost = 0;
+      try {
+        const spec = getUnitSpec(key as UnitKey);
+        unitName = spec?.name || key;
+        creditsCost = Math.max(0, Number(spec?.creditsCost || 0));
+      } catch {}
+      return {
+        id: String(item.id || ''),
+        unitKey: key,
+        unitName,
+        quantity: 1,
+        totalQuantity: 1,
+        startedAt: String(item.started_at || new Date().toISOString()),
+        completesAt: String(item.completes_at || new Date().toISOString()),
+        creditsCost,
+        baseCoord: String(item.location_coord || ''),
+      };
+    });
+
+    return res.json({ success: true, data: { queue: transformed } });
   }
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
@@ -1496,6 +1626,64 @@ router.get('/units/queue', asyncHandler(async (req: AuthRequest, res: Response) 
 
 // Cancel a pending unit production queue item
 router.delete('/units/queue/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('id, empire_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    let { data: empireRow } = await supabase
+      .from('empires')
+      .select('id, credits')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!empireRow && (userRow as any)?.empire_id) {
+      const byId = await supabase
+        .from('empires')
+        .select('id, credits')
+        .eq('id', (userRow as any).empire_id)
+        .maybeSingle();
+      empireRow = byId.data as any;
+    }
+
+    if (!empireRow) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ success: false, error: 'Invalid queue item id' });
+
+    const { data: qItem } = await supabase
+      .from('unit_queue')
+      .select('id, empire_id, unit_key, status, completes_at')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!qItem || String((qItem as any).empire_id) !== String((empireRow as any).id)) {
+      return res.status(404).json({ success: false, error: 'Queue item not found' });
+    }
+
+    if (String((qItem as any).status || '') !== 'pending') {
+      return res.status(400).json({ success: false, error: 'Only pending items can be cancelled' });
+    }
+
+    // Optional refund like Mongo path
+    let refundedCredits: number | null = null;
+    try {
+      const spec = getUnitSpec(String((qItem as any).unit_key) as UnitKey);
+      refundedCredits = Math.max(0, Number(spec?.creditsCost || 0));
+      const currentCredits = Math.max(0, Number((empireRow as any).credits || 0));
+      await supabase.from('empires').update({ credits: currentCredits + refundedCredits }).eq('id', (empireRow as any).id);
+    } catch {}
+
+    await supabase.from('unit_queue').update({ status: 'cancelled' }).eq('id', id);
+
+    return res.json({ success: true, data: { cancelledId: id, refundedCredits }, message: 'Unit production cancelled' });
+  }
+
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
