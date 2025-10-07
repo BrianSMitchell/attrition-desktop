@@ -340,6 +340,34 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
  */
 router.get('/stats', authenticate, async (req: AuthRequest, res) => {
   try {
+    if (getDatabaseType() === 'supabase') {
+      const [all, planets, asteroids, owned, unowned] = await Promise.all([
+        supabase.from('locations').select('id', { count: 'exact', head: true }),
+        supabase.from('locations').select('id', { count: 'exact', head: true }).eq('type', 'planet'),
+        supabase.from('locations').select('id', { count: 'exact', head: true }).eq('type', 'asteroid'),
+        supabase.from('locations').select('id', { count: 'exact', head: true }).not('owner_id', 'is', null),
+        supabase.from('locations').select('id', { count: 'exact', head: true }).is('owner_id', null),
+      ]);
+
+      const totalLocations = all.count || 0;
+      const totalPlanets = planets.count || 0;
+      const totalAsteroids = asteroids.count || 0;
+      const ownedLocations = owned.count || 0;
+      const unownedLocations = unowned.count || 0;
+
+      return res.json({
+        success: true,
+        data: {
+          totalLocations,
+          totalPlanets,
+          totalAsteroids,
+          ownedLocations,
+          unownedLocations,
+          ownershipPercentage: totalLocations > 0 ? Math.round((ownedLocations / totalLocations) * 100) : 0,
+        },
+      });
+    }
+
     const [
       totalLocations,
       totalPlanets,
@@ -398,6 +426,49 @@ router.get('/region/:server/:galaxy/:region', authenticate, async (req: AuthRequ
         success: false,
         error: 'Invalid region coordinates'
       });
+    }
+
+    if (getDatabaseType() === 'supabase') {
+      const gg = galaxy.padStart(2, '0');
+      const rr = region.padStart(2, '0');
+      // stars at body 00
+      const starLike = `${server}${gg}:${rr}:%:00`;
+      const { data: stars } = await supabase
+        .from('locations')
+        .select('coord, star_overhaul')
+        .eq('type', 'star')
+        .like('coord', starLike)
+        .order('coord', { ascending: true });
+
+      // Fetch all owned coords in region once
+      const ownedLike = `${server}${gg}:${rr}:%`;
+      const { data: ownedRows } = await supabase
+        .from('locations')
+        .select('coord')
+        .not('owner_id', 'is', null)
+        .like('coord', ownedLike);
+
+      const ownedBySystem = new Set<string>();
+      for (const row of ownedRows || []) {
+        try {
+          const c = parseCoord((row as any).coord);
+          ownedBySystem.add(`${c.system}`.padStart(2, '0'));
+        } catch {}
+      }
+
+      const systems = (stars || []).map((star: any) => {
+        const c = parseCoord(star.coord);
+        const sysKey = `${c.system}`.padStart(2, '0');
+        const kind = (star as any)?.star_overhaul?.kind as string | undefined;
+        return {
+          system: c.system,
+          coord: star.coord,
+          star: kind ? { spectralClass: undefined as any, color: colorForStarKind(kind) } : null,
+          hasOwned: ownedBySystem.has(sysKey),
+        };
+      });
+
+      return res.json({ success: true, data: { region: { server, galaxy: galaxyNum, region: regionNum }, systems } });
     }
 
     // Stars define the existence of a system: body 0 for each system
@@ -476,6 +547,31 @@ router.get('/galaxy/:server/:galaxy/regions', authenticate, async (req: AuthRequ
       });
     }
 
+    if (getDatabaseType() === 'supabase') {
+      const galaxyStr = galaxy.padStart(2, '0');
+      const like = `${server}${galaxyStr}:%:%:00`;
+      const { data: stars } = await supabase
+        .from('locations')
+        .select('coord')
+        .eq('type', 'star')
+        .like('coord', like);
+
+      const buckets: Record<number, number[]> = {};
+      for (const s of stars || []) {
+        try {
+          const c = parseCoord((s as any).coord);
+          if (!buckets[c.region]) buckets[c.region] = [];
+          buckets[c.region].push(c.system);
+        } catch {}
+      }
+
+      const regions = Object.keys(buckets)
+        .map((r) => ({ region: parseInt(r, 10), systemsWithStars: buckets[parseInt(r, 10)] }))
+        .sort((a, b) => a.region - b.region);
+
+      return res.json({ success: true, data: { server, galaxy: galaxyNum, regions } });
+    }
+
     // Find all stars (body 0) in this galaxy across all regions/systems
     const galaxyStr = galaxy.padStart(2, '0');
     const starPattern = new RegExp(`^${server}${galaxyStr}:\\d{2}:\\d{2}:00$`);
@@ -540,6 +636,33 @@ router.get('/galaxy/:server/:galaxy/region-stars', authenticate, async (req: Aut
         success: false,
         error: 'Invalid galaxy coordinates'
       });
+    }
+
+    if (getDatabaseType() === 'supabase') {
+      const galaxyStr = galaxy.padStart(2, '0');
+      const like = `${server}${galaxyStr}:%:%:00`;
+      const { data: stars } = await supabase
+        .from('locations')
+        .select('coord, star_overhaul')
+        .eq('type', 'star')
+        .like('coord', like);
+
+      const buckets = new Map<number, Array<{ system: number; color: string }>>();
+      for (const s of stars || []) {
+        try {
+          const c = parseCoord((s as any).coord);
+          const kind = (s as any)?.star_overhaul?.kind as string | undefined;
+          const color = colorForStarKind(kind);
+          if (!buckets.has(c.region)) buckets.set(c.region, []);
+          buckets.get(c.region)!.push({ system: c.system, color });
+        } catch {}
+      }
+
+      const regions = Array.from(buckets.entries())
+        .map(([region, systems]) => ({ region, systems: systems.sort((a, b) => a.system - b.system) }))
+        .sort((a, b) => a.region - b.region);
+
+      return res.json({ success: true, data: { server, galaxy: galaxyNum, regions } });
     }
 
     const galaxyStr = galaxy.padStart(2, '0');
