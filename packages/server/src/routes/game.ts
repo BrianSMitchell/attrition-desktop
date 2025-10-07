@@ -1292,9 +1292,23 @@ router.get('/defenses/catalog', asyncHandler(async (_req: AuthRequest, res: Resp
 }));
 
 router.get('/defenses/status', asyncHandler(async (req: AuthRequest, res: Response) => {
-  // Supabase implementation: return minimal status placeholders
   if (getDatabaseType() === 'supabase') {
-    return res.json({ success: true, data: { status: { techLevels: {}, eligibility: {} } } });
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const { SupabaseDefensesService } = await import('../services/defenses/SupabaseDefensesService');
+    const status = await SupabaseDefensesService.getStatus(empireId);
+    return res.json({ success: true, data: { status } });
   }
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
@@ -1306,8 +1320,43 @@ router.get('/defenses/status', asyncHandler(async (req: AuthRequest, res: Respon
 
 router.get('/defenses/queue', asyncHandler(async (req: AuthRequest, res: Response) => {
   if (getDatabaseType() === 'supabase') {
-    // Not implemented yet in Supabase schema; return empty queue
-    return res.json({ success: true, data: { queue: [] } });
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const locationCoord = String(req.query.locationCoord || '').trim() || undefined;
+    
+    // Build query for defense queue
+    let query = supabase
+      .from('defense_queue')
+      .select('id, defense_key, started_at, completes_at, location_coord')
+      .eq('empire_id', empireId)
+      .eq('status', 'pending');
+    
+    if (locationCoord) {
+      query = query.eq('location_coord', locationCoord);
+    }
+
+    const { data: items } = await query.order('completes_at', { ascending: true, nullsFirst: false });
+
+    const queue = (items || []).map((it: any) => ({
+      id: String(it.id || ''),
+      defenseKey: String(it.defense_key || ''),
+      startedAt: it.started_at || null,
+      completesAt: it.completes_at || null,
+      baseCoord: String(it.location_coord || '')
+    }));
+
+    return res.json({ success: true, data: { queue } });
   }
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) return res.status(404).json({ success: false, error: 'Empire not found' });
@@ -1331,6 +1380,43 @@ router.get('/defenses/queue', asyncHandler(async (req: AuthRequest, res: Respons
 }));
 
 router.post('/defenses/start', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const { locationCoord, defenseKey } = req.body as { locationCoord?: string; defenseKey?: DefenseKey };
+    if (!locationCoord || !defenseKey) {
+      return res.status(400).json({ success: false, error: 'locationCoord and defenseKey are required' });
+    }
+
+    const { SupabaseDefensesService } = await import('../services/defenses/SupabaseDefensesService');
+    const result = await SupabaseDefensesService.start(empireId, locationCoord, defenseKey);
+    if (!result.success) {
+      const errorResponse: any = {
+        success: false,
+        error: (result as any).error ?? (result as any).message,
+        message: (result as any).message ?? (result as any).error
+      };
+      if ((result as any).code) errorResponse.code = (result as any).code;
+      if ((result as any).details) errorResponse.details = (result as any).details;
+      if ((result as any).reasons) errorResponse.reasons = (result as any).reasons;
+      const statusCode = (result as any).code === 'ALREADY_IN_PROGRESS' ? 409 : 400;
+      return res.status(statusCode).json(errorResponse);
+    }
+
+    return res.json({ success: true, data: result.data, message: result.message });
+  }
+
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
@@ -1368,6 +1454,49 @@ router.post('/defenses/start', asyncHandler(async (req: AuthRequest, res: Respon
 
 // Cancel a pending defense item
 router.delete('/defenses/queue/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ success: false, error: 'Invalid queue item id' });
+
+    const { data: qItem } = await supabase
+      .from('defense_queue')
+      .select('id, empire_id, defense_key, status, started_at, completes_at')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!qItem || String((qItem as any).empire_id) !== empireId) {
+      return res.status(404).json({ success: false, error: 'Queue item not found' });
+    }
+
+    if (String((qItem as any).status || '') !== 'pending') {
+      return res.status(400).json({ success: false, error: 'Only pending items can be cancelled' });
+    }
+
+    // Check if in progress (has started and not yet completed)
+    if ((qItem as any).started_at && (qItem as any).completes_at) {
+      const completesAt = new Date((qItem as any).completes_at).getTime();
+      if (completesAt > Date.now()) {
+        return res.status(400).json({ success: false, error: 'Cannot cancel an in-progress defense yet' });
+      }
+    }
+
+    await supabase.from('defense_queue').update({ status: 'cancelled' }).eq('id', id);
+    return res.json({ success: true, data: { cancelledId: id }, message: 'Defense construction cancelled' });
+  }
+
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) return res.status(404).json({ success: false, error: 'Empire not found' });
 
