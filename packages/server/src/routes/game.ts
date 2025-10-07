@@ -1399,6 +1399,60 @@ router.get('/bases/summary', asyncHandler(async (req: AuthRequest, res: Response
     const colonies = colRes.data || [];
     const colonyByCoord = new Map<string, any>((colonies as any[]).map((c) => [c.location_coord, c]));
 
+    // Research summary: earliest scheduled pending; otherwise earliest unscheduled pending
+    let researchSummary: { name: string; remaining: number; percent: number } | null = null;
+    try {
+      const now = Date.now();
+      // Scheduled
+      const sched = await supabase
+        .from('tech_queue')
+        .select('tech_key, started_at, completes_at')
+        .eq('empire_id', (empireRow as any).id)
+        .eq('status', 'pending')
+        .not('completes_at', 'is', null)
+        .order('completes_at', { ascending: true })
+        .limit(1);
+
+      let item: any = (sched.data && sched.data[0]) || null;
+
+      if (!item) {
+        // Unscheduled: order by created_at
+        const unsched = await supabase
+          .from('tech_queue')
+          .select('tech_key, started_at, completes_at, created_at')
+          .eq('empire_id', (empireRow as any).id)
+          .eq('status', 'pending')
+          .is('completes_at', null)
+          .order('created_at', { ascending: true })
+          .limit(1);
+        item = (unsched.data && unsched.data[0]) || null;
+      }
+
+      if (item) {
+        let name = '';
+        try {
+          name = getTechSpec(String(item.tech_key) as any).name;
+        } catch {
+          name = String(item.tech_key || '');
+        }
+        let remaining = 0;
+        let percent = 0;
+        if (item.completes_at && item.started_at) {
+          const st = new Date(item.started_at as any).getTime();
+          const et = new Date(item.completes_at as any).getTime();
+          if (Number.isFinite(st) && Number.isFinite(et) && et > st) {
+            remaining = Math.max(0, et - now);
+            const total = et - st;
+            const elapsed = Math.max(0, now - st);
+            percent = Math.min(100, Math.max(0, Math.floor((elapsed / total) * 100)));
+          }
+        }
+        researchSummary = { name, remaining, percent };
+      }
+    } catch {
+      // non-fatal
+    }
+
     const bases = (locations as any[]).map((loc) => {
       const coord = String(loc.coord);
       const colony = colonyByCoord.get(coord);
@@ -1411,7 +1465,7 @@ router.get('/bases/summary', asyncHandler(async (req: AuthRequest, res: Response
         construction: { queued: 0 },
         production: { queued: 0 },
         defenses: { queued: 0 },
-        research: null,
+        research: researchSummary,
       };
     });
 

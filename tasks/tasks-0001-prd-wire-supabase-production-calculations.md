@@ -31,7 +31,7 @@
 
 - [ ] 2.0 Bases Summary (Supabase) – populate queues + research status
 - [x] 2.1 Load bases from `empires.territories` + `colonies` and return `name`, `location`.
-  - [ ] 2.2 Research summary: pick earliest `tech_queue` pending with `completes_at`, else earliest pending unscheduled; expose `{ name, remaining, percent }`.
+- [x] 2.2 Research summary: pick earliest `tech_queue` pending with `completes_at`, else earliest pending unscheduled; expose `{ name, remaining, percent }`.
   - [ ] 2.3 Production/Defense queues: count pending items per base and compute the next item `{ name, remaining, percent }` using `completes_at` (or created_at if unscheduled).
 
 - [ ] 3.0 Base Stats & Capacities (Supabase)
