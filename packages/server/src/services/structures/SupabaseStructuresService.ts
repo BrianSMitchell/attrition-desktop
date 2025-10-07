@@ -121,17 +121,14 @@ export class SupabaseStructuresService {
    */
   static async start(empireId: string, locationCoord: string, buildingKey: BuildingKey): Promise<ServiceResult> {
     // Validate buildingKey
-    if (!buildingKey) {
-      const base = {
+    if (!buildingKey || (typeof buildingKey === 'string' && buildingKey.trim().length === 0)) {
+      return {
         success: false as const,
         code: 'INVALID_REQUEST',
         message: 'catalogKey is required',
         details: { field: 'catalogKey' },
+        error: 'catalogKey is required',
       };
-      if (typeof buildingKey === 'string' && buildingKey.length === 0) {
-        return { ...base, error: 'catalogKey is required' };
-      }
-      return base;
     }
 
     // Load empire
