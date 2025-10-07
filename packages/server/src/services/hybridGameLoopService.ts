@@ -11,6 +11,8 @@ import { TechService } from './techService';
 import { getTechSpec, getTechCreditCostForLevel, getUnitSpec } from '@game/shared';
 import { emitFleetUpdate } from '../utils/socketManager';
 import { FleetMovementService } from './fleetMovementService';
+import { getDatabaseType } from '../config/database';
+import { SupabaseCompletionService } from './supabaseCompletionService';
 
 export class HybridGameLoopService {
   private static instance: HybridGameLoopService;
@@ -445,6 +447,12 @@ export class HybridGameLoopService {
    * Process technology queue completions
    */
   private async processTechQueue(): Promise<{ completed: number; cancelled: number; errors: number }> {
+    // Use Supabase service if using Supabase database
+    if (getDatabaseType() === 'supabase') {
+      return await SupabaseCompletionService.completeTechQueue();
+    }
+
+    // MongoDB path
     let completed = 0;
     let cancelled = 0;
     let errors = 0;
@@ -519,6 +527,12 @@ export class HybridGameLoopService {
    * Process unit queue completions
    */
   private async processUnitQueue(): Promise<{ completed: number; cancelled: number; errors: number }> {
+    // Use Supabase service if using Supabase database
+    if (getDatabaseType() === 'supabase') {
+      return await SupabaseCompletionService.completeUnitQueue();
+    }
+
+    // MongoDB path
     let completed = 0;
     let cancelled = 0;
     let errors = 0;
@@ -564,6 +578,13 @@ export class HybridGameLoopService {
    * - For bases without an in-progress item, schedule the earliest pending waiting item using current citizen capacity
    */
   private async processDefenseQueue(): Promise<{ completed: number; activated: number; errors: number }> {
+    // Use Supabase service if using Supabase database
+    if (getDatabaseType() === 'supabase') {
+      const result = await SupabaseCompletionService.completeDefenseQueue();
+      return { completed: result.completed, activated: 0, errors: result.errors };
+    }
+
+    // MongoDB path
     const { DefenseQueue } = await import('../models/DefenseQueue');
     let completed = 0;
     let activated = 0;
