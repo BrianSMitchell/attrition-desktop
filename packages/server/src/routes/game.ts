@@ -1453,6 +1453,113 @@ router.get('/bases/summary', asyncHandler(async (req: AuthRequest, res: Response
       // non-fatal
     }
 
+    // Production/Defense queues (pending) by base
+    const [unitQ, defQ] = await Promise.all([
+      supabase
+        .from('unit_queue')
+        .select('unit_key, location_coord, started_at, completes_at, created_at')
+        .eq('empire_id', (empireRow as any).id)
+        .eq('status', 'pending')
+        .in('location_coord', coords),
+      supabase
+        .from('defense_queue')
+        .select('defense_key, location_coord, started_at, completes_at, created_at')
+        .eq('empire_id', (empireRow as any).id)
+        .eq('status', 'pending')
+        .in('location_coord', coords),
+    ]);
+
+    const prodQueuedByCoord = new Map<string, number>();
+    const prodEarliestByCoord = new Map<string, { name: string; remaining: number; percent?: number; ts: number }>();
+    const defQueuedByCoord = new Map<string, number>();
+    const defEarliestByCoord = new Map<string, { name: string; remaining: number; percent?: number; ts: number }>();
+    const nowTs = Date.now();
+
+    // Units
+    for (const u of unitQ.data || []) {
+      const lc = String((u as any).location_coord || '');
+      if (!lc) continue;
+      prodQueuedByCoord.set(lc, (prodQueuedByCoord.get(lc) || 0) + 1);
+
+      // Determine ordering
+      const completesVal = (u as any).completes_at as string | null;
+      const createdVal = (u as any).created_at as string | null;
+      const startedVal = (u as any).started_at as string | null;
+      const orderTs = completesVal ? new Date(completesVal).getTime() : (createdVal ? new Date(createdVal).getTime() : Number.POSITIVE_INFINITY);
+
+      // Resolve display name
+      let name = '';
+      const key = String((u as any).unit_key || '');
+      if (key) {
+        try {
+          const spec = getUnitSpec(key as any);
+          name = spec?.name || key;
+        } catch {
+          name = key;
+        }
+      }
+
+      // Remaining/percent if scheduled
+      let remaining = 0;
+      let percent: number | undefined = undefined;
+      if (completesVal && startedVal) {
+        const st = new Date(startedVal).getTime();
+        const et = new Date(completesVal).getTime();
+        if (Number.isFinite(st) && Number.isFinite(et) && et > st) {
+          remaining = Math.max(0, et - nowTs);
+          const total = et - st;
+          const elapsed = Math.max(0, nowTs - st);
+          percent = Math.min(100, Math.max(0, Math.floor((elapsed / total) * 100)));
+        }
+      }
+
+      const prev = prodEarliestByCoord.get(lc);
+      if (!prev || orderTs < prev.ts) {
+        prodEarliestByCoord.set(lc, { name, remaining, percent, ts: orderTs });
+      }
+    }
+
+    // Defenses
+    for (const d of defQ.data || []) {
+      const lc = String((d as any).location_coord || '');
+      if (!lc) continue;
+      defQueuedByCoord.set(lc, (defQueuedByCoord.get(lc) || 0) + 1);
+
+      const completesVal = (d as any).completes_at as string | null;
+      const createdVal = (d as any).created_at as string | null;
+      const startedVal = (d as any).started_at as string | null;
+      const orderTs = completesVal ? new Date(completesVal).getTime() : (createdVal ? new Date(createdVal).getTime() : Number.POSITIVE_INFINITY);
+
+      let name = '';
+      const key = String((d as any).defense_key || '');
+      if (key) {
+        try {
+          const spec = getDefensesList().find((it) => String((it as any).key) === key);
+          name = (spec as any)?.name || key;
+        } catch {
+          name = key;
+        }
+      }
+
+      let remaining = 0;
+      let percent: number | undefined = undefined;
+      if (completesVal && startedVal) {
+        const st = new Date(startedVal).getTime();
+        const et = new Date(completesVal).getTime();
+        if (Number.isFinite(st) && Number.isFinite(et) && et > st) {
+          remaining = Math.max(0, et - nowTs);
+          const total = et - st;
+          const elapsed = Math.max(0, nowTs - st);
+          percent = Math.min(100, Math.max(0, Math.floor((elapsed / total) * 100)));
+        }
+      }
+
+      const prev = defEarliestByCoord.get(lc);
+      if (!prev || orderTs < prev.ts) {
+        defEarliestByCoord.set(lc, { name, remaining, percent, ts: orderTs });
+      }
+    }
+
     const bases = (locations as any[]).map((loc) => {
       const coord = String(loc.coord);
       const colony = colonyByCoord.get(coord);
@@ -1463,8 +1570,8 @@ router.get('/bases/summary', asyncHandler(async (req: AuthRequest, res: Response
         economy: { metalPerHour: 0, energyPerHour: 0, researchPerHour: 0 },
         occupier: null,
         construction: { queued: 0 },
-        production: { queued: 0 },
-        defenses: { queued: 0 },
+        production: { queued: prodQueuedByCoord.get(coord) || 0, next: (() => { const n = prodEarliestByCoord.get(coord); if (!n) return undefined; const { ts, ...rest } = n; return rest; })() },
+        defenses: { queued: defQueuedByCoord.get(coord) || 0, next: (() => { const n = defEarliestByCoord.get(coord); if (!n) return undefined; const { ts, ...rest } = n; return rest; })() },
         research: researchSummary,
       };
     });
