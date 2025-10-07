@@ -396,6 +396,46 @@ router.post('/empire', asyncHandler(async (req: AuthRequest, res: Response) => {
 
 // Get empire details
 router.get('/empire', asyncHandler(async (req: AuthRequest, res: Response) => {
+  // Supabase implementation
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    // Resolve empire by user_id, fallback to users.empire_id
+    let empireRow: any = null;
+    let byUser = await supabase.from('empires').select('id, name, territories, credits, energy').eq('user_id', userId).maybeSingle();
+    if (byUser.data) {
+      empireRow = byUser.data;
+    } else {
+      const userRes = await supabase.from('users').select('empire_id').eq('id', userId).maybeSingle();
+      if (userRes.data?.empire_id) {
+        const byId = await supabase.from('empires').select('id, name, territories, credits, energy').eq('id', userRes.data.empire_id).maybeSingle();
+        if (byId.data) empireRow = byId.data;
+      }
+    }
+
+    if (!empireRow) {
+      return res.status(404).json({ success: false, error: 'Empire not found' });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        empire: {
+          id: empireRow.id,
+          name: empireRow.name,
+          territories: Array.isArray(empireRow.territories) ? empireRow.territories : [],
+          resources: {
+            credits: Math.max(0, Number(empireRow.credits || 0)),
+            energy: Math.max(0, Number(empireRow.energy || 0)),
+          },
+        },
+        creditsPerHour: 0,
+        resourcesGained: 0,
+      },
+    });
+  }
+
   const empire = await Empire.findOne({ userId: req.user!._id });
 
   if (!empire) {
@@ -1207,6 +1247,10 @@ router.get('/defenses/catalog', asyncHandler(async (_req: AuthRequest, res: Resp
 }));
 
 router.get('/defenses/status', asyncHandler(async (req: AuthRequest, res: Response) => {
+  // Supabase implementation: return minimal status placeholders
+  if (getDatabaseType() === 'supabase') {
+    return res.json({ success: true, data: { status: { techLevels: {}, eligibility: {} } } });
+  }
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
