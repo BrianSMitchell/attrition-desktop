@@ -9,7 +9,7 @@ import PlanetInfoBlock from '../../PlanetInfoBlock';
 import PlanetVisual from '../../PlanetVisual';
 import type { FleetListRow } from '../../../../services/fleetsService';
 import { Countdown } from '../../../game/common/Countdown';
-import { getToken } from '../../../../services/tokenProvider';
+import fleetsService from '../../../../services/fleetsService';
 
 export interface OverviewPanelProps {
   /** Base data */
@@ -71,26 +71,13 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
     setDirectError(null);
     
     try {
-      const token = getToken();
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-      
-      const response = await fetch(`http://localhost:3001/api/game/fleets-overview?base=${base.locationCoord}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (data.success && data.data?.fleets) {
-        console.log('[OverviewPanel] DIRECT FLEET LOAD SUCCESS:', data.data.fleets);
-        setDirectFleets(data.data.fleets);
+      const resp = await fleetsService.getFleetsOverview(base.locationCoord);
+      if (resp.success && resp.data?.fleets) {
+        console.log('[OverviewPanel] DIRECT FLEET LOAD SUCCESS:', resp.data.fleets);
+        setDirectFleets(resp.data.fleets as any);
       } else {
-        console.error('[OverviewPanel] DIRECT FLEET LOAD FAILED:', data);
-        setDirectError(data.error || 'Failed to load fleets');
+        console.error('[OverviewPanel] DIRECT FLEET LOAD FAILED:', resp);
+        setDirectError(resp.message || resp.error || 'Failed to load fleets');
       }
     } catch (error) {
       console.error('[OverviewPanel] DIRECT FLEET LOAD ERROR:', error);
