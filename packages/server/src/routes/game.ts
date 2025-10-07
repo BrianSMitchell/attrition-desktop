@@ -1170,10 +1170,24 @@ router.get('/tech/catalog', asyncHandler(async (_req: AuthRequest, res: Response
 // Get tech status for a specific base (labs, eligibility, credits)
 router.get('/tech/status', asyncHandler(async (req: AuthRequest, res: Response) => {
   if (getDatabaseType() === 'supabase') {
-    // Minimal placeholder for Supabase
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
     const baseCoord = String(req.query.base || '').trim();
     if (!baseCoord) return res.status(400).json({ success: false, error: 'Missing base coordinate (?base=...)' });
-    return res.json({ success: true, data: { status: { techLevels: {}, eligibility: {}, baseLabTotal: 0 } } });
+
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const { SupabaseTechService } = await import('../services/tech/SupabaseTechService');
+    const status = await SupabaseTechService.getStatus(userId, empireId, baseCoord);
+    return res.json({ success: true, data: { status } });
   }
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
@@ -1194,6 +1208,31 @@ router.get('/tech/status', asyncHandler(async (req: AuthRequest, res: Response) 
 
 // Start technology research with capacity-driven ETA
 router.post('/tech/start', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+    const { locationCoord, techKey } = req.body as { locationCoord?: string; techKey?: TechnologyKey };
+    if (!locationCoord || !techKey) return res.status(400).json({ success: false, error: 'locationCoord and techKey are required' });
+
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const { SupabaseTechService } = await import('../services/tech/SupabaseTechService');
+    const result = await SupabaseTechService.start(userId, empireId, locationCoord, techKey as any);
+    if (!result.success) {
+      const statusCode = (result as any).code === 'ALREADY_IN_PROGRESS' ? 409 : 400;
+      return res.status(statusCode).json({ success: false, ...result });
+    }
+    return res.json({ success: true, data: (result as any).data, message: (result as any).message });
+  }
+
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
@@ -3059,8 +3098,23 @@ router.delete('/bases/:coord/structures/cancel', asyncHandler(async (req: AuthRe
  */
 router.get('/tech/queue', asyncHandler(async (req: AuthRequest, res: Response) => {
   if (getDatabaseType() === 'supabase') {
-    // Not implemented yet in Supabase schema; return empty queue
-    return res.json({ success: true, data: { queue: [] } });
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+    const base = String(req.query.base || '').trim();
+
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const { SupabaseTechService } = await import('../services/tech/SupabaseTechService');
+    const queue = await SupabaseTechService.getQueue(empireId, base || undefined);
+    return res.json({ success: true, data: { queue } });
   }
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
