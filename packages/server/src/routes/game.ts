@@ -2811,12 +2811,7 @@ router.post('/bases/:coord/structures/:key/construct', asyncHandler(async (req: 
     const hours = (cost as number) / perHour;
     const completesAt = new Date(now + Math.max(1, Math.ceil(hours * 3600)) * 1000).toISOString();
 
-    // Deduct credits
-    await supabase
-      .from('empires')
-      .update({ credits: availableCredits - (cost as number) })
-      .eq('id', empireId);
-
+    // CRITICAL: Perform database operations BEFORE deducting credits to prevent credit loss on DB errors
     if (!existingActive.data) {
       // Insert new queued L1
       const ins = await supabase
@@ -2835,6 +2830,7 @@ router.post('/bases/:coord/structures/:key/construct', asyncHandler(async (req: 
         .select('id')
         .single();
       if (ins.error) {
+        console.error('[Structures] Failed to insert building:', ins.error);
         return res.status(500).json({ success: false, code: 'DB_ERROR', error: 'Failed to queue construction', details: ins.error.message });
       }
     } else {
@@ -2850,8 +2846,21 @@ router.post('/bases/:coord/structures/:key/construct', asyncHandler(async (req: 
         })
         .eq('id', (existingActive.data as any).id);
       if (upd.error) {
+        console.error('[Structures] Failed to update building for upgrade:', upd.error);
         return res.status(500).json({ success: false, code: 'DB_ERROR', error: 'Failed to queue upgrade', details: upd.error.message });
       }
+    }
+
+    // Only deduct credits after successful database operation
+    const creditDeduction = await supabase
+      .from('empires')
+      .update({ credits: availableCredits - (cost as number) })
+      .eq('id', empireId);
+    
+    if (creditDeduction.error) {
+      console.error('[Structures] Failed to deduct credits after successful building creation:', creditDeduction.error);
+      // This is a critical inconsistency - building was created but credits weren't deducted
+      // Log it but don't fail the request since the building is already created
     }
 
     return res.json({ success: true, data: { coord, key, completesAt }, message: 'Construction started' });

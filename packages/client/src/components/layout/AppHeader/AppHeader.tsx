@@ -67,7 +67,7 @@ export const AppHeader: React.FC = () => {
               >
                 <ResourceDisplay
                   name="credits"
-                  value={auth.empire.resources.credits}
+                  value={auth.empire?.resources?.credits ?? 0}
                   icon="💰"
                   className="text-empire-gold"
                 />

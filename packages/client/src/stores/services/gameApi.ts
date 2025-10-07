@@ -153,7 +153,7 @@ export const gameApi = {
         return {
           success: true,
           data: {
-            credits: empire.resources.credits || 0,
+            credits: (empire?.resources?.credits ?? 0),
             techLevels: status.techLevels || {},
             eligibility: status.eligibility || {},
           },
