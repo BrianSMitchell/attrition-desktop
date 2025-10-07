@@ -13,6 +13,7 @@ import { emitFleetUpdate } from '../utils/socketManager';
 import { FleetMovementService } from './fleetMovementService';
 import { getDatabaseType } from '../config/database';
 import { SupabaseCompletionService } from './supabaseCompletionService';
+import { SupabaseResourceService } from './resources/SupabaseResourceService';
 
 export class HybridGameLoopService {
   private static instance: HybridGameLoopService;
@@ -164,37 +165,76 @@ export class HybridGameLoopService {
    * MODERATE: Update empire resources (60 second interval)
    */
   private async updateEmpireResources(): Promise<void> {
+    const dbType = getDatabaseType();
+    
     try {
-      // Get all empires that have been active in the last 24 hours
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      
-      const activeEmpires = await Empire.find({
-        $or: [
-          { lastResourceUpdate: { $gte: oneDayAgo } },
-          { lastResourceUpdate: { $exists: false } }
-        ]
-      });
+      if (dbType === 'supabase') {
+        // Supabase path: Query active empires from Supabase
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const { supabase } = await import('../config/supabase');
+        
+        const { data: activeEmpires, error } = await supabase
+          .from('empires')
+          .select('id')
+          .or(`last_resource_update.gte.${oneDayAgo.toISOString()},last_resource_update.is.null`);
 
-      let updated = 0;
-      let errors = 0;
-
-      for (const empire of activeEmpires) {
-        try {
-          const empireId = (empire._id as mongoose.Types.ObjectId).toString();
-          await ResourceService.updateEmpireResources(empireId);
-          await ResourceService.updateEmpireCreditsAligned(empireId);
-          // Update per-base citizens for this empire
-          const { BaseCitizenService } = await import('./baseCitizenService');
-          await BaseCitizenService.updateEmpireBases(empireId);
-          updated++;
-        } catch (error) {
-          errors++;
-          console.error(`Error updating resources for empire ${empire._id}:`, error);
+        if (error) {
+          console.error('Error fetching active empires from Supabase:', error);
+          return;
         }
-      }
 
-      if (process.env.DEBUG_RESOURCES === 'true') {
-        console.log(`[HybridLoop] resources updated: ${updated}/${activeEmpires.length} empires`);
+        let updated = 0;
+        let errors = 0;
+
+        for (const empire of activeEmpires || []) {
+          try {
+            const empireId = empire.id;
+            await SupabaseResourceService.updateEmpireResources(empireId);
+            await SupabaseResourceService.updateEmpireCreditsAligned(empireId);
+            // Note: BaseCitizenService needs Supabase support
+            // TODO: Implement SupabaseBaseCitizenService
+            updated++;
+          } catch (empError) {
+            errors++;
+            console.error(`Error updating resources for empire ${empire.id}:`, empError);
+          }
+        }
+
+        if (process.env.DEBUG_RESOURCES === 'true') {
+          console.log(`[HybridLoop] resources updated: ${updated}/${activeEmpires?.length || 0} empires (Supabase)`);
+        }
+      } else {
+        // MongoDB path
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        
+        const activeEmpires = await Empire.find({
+          $or: [
+            { lastResourceUpdate: { $gte: oneDayAgo } },
+            { lastResourceUpdate: { $exists: false } }
+          ]
+        });
+
+        let updated = 0;
+        let errors = 0;
+
+        for (const empire of activeEmpires) {
+          try {
+            const empireId = (empire._id as mongoose.Types.ObjectId).toString();
+            await ResourceService.updateEmpireResources(empireId);
+            await ResourceService.updateEmpireCreditsAligned(empireId);
+            // Update per-base citizens for this empire
+            const { BaseCitizenService } = await import('./baseCitizenService');
+            await BaseCitizenService.updateEmpireBases(empireId);
+            updated++;
+          } catch (error) {
+            errors++;
+            console.error(`Error updating resources for empire ${empire._id}:`, error);
+          }
+        }
+
+        if (process.env.DEBUG_RESOURCES === 'true') {
+          console.log(`[HybridLoop] resources updated: ${updated}/${activeEmpires.length} empires (MongoDB)`);
+        }
       }
     } catch (error) {
       console.error('Error in resource updates:', error);
