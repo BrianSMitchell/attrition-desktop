@@ -3,6 +3,8 @@ import { Building, type BuildingDocument } from '../models/Building';
 import { Empire } from '../models/Empire';
 import { CapacityService } from './capacityService';
 import { getIO } from '../index';
+import { getDatabaseType } from '../config/database';
+import { supabase } from '../config/supabase';
 
 /**
  * BuildingService
@@ -43,6 +45,63 @@ export class BuildingService {
   }> {
     const now = new Date();
 
+    // Supabase path
+    if (getDatabaseType() === 'supabase') {
+      const { data: dueBuildings, error } = await supabase
+        .from('buildings')
+        .select('id, empire_id, location_coord, catalog_key, level, pending_upgrade, construction_started, construction_completed')
+        .eq('is_active', false)
+        .lte('construction_completed', now.toISOString());
+
+      if (error || !dueBuildings || dueBuildings.length === 0) {
+        return { activatedCount: 0, activatedIds: [] };
+      }
+
+      const activatedIds: string[] = [];
+      
+      for (const building of dueBuildings) {
+        try {
+          const isPendingUpgrade = building.pending_upgrade === true;
+          const currentLevel = Math.max(0, Number(building.level || 0));
+          const newLevel = isPendingUpgrade ? currentLevel + 1 : Math.max(1, currentLevel);
+
+          const { error: updateError } = await supabase
+            .from('buildings')
+            .update({
+              is_active: true,
+              level: newLevel,
+              pending_upgrade: false,
+              construction_completed: null,
+              construction_started: null
+            })
+            .eq('id', building.id);
+
+          if (updateError) {
+            console.error('[BuildingService] Error activating building:', building.id, updateError);
+            continue;
+          }
+
+          activatedIds.push(building.id);
+
+          // Broadcast completion event
+          try {
+            const io = getIO();
+            (io as any)?.broadcastQueueUpdate?.(building.empire_id, building.location_coord, 'queue:item_completed', {
+              buildingId: building.id,
+              locationCoord: building.location_coord,
+              catalogKey: building.catalog_key,
+              pendingUpgrade: isPendingUpgrade,
+            });
+          } catch {}
+        } catch (err) {
+          console.error('[BuildingService] Error processing building:', building.id, err);
+        }
+      }
+
+      return { activatedCount: activatedIds.length, activatedIds };
+    }
+
+    // MongoDB path
     // Find all queued buildings that should now be active
     const dueDocs = await Building.find({
       isActive: false,
