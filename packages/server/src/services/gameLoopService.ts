@@ -83,10 +83,9 @@ export class GameLoopService {
       // Complete unit queue items (capacity-driven production)
       const unitStats = await this.processUnitQueue();
 
-      // Structures construction queue has been decommissioned
-
-      // Legacy building construction system has been decommissioned
-      const activatedCount = 0;
+      // Complete and activate buildings that have finished construction
+      const buildingStats = await BuildingService.completeDueConstructions();
+      const activatedCount = buildingStats.activatedCount;
 
       // Process defense queue activations and completions (citizen capacity)
       const defenseStats = await this.processDefenseQueue();
