@@ -3058,6 +3058,10 @@ router.delete('/bases/:coord/structures/cancel', asyncHandler(async (req: AuthRe
  * Optional ?base=A00:10:22:10 to filter by a specific base coord.
  */
 router.get('/tech/queue', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    // Not implemented yet in Supabase schema; return empty queue
+    return res.json({ success: true, data: { queue: [] } });
+  }
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
