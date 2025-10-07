@@ -30,7 +30,7 @@
 - [x] 1.3 Add small diagnostic logs (duration, computed deltas, old/new credits) under a debug flag.
 
 - [ ] 2.0 Bases Summary (Supabase) – populate queues + research status
-  - [ ] 2.1 Load bases from `empires.territories` + `colonies` and return `name`, `location`.
+- [x] 2.1 Load bases from `empires.territories` + `colonies` and return `name`, `location`.
   - [ ] 2.2 Research summary: pick earliest `tech_queue` pending with `completes_at`, else earliest pending unscheduled; expose `{ name, remaining, percent }`.
   - [ ] 2.3 Production/Defense queues: count pending items per base and compute the next item `{ name, remaining, percent }` using `completes_at` (or created_at if unscheduled).
 
