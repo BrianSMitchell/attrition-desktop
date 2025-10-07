@@ -3433,6 +3433,71 @@ router.get('/base-units', asyncHandler(async (req: AuthRequest, res: Response) =
  * DTO: { success, data: { fleets: [{ _id, name, ownerName, arrival, sizeCredits }] } }
  */
 router.get('/fleets', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    // ========== SUPABASE PATH ==========
+    const userId = req.user!._id || req.user!.id;
+
+    // Get empire for current user
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('empire_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!userRow?.empire_id) {
+      return res.status(404).json({ success: false, error: 'Empire not found' });
+    }
+
+    // Get empire details for owner name
+    const { data: empireRow } = await supabase
+      .from('empires')
+      .select('id, name')
+      .eq('id', userRow.empire_id)
+      .maybeSingle();
+
+    if (!empireRow) {
+      return res.status(404).json({ success: false, error: 'Empire not found' });
+    }
+
+    // Build query for fleets
+    const baseCoord = String(req.query.base || '').trim();
+    let query = supabase
+      .from('fleets')
+      .select('id, name, size_credits, created_at')
+      .eq('empire_id', empireRow.id)
+      .order('created_at', { ascending: true });
+
+    // Add location filter if base coordinate provided
+    if (baseCoord) {
+      query = query.eq('location_coord', baseCoord);
+    }
+
+    const { data: fleets, error } = await query;
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        code: 'DB_ERROR',
+        error: error.message
+      });
+    }
+
+    // Format response to match MongoDB structure
+    const rows = (fleets || []).map((f: any) => ({
+      _id: String(f.id),
+      name: String(f.name),
+      ownerName: empireRow.name,
+      arrival: null as null, // stationed at base
+      sizeCredits: Number(f.size_credits || 0),
+    }));
+
+    return res.json({
+      success: true,
+      data: { fleets: rows }
+    });
+  }
+
+  // ========== MONGODB PATH ==========
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
@@ -3470,6 +3535,119 @@ router.get('/fleets-overview', asyncHandler(async (req: AuthRequest, res: Respon
     return res.status(400).json({ success: false, error: 'Missing base coordinate (?base=...)' });
   }
 
+  if (getDatabaseType() === 'supabase') {
+    // ========== SUPABASE PATH ==========
+    try {
+      // 1) Query stationed fleets at this base (all empires)
+      const { data: stationedFleets, error: fleetsError } = await supabase
+        .from('fleets')
+        .select('id, empire_id, name, size_credits')
+        .eq('location_coord', baseCoord);
+
+      if (fleetsError) {
+        return res.status(500).json({
+          success: false,
+          code: 'DB_ERROR',
+          error: fleetsError.message
+        });
+      }
+
+      // Collect empire IDs for name lookup
+      const empireIds = new Set<string>();
+      for (const f of stationedFleets || []) {
+        if (f.empire_id) empireIds.add(String(f.empire_id));
+      }
+
+      // 2) Query inbound fleet movements to this base (pending/travelling)
+      const { data: incomingMovements, error: movementsError } = await supabase
+        .from('fleet_movements')
+        .select('id, empire_id, fleet_id, estimated_arrival_time, size_credits')
+        .eq('destination_coord', baseCoord)
+        .in('status', ['pending', 'travelling']);
+
+      if (movementsError) {
+        return res.status(500).json({
+          success: false,
+          code: 'DB_ERROR',
+          error: movementsError.message
+        });
+      }
+
+      // Collect empire IDs from movements
+      for (const m of incomingMovements || []) {
+        if (m.empire_id) empireIds.add(String(m.empire_id));
+      }
+
+      // 3) Lookup empire names
+      const empireNameById = new Map<string, string>();
+      if (empireIds.size > 0) {
+        const { data: empireDocs, error: empiresError } = await supabase
+          .from('empires')
+          .select('id, name')
+          .in('id', Array.from(empireIds));
+
+        if (!empiresError && empireDocs) {
+          for (const e of empireDocs) {
+            empireNameById.set(String(e.id), String(e.name || 'Unknown'));
+          }
+        }
+      }
+
+      // 4) For inbound movements, lookup fleet names
+      const inboundFleetIds = Array.from(new Set((incomingMovements || []).map(m => String(m.fleet_id))));
+      const inboundFleetById = new Map<string, any>();
+      
+      if (inboundFleetIds.length > 0) {
+        const { data: inboundFleetDocs, error: inboundFleetsError } = await supabase
+          .from('fleets')
+          .select('id, name, size_credits')
+          .in('id', inboundFleetIds);
+
+        if (!inboundFleetsError && inboundFleetDocs) {
+          for (const f of inboundFleetDocs) {
+            inboundFleetById.set(String(f.id), f);
+          }
+        }
+      }
+
+      // 5) Build response rows
+      const rows: Array<{ _id: string; name: string; ownerName: string; arrival: string | null; sizeCredits: number }> = [];
+
+      // Add stationed fleets
+      for (const f of stationedFleets || []) {
+        rows.push({
+          _id: String(f.id),
+          name: String(f.name),
+          ownerName: empireNameById.get(String(f.empire_id)) || 'Unknown',
+          arrival: null, // stationed at base
+          sizeCredits: Number(f.size_credits || 0),
+        });
+      }
+
+      // Add incoming movements
+      for (const m of incomingMovements || []) {
+        const fleetDoc = inboundFleetById.get(String(m.fleet_id));
+        rows.push({
+          _id: String(m.id), // movement id as unique row id
+          name: fleetDoc ? String(fleetDoc.name) : 'Inbound Fleet',
+          ownerName: empireNameById.get(String(m.empire_id)) || 'Unknown',
+          arrival: m.estimated_arrival_time ? new Date(m.estimated_arrival_time).toISOString() : null,
+          sizeCredits: Number(m.size_credits || (fleetDoc?.size_credits ?? 0)),
+        });
+      }
+
+      return res.json({ success: true, data: { fleets: rows } });
+    } catch (err) {
+      return res.status(500).json({
+        success: false,
+        code: 'SERVER_ERROR',
+        error: 'Failed to load fleet overview',
+        details: { base: baseCoord }
+      });
+    }
+  }
+
+  // ========== MONGODB PATH ==========
   // 1) Stationed fleets at this base (all empires)
   const stationed = await Fleet.find({ locationCoord: baseCoord }).lean();
 
@@ -3540,13 +3718,97 @@ router.get('/fleets-overview', asyncHandler(async (req: AuthRequest, res: Respon
  * DTO: { success, data: { fleet: { _id, name, locationCoord, ownerName, units: [{ unitKey, name, count }], sizeCredits } } }
  */
 router.get('/fleets/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const id = String(req.params.id || '').trim();
+  if (!id) {
+    return res.status(400).json({
+      success: false,
+      code: 'INVALID_REQUEST',
+      message: 'Invalid fleet id',
+      details: { field: 'id' }
+    });
+  }
+
+  if (getDatabaseType() === 'supabase') {
+    // ========== SUPABASE PATH ==========
+    const userId = req.user!._id || req.user!.id;
+
+    // Get empire for current user
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('empire_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!userRow?.empire_id) {
+      return res.status(404).json({ success: false, error: 'Empire not found' });
+    }
+
+    // Get empire details
+    const { data: empireRow } = await supabase
+      .from('empires')
+      .select('id, name')
+      .eq('id', userRow.empire_id)
+      .maybeSingle();
+
+    if (!empireRow) {
+      return res.status(404).json({ success: false, error: 'Empire not found' });
+    }
+
+    // Query fleet by ID with empire ownership check
+    const { data: fleet, error } = await supabase
+      .from('fleets')
+      .select('id, name, location_coord, units, size_credits')
+      .eq('id', id)
+      .eq('empire_id', empireRow.id)
+      .maybeSingle();
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        code: 'DB_ERROR',
+        error: error.message
+      });
+    }
+
+    if (!fleet) {
+      return res.status(404).json({ success: false, error: 'Fleet not found' });
+    }
+
+    // Parse and format fleet composition
+    const units = Array.isArray(fleet.units) ? fleet.units : [];
+    const composition = units.map((u: any) => {
+      const key = String(u?.unitKey || u?.unit_key || '');
+      let name = key;
+      try {
+        name = getUnitSpec(key as any)?.name || key;
+      } catch {
+        // fallback to key
+      }
+      return { unitKey: key, name, count: Number(u?.count || 0) };
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        fleet: {
+          _id: String(fleet.id),
+          name: String(fleet.name),
+          locationCoord: String(fleet.location_coord),
+          ownerName: empireRow.name,
+          units: composition,
+          sizeCredits: Number(fleet.size_credits || 0),
+        }
+      }
+    });
+  }
+
+  // ========== MONGODB PATH ==========
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
   }
 
-  const id = String(req.params.id || '').trim();
-  if (!id || !mongoose.isValidObjectId(id)) {
+  if (!mongoose.isValidObjectId(id)) {
     return res.status(400).json({
       success: false,
       code: 'INVALID_REQUEST',
@@ -3673,13 +3935,112 @@ router.post('/fleets/:id/dispatch', asyncHandler(async (req: AuthRequest, res: R
  * DTO: { success, data: { fleet, movement } }
  */
 router.get('/fleets/:id/status', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const fleetId = String(req.params.id || '').trim();
+  if (!fleetId) {
+    return res.status(400).json({
+      success: false,
+      code: 'INVALID_REQUEST',
+      message: 'Invalid fleet id',
+      details: { field: 'id' }
+    });
+  }
+
+  if (getDatabaseType() === 'supabase') {
+    // ========== SUPABASE PATH ==========
+    const userId = req.user!._id || req.user!.id;
+
+    // Get empire for current user
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('empire_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!userRow?.empire_id) {
+      return res.status(404).json({ success: false, error: 'Empire not found' });
+    }
+
+    try {
+      // Get fleet
+      const { data: fleet, error: fleetError } = await supabase
+        .from('fleets')
+        .select('id, name, location_coord, units, size_credits')
+        .eq('id', fleetId)
+        .eq('empire_id', userRow.empire_id)
+        .maybeSingle();
+
+      if (fleetError || !fleet) {
+        return res.status(404).json({
+          success: false,
+          code: 'FLEET_NOT_FOUND',
+          message: 'Fleet not found'
+        });
+      }
+
+      // Get active movement
+      const { data: movement } = await supabase
+        .from('fleet_movements')
+        .select('*')
+        .eq('fleet_id', fleetId)
+        .in('status', ['pending', 'travelling'])
+        .maybeSingle();
+
+      // Format fleet composition
+      const units = Array.isArray(fleet.units) ? fleet.units : [];
+      const composition = units.map((u: any) => {
+        const key = String(u?.unitKey || u?.unit_key || '');
+        let name = key;
+        try {
+          name = getUnitSpec(key as any)?.name || key;
+        } catch {
+          // fallback to key
+        }
+        return { unitKey: key, name, count: Number(u?.count || 0) };
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          fleet: {
+            _id: String(fleet.id),
+            name: String(fleet.name),
+            locationCoord: String(fleet.location_coord),
+            units: composition,
+            sizeCredits: Number(fleet.size_credits || 0),
+            isMoving: !!movement
+          },
+          movement: movement ? {
+            _id: String(movement.id),
+            status: movement.status,
+            originCoord: movement.origin_coord,
+            destinationCoord: movement.destination_coord,
+            departureTime: movement.departure_time,
+            estimatedArrivalTime: movement.estimated_arrival_time,
+            actualArrivalTime: movement.actual_arrival_time,
+            travelTimeHours: movement.travel_time_hours,
+            distance: movement.distance,
+            fleetSpeed: movement.fleet_speed
+          } : null
+        }
+      });
+
+    } catch (error) {
+      console.error('Error getting fleet status:', error);
+      return res.status(500).json({
+        success: false,
+        code: 'SERVER_ERROR',
+        message: 'Failed to get fleet status'
+      });
+    }
+  }
+
+  // ========== MONGODB PATH ==========
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
   }
 
-  const fleetId = String(req.params.id || '').trim();
-  if (!fleetId || !mongoose.isValidObjectId(fleetId)) {
+  if (!mongoose.isValidObjectId(fleetId)) {
     return res.status(400).json({
       success: false,
       code: 'INVALID_REQUEST',
@@ -3738,13 +4099,8 @@ router.get('/fleets/:id/status', asyncHandler(async (req: AuthRequest, res: Resp
  * DTO: { success, data: { travelTimeHours, distance, fleetSpeed } }
  */
 router.post('/fleets/:id/estimate-travel', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const empire = await Empire.findOne({ userId: req.user!._id });
-  if (!empire) {
-    return res.status(404).json({ success: false, error: 'Empire not found' });
-  }
-
   const fleetId = String(req.params.id || '').trim();
-  if (!fleetId || !mongoose.isValidObjectId(fleetId)) {
+  if (!fleetId) {
     return res.status(400).json({
       success: false,
       code: 'INVALID_REQUEST',
@@ -3760,6 +4116,78 @@ router.post('/fleets/:id/estimate-travel', asyncHandler(async (req: AuthRequest,
       code: 'INVALID_REQUEST',
       message: 'destinationCoord is required',
       details: { field: 'destinationCoord' }
+    });
+  }
+
+  if (getDatabaseType() === 'supabase') {
+    // ========== SUPABASE PATH ==========
+    const userId = req.user!._id || req.user!.id;
+
+    // Get empire for current user
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('empire_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!userRow?.empire_id) {
+      return res.status(404).json({ success: false, error: 'Empire not found' });
+    }
+
+    try {
+      // Get fleet
+      const { data: fleet, error: fleetError } = await supabase
+        .from('fleets')
+        .select('id, location_coord, units')
+        .eq('id', fleetId)
+        .eq('empire_id', userRow.empire_id)
+        .maybeSingle();
+
+      if (fleetError || !fleet) {
+        return res.status(404).json({
+          success: false,
+          code: 'FLEET_NOT_FOUND',
+          message: 'Fleet not found'
+        });
+      }
+
+      // Calculate travel time using FleetMovementService methods
+      const units = Array.isArray(fleet.units) ? fleet.units : [];
+      const distance = FleetMovementService.calculateDistance(fleet.location_coord, destinationCoord);
+      const fleetSpeed = FleetMovementService.calculateFleetSpeed(units);
+      const travelTimeHours = FleetMovementService.calculateTravelTime(distance, fleetSpeed);
+
+      return res.json({
+        success: true,
+        data: {
+          travelTimeHours,
+          distance,
+          fleetSpeed
+        }
+      });
+
+    } catch (error) {
+      console.error('Error estimating travel time:', error);
+      return res.status(500).json({
+        success: false,
+        code: 'SERVER_ERROR',
+        message: 'Failed to estimate travel time'
+      });
+    }
+  }
+
+  // ========== MONGODB PATH ==========
+  const empire = await Empire.findOne({ userId: req.user!._id });
+  if (!empire) {
+    return res.status(404).json({ success: false, error: 'Empire not found' });
+  }
+
+  if (!mongoose.isValidObjectId(fleetId)) {
+    return res.status(400).json({
+      success: false,
+      code: 'INVALID_REQUEST',
+      message: 'Invalid fleet id',
+      details: { field: 'id' }
     });
   }
 
