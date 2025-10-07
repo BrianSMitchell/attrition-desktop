@@ -1169,6 +1169,12 @@ router.get('/tech/catalog', asyncHandler(async (_req: AuthRequest, res: Response
 
 // Get tech status for a specific base (labs, eligibility, credits)
 router.get('/tech/status', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    // Minimal placeholder for Supabase
+    const baseCoord = String(req.query.base || '').trim();
+    if (!baseCoord) return res.status(400).json({ success: false, error: 'Missing base coordinate (?base=...)' });
+    return res.json({ success: true, data: { status: { techLevels: {}, eligibility: {}, baseLabTotal: 0 } } });
+  }
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
@@ -1260,6 +1266,10 @@ router.get('/defenses/status', asyncHandler(async (req: AuthRequest, res: Respon
 }));
 
 router.get('/defenses/queue', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    // Not implemented yet in Supabase schema; return empty queue
+    return res.json({ success: true, data: { queue: [] } });
+  }
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) return res.status(404).json({ success: false, error: 'Empire not found' });
   const locationCoord = String(req.query.locationCoord || '').trim();
@@ -1347,6 +1357,10 @@ router.get('/units/catalog', asyncHandler(async (_req: AuthRequest, res: Respons
 }));
 
 router.get('/units/status', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    // Minimal placeholder for Supabase; units not modeled yet
+    return res.json({ success: true, data: { status: { capacities: {}, eligibility: {} } } });
+  }
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
@@ -1398,6 +1412,10 @@ router.post('/units/start', asyncHandler(async (req: AuthRequest, res: Response)
  * Optional ?base=A00:10:22:10 to filter by a specific base coord.
  */
 router.get('/units/queue', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    // Not implemented yet in Supabase schema; return empty queue
+    return res.json({ success: true, data: { queue: [] } });
+  }
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
