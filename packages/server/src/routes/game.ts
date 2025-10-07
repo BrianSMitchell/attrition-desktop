@@ -25,6 +25,7 @@ import { CapacityService } from '../services/capacityService';
 import { EconomyService } from '../services/economyService';
 import { getTechnologyList, TechnologyKey, getBuildingsList, BuildingKey, getDefensesList, DefenseKey, getUnitsList, UnitKey, getUnitSpec, getTechSpec, getStructureCreditCostForLevel, getBuildingSpec, getTechCreditCostForLevel, computeEnergyBalance } from '@game/shared';
 import { FleetMovementService } from '../services/fleetMovementService';
+import { SupabaseEconomyService } from '../services/economy/SupabaseEconomyService';
 import { getDatabaseType } from '../config/database';
 import { supabase } from '../config/supabase';
 
@@ -188,14 +189,81 @@ router.get('/dashboard', asyncHandler(async (req: AuthRequest, res: Response) =>
       });
     }
 
-    // Load active buildings and compute economy/hour (temporary Node-side calc)
-    const { data: buildings } = await supabase
-      .from('buildings')
-      .select('catalog_key, level, is_active')
-      .eq('empire_id', empireRow.id);
+    // Compute credits/hour from Supabase buildings via catalog yields
+    const creditsPerHour = await SupabaseEconomyService.sumCreditsPerHourForEmpire(String((empireRow as any).id));
 
-    const creditsPerHour = computeEconomyPerHourFromBuildings(buildings || []);
-    const resourcesGained = 0; // placeholder until accrual strategy is defined
+    // 1.2 On-read accrual of credits
+    let resourcesGained = 0;
+    try {
+      const nowTs = Date.now();
+      const lastUpdateRaw = (empireRow as any).last_resource_update as string | null | undefined;
+      const lastTs = lastUpdateRaw ? new Date(lastUpdateRaw).getTime() : nowTs;
+      let elapsedMs = Math.max(0, nowTs - (Number.isFinite(lastTs) ? lastTs : nowTs));
+
+      // Carry remainder milli
+      let carryMs = Math.max(0, Number((empireRow as any).credits_remainder_milli || 0));
+
+      if (creditsPerHour > 0) {
+        const totalMs = elapsedMs + carryMs;
+        const fractional = creditsPerHour * (totalMs / 3600000);
+        const increment = Math.floor(fractional);
+        const remainderMs = totalMs % 3600000;
+
+        if (increment > 0 || elapsedMs > 0 || carryMs !== remainderMs) {
+          const oldCredits = Math.max(0, Number((empireRow as any).credits || 0));
+          const newCredits = Math.max(0, oldCredits + increment);
+          resourcesGained = increment;
+
+          const t0 = Date.now();
+          const upd = await supabase
+            .from('empires')
+            .update({
+              credits: newCredits,
+              last_resource_update: new Date(nowTs).toISOString(),
+              credits_remainder_milli: remainderMs,
+            })
+            .eq('id', (empireRow as any).id)
+            .select('id, credits, last_resource_update, credits_remainder_milli')
+            .single();
+          const dt = Date.now() - t0;
+
+          if (!upd.error && upd.data) {
+            (empireRow as any).credits = upd.data.credits;
+            (empireRow as any).last_resource_update = upd.data.last_resource_update;
+            (empireRow as any).credits_remainder_milli = upd.data.credits_remainder_milli;
+          }
+
+          if (process.env.ECONOMY_DEBUG === 'true') {
+            console.log('[ACCRUAL]', {
+              empireId: String((empireRow as any).id),
+              creditsPerHour,
+              elapsedMs,
+              carryMs,
+              increment,
+              remainderMs,
+              oldCredits,
+              newCredits,
+              updateMs: dt,
+            });
+          }
+        }
+      } else {
+        // No economy rate; still advance the timestamp and clear remainder to avoid unbounded carry
+        if (elapsedMs > 0 || carryMs !== 0 || !(empireRow as any).last_resource_update) {
+          await supabase
+            .from('empires')
+            .update({
+              last_resource_update: new Date(nowTs).toISOString(),
+              credits_remainder_milli: 0,
+            })
+            .eq('id', (empireRow as any).id);
+          (empireRow as any).last_resource_update = new Date(nowTs).toISOString();
+          (empireRow as any).credits_remainder_milli = 0;
+        }
+      }
+    } catch {
+      // Non-fatal: leave credits unchanged
+    }
     const technologyScore = 0; // placeholder until research tables are integrated
     const fleetScore = 0;
     const level = Math.pow(creditsPerHour * 100 + fleetScore + technologyScore, 0.25);
