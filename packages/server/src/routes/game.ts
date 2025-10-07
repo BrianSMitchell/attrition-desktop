@@ -2820,6 +2820,8 @@ router.post('/bases/:coord/structures/:key/construct', asyncHandler(async (req: 
           empire_id: empireId,
           location_coord: coord,
           catalog_key: key,
+          type: key, // Required NOT NULL field - use catalog_key as type for consistency
+          display_name: spec.name,
           level: 1,
           is_active: false,
           pending_upgrade: false,
