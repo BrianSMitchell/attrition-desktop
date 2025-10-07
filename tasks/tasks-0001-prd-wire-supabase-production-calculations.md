@@ -39,7 +39,7 @@
 - [x] 3.2 Capacities: construction/production/research per base mirroring existing server helpers with Supabase data.
 
 - [ ] 4.0 Structures (Supabase) – list + start/cancel
-  - [ ] 4.1 Structures list: `constructionPerHour`, levels per `catalog_key`, `creditsCostNext`, `activeConstruction` ETA if present.
+- [x] 4.1 Structures list: `constructionPerHour`, levels per `catalog_key`, `creditsCostNext`, `activeConstruction` ETA if present.
   - [ ] 4.2 Start construction: validations (ownership, single active per base, energy parity via `computeEnergyBalance`, area, population), compute cost + `completes_at` from capacities; insert rows and deduct credits.
   - [ ] 4.3 Cancel construction: revert in-progress item at a base; no refund in v0; keep DTO stable.
 

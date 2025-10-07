@@ -2050,6 +2050,105 @@ router.get('/bases/:coord/defenses', asyncHandler(async (req: AuthRequest, res: 
  * DTO: { success, data: { coord, constructionPerHour, items: [...] }, message }
  */
 router.get('/bases/:coord/structures', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const { coord } = req.params as { coord: string };
+    if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });
+
+    const { SupabaseCapacityService } = require('../services/bases/SupabaseCapacityService');
+    const caps = await SupabaseCapacityService.getBaseCapacities(empireId, coord);
+
+    // Current buildings at base
+    const bRes = await supabase
+      .from('buildings')
+      .select('catalog_key, level, is_active, pending_upgrade, construction_started, construction_completed')
+      .eq('empire_id', empireId)
+      .eq('location_coord', coord);
+
+    // Finalize any completed constructions client-side-like: if completed <= now, treat as active
+    const nowTs = Date.now();
+
+    // Compute current levels by catalog_key (active + pendingUpgrade treated as current)
+    const levelByKey = new Map<string, number>();
+    for (const b of bRes.data || []) {
+      const key = String((b as any).catalog_key || '');
+      if (!key) continue;
+      const level = Math.max(0, Number((b as any).level || 0));
+      const isActive = (b as any).is_active === true;
+      const pendingUpgrade = (b as any).pending_upgrade === true;
+      const completes = (b as any).construction_completed ? new Date((b as any).construction_completed as any).getTime() : 0;
+      const effectiveActive = isActive || pendingUpgrade || (completes && completes <= nowTs);
+      if (effectiveActive) {
+        levelByKey.set(key, (levelByKey.get(key) || 0) + level);
+      }
+    }
+
+    // Determine currently active construction (earliest future completion among inactive docs)
+    let activeConstruction: { key: BuildingKey; completionAt: string; startedAt?: string } | null = null;
+    let earliest = Number.POSITIVE_INFINITY;
+    for (const b of bRes.data || []) {
+      const isActive = (b as any).is_active === true;
+      const completes = (b as any).construction_completed ? new Date((b as any).construction_completed as any).getTime() : 0;
+      if (!isActive && completes && completes > nowTs && completes < earliest) {
+        earliest = completes;
+        const key = String((b as any).catalog_key || '') as BuildingKey;
+        const st = (b as any).construction_started ? new Date((b as any).construction_started as any).toISOString() : undefined;
+        activeConstruction = { key, completionAt: new Date(completes).toISOString(), startedAt: st };
+      }
+    }
+
+    const constructionPerHour = Math.max(0, Number((caps as any)?.construction?.value || 0));
+
+    const catalog = getBuildingsList();
+    const items = catalog.map((spec) => {
+      const key = spec.key as BuildingKey;
+      const currentLevel = levelByKey.get(key) ?? 0;
+      const nextLevel = currentLevel + 1;
+      let creditsCostNext: number | null = null;
+      try {
+        creditsCostNext = getStructureCreditCostForLevel(key, nextLevel);
+      } catch {
+        creditsCostNext = currentLevel === 0 ? spec.creditsCost : null;
+      }
+      // For Phase 1, report eligibility as default-true; detailed gating enforced on start()
+      const canStart = true;
+      const reasons: string[] = [];
+
+      let etaMinutes: number | null = null;
+      if (typeof creditsCostNext === 'number' && constructionPerHour > 0) {
+        const hours = creditsCostNext / constructionPerHour;
+        etaMinutes = Math.max(1, Math.ceil(hours * 60));
+      }
+
+      return {
+        key,
+        name: spec.name,
+        currentLevel,
+        nextLevel,
+        creditsCostNext,
+        energyDelta: Number(spec.energyDelta || 0),
+        requires: spec.techPrereqs?.map((p) => ({ key: p.key, level: p.level })) || [],
+        canStart,
+        reasons,
+        etaMinutes,
+      };
+    });
+
+    return res.json({ success: true, data: { coord, constructionPerHour, items, activeConstruction }, message: 'Base structures loaded' });
+  }
+
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
