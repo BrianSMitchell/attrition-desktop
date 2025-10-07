@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: attrition-game
+    runtime: node
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: ./render-build.sh
+    startCommand: node packages/server/dist/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        value: https://vgiyiesglcxnzngpyhlb.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: PORT
+        value: 3001
+      - key: RATE_LIMIT_ENABLED
+        value: true
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 100
+      - key: GAME_LOOP_INTERVAL_MS
+        value: 60000
+      - key: CREDIT_PAYOUT_PERIOD_MINUTES
+        value: 60
+      - key: ENABLE_DEVICE_BINDING
+        value: true
+      - key: USE_REVERSE_PROXY_SSL
+        value: true

@@ -2276,6 +2276,170 @@ router.get('/bases/:coord/structures', asyncHandler(async (req: AuthRequest, res
  * - Tech-only gating; no refunds/cancel in v0.
  */
 router.post('/bases/:coord/structures/:key/construct', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+    const { coord, key } = req.params as { coord: string; key: BuildingKey };
+    if (!coord || !key) return res.status(400).json({ success: false, error: 'Missing coord or key' });
+
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    // Ownership check: location owner must be user
+    const loc = await supabase.from('locations').select('owner_id, result').eq('coord', coord).maybeSingle();
+    if (!loc.data) return res.status(404).json({ success: false, error: 'Location not found' });
+    if (String(loc.data.owner_id || '') !== String(userId)) return res.status(403).json({ success: false, error: 'You do not own this location' });
+
+    // Reject if a construction is already in progress at this base
+    const now = Date.now();
+    const inProg = await supabase
+      .from('buildings')
+      .select('id')
+      .eq('empire_id', empireId)
+      .eq('location_coord', coord)
+      .eq('is_active', false)
+      .gt('construction_completed', new Date(now).toISOString());
+    if ((inProg.data || []).length > 0) {
+      return res.status(409).json({ success: false, code: 'ALREADY_IN_PROGRESS', error: 'Construction already underway at this base' });
+    }
+
+    // Prevent duplicate key queued
+    const dupKey = await supabase
+      .from('buildings')
+      .select('id')
+      .eq('empire_id', empireId)
+      .eq('location_coord', coord)
+      .eq('catalog_key', key)
+      .eq('is_active', false)
+      .limit(1);
+    if ((dupKey.data || []).length > 0) {
+      return res.status(409).json({ success: false, code: 'ALREADY_IN_PROGRESS', error: 'Construction for this structure is already queued or upgrading at this base' });
+    }
+
+    // Capacity
+    const { SupabaseCapacityService } = require('../services/bases/SupabaseCapacityService');
+    const caps = await SupabaseCapacityService.getBaseCapacities(empireId, coord);
+    const perHour = Math.max(0, Number((caps as any)?.construction?.value || 0));
+    if (!(perHour > 0)) return res.status(400).json({ success: false, code: 'NO_CAPACITY', error: 'This base has no construction capacity' });
+
+    // Determine current level
+    const existingActive = await supabase
+      .from('buildings')
+      .select('id, level')
+      .eq('empire_id', empireId)
+      .eq('location_coord', coord)
+      .eq('catalog_key', key)
+      .eq('is_active', true)
+      .maybeSingle();
+    const currentLevel = existingActive.data ? Math.max(1, Number((existingActive.data as any).level || 1)) : 0;
+    const nextLevel = currentLevel + 1;
+
+    // Cost
+    let cost: number | null = null;
+    try {
+      cost = getStructureCreditCostForLevel(key, nextLevel);
+    } catch {
+      const spec0 = getBuildingSpec(key);
+      cost = currentLevel === 0 ? spec0.creditsCost : null;
+    }
+    if (typeof cost !== 'number') return res.status(400).json({ success: false, code: 'NO_COST_DEFINED', error: 'No cost defined for this level' });
+
+    // Credits validation
+    const eRow = await supabase.from('empires').select('credits').eq('id', empireId).maybeSingle();
+    const availableCredits = Math.max(0, Number((eRow.data as any)?.credits || 0));
+    if (availableCredits < cost) {
+      return res.status(400).json({ success: false, code: 'INSUFFICIENT_RESOURCES', error: `Insufficient credits. Requires ${cost}, you have ${availableCredits}.`, details: { requiredCredits: cost, availableCredits, shortfall: cost - availableCredits } });
+    }
+
+    // Energy validation (projected)
+    const spec = getBuildingSpec(key);
+    const energyDelta = Number(spec?.energyDelta || 0);
+    if (energyDelta < 0) {
+      // Compute current balance using active buildings
+      const activeRes = await supabase
+        .from('buildings')
+        .select('catalog_key, level, is_active, pending_upgrade, construction_completed')
+        .eq('empire_id', empireId)
+        .eq('location_coord', coord);
+      const active: Array<{ key: string; level: number; isActive: boolean }> = [];
+      const nowTs = Date.now();
+      for (const b of activeRes.data || []) {
+        const isActive = (b as any).is_active === true;
+        const pending = (b as any).pending_upgrade === true;
+        const completes = (b as any).construction_completed ? new Date((b as any).construction_completed as any).getTime() : 0;
+        const eff = isActive || pending || (completes && completes <= nowTs);
+        const lv = Math.max(0, Number((b as any).level || 0));
+        const k = String((b as any).catalog_key || '');
+        if (eff && k && lv > 0) active.push({ key: k, level: lv, isActive: true });
+      }
+      const solar = Math.max(0, Number((loc.data as any)?.result?.solarEnergy ?? 0));
+      const gas = Math.max(0, Number((loc.data as any)?.result?.yields?.gas ?? 0));
+      const { produced, consumed, balance } = computeEnergyBalance({ buildingsAtBase: active, location: { solarEnergy: solar, gasYield: gas }, includeQueuedReservations: false });
+      const projected = balance + energyDelta;
+      if (projected < 0) {
+        return res.status(400).json({ success: false, code: 'INSUFFICIENT_ENERGY', error: 'Insufficient energy capacity to start this construction.', details: { produced, consumed, balance, energyDelta, projectedEnergy: projected } });
+      }
+    }
+
+    // Area & population validations
+    const { SupabaseBaseStatsService } = require('../services/bases/SupabaseBaseStatsService');
+    const stats = await SupabaseBaseStatsService.getBaseStats(empireId, coord);
+    const areaRequired = Math.max(0, Number(spec?.areaRequired ?? 1));
+    if (areaRequired > 0 && stats.area.free < areaRequired) return res.status(400).json({ success: false, code: 'INSUFFICIENT_AREA', error: 'Insufficient area capacity to start this construction.', details: { required: areaRequired, available: stats.area.free, used: stats.area.used, total: stats.area.total } });
+    const populationRequired = Math.max(0, Number(spec?.populationRequired || 0));
+    if (populationRequired > 0 && stats.population.free < populationRequired) return res.status(400).json({ success: false, code: 'INSUFFICIENT_POPULATION', error: 'Insufficient population capacity to start this construction.', details: { required: populationRequired, available: stats.population.free, used: stats.population.used, capacity: stats.population.capacity } });
+
+    // ETA & writes
+    const hours = (cost as number) / perHour;
+    const completesAt = new Date(now + Math.max(1, Math.ceil(hours * 3600)) * 1000).toISOString();
+
+    // Deduct credits
+    await supabase
+      .from('empires')
+      .update({ credits: availableCredits - (cost as number) })
+      .eq('id', empireId);
+
+    if (!existingActive.data) {
+      // Insert new queued L1
+      try {
+        await supabase
+          .from('buildings')
+          .insert({
+            empire_id: empireId,
+            location_coord: coord,
+            catalog_key: key,
+            level: 1,
+            is_active: false,
+            pending_upgrade: false,
+            credits_cost: cost,
+            construction_started: new Date(now).toISOString(),
+            construction_completed: completesAt,
+          });
+      } catch {}
+    } else {
+      // Upgrade existing active doc
+      await supabase
+        .from('buildings')
+        .update({
+          is_active: false,
+          pending_upgrade: true,
+          credits_cost: cost,
+          construction_started: new Date(now).toISOString(),
+          construction_completed: completesAt,
+        })
+        .eq('id', (existingActive.data as any).id);
+    }
+
+    return res.json({ success: true, data: { coord, key, completesAt }, message: 'Construction started' });
+  }
+
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
