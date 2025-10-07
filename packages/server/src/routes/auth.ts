@@ -116,7 +116,7 @@ router.post('/register', registerRateLimit, asyncHandler(async (req: Request, re
         name: user.username, // Temporary: use username; UI will not prompt for name
         homeSystem: startingCoordinate,
         territories: [startingCoordinate],
-        resources: { credits: 100, energy: 0 }
+        resources: { credits: 100 }
       });
 
       await empire.save({ session });

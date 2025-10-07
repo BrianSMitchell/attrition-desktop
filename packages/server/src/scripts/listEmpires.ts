@@ -30,8 +30,7 @@ async function main() {
       const owner = await User.findById(e.userId).select('email username').lean();
       const ownerLabel = owner ? `${owner.username || owner.email}` : 'unknown';
       const credits = e.resources?.credits ?? 0;
-      const energy = e.resources?.energy ?? 0;
-      console.log(`  - ${e._id} | ${e.name} | owner=${ownerLabel} | bases=${e.baseCount} | credits=${credits} | energy=${energy} | updated=${new Date(e.updatedAt as any).toISOString()}`);
+      console.log(`  - ${e._id} | ${e.name} | owner=${ownerLabel} | bases=${e.baseCount} | credits=${credits} | updated=${new Date(e.updatedAt as any).toISOString()}`);
     }
   } catch (err) {
     console.error('❌ Error listing empires:', err);

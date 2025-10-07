@@ -2,6 +2,29 @@
 
 All notable changes to Attrition will be documented in this file.
 
+## [1.2.1] - 2025-10-07
+
+### 🐛 Bug Fixes
+
+#### Empire Resource Handling
+- **FIXED**: Removed spurious `energy` field from empire-wide resources
+- Energy is correctly handled as a per-base resource (not empire-wide)
+- Only `credits` exist as an empire-wide resource
+- Fixed client-side normalization to not include energy
+- Fixed server-side empire creation to not include energy field
+- Updated Supabase queries to not select energy from empires table
+- Cleaned up diagnostic scripts to not display empire energy
+
+#### Technical Improvements
+- Improved data consistency between client and server
+- Better alignment with game design (energy is base-specific)
+- Cleaner API responses and database schema
+
+### 📝 Documentation
+- Clarified that energy is a base-level resource, not empire-level
+
+---
+
 ## [1.2.0] - 2025-10-03
 
 ### 🚀 Major Infrastructure Update

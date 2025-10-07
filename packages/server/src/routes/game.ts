@@ -308,7 +308,7 @@ router.get('/dashboard', asyncHandler(async (req: AuthRequest, res: Response) =>
         empire = new Empire({
           userId: userLegacy._id,
           name: `${displayName}'s Empire`,
-          resources: { credits: 1000, energy: 0 },
+          resources: { credits: 1000 },
           baseCount: 0,
           economyPerHour: 0,
         } as any);
@@ -403,7 +403,7 @@ router.get('/empire', asyncHandler(async (req: AuthRequest, res: Response) => {
 
     // Resolve empire by user_id, fallback to users.empire_id
     let empireRow: any = null;
-    let byUser = await supabase.from('empires').select('id, name, territories, credits, energy').eq('user_id', userId).maybeSingle();
+    let byUser = await supabase.from('empires').select('id, name, territories, credits').eq('user_id', userId).maybeSingle();
     if (byUser.data) {
       empireRow = byUser.data;
     } else {
@@ -2819,24 +2819,27 @@ router.post('/bases/:coord/structures/:key/construct', asyncHandler(async (req: 
 
     if (!existingActive.data) {
       // Insert new queued L1
-      try {
-        await supabase
-          .from('buildings')
-          .insert({
-            empire_id: empireId,
-            location_coord: coord,
-            catalog_key: key,
-            level: 1,
-            is_active: false,
-            pending_upgrade: false,
-            credits_cost: cost,
-            construction_started: new Date(now).toISOString(),
-            construction_completed: completesAt,
-          });
-      } catch {}
+      const ins = await supabase
+        .from('buildings')
+        .insert({
+          empire_id: empireId,
+          location_coord: coord,
+          catalog_key: key,
+          level: 1,
+          is_active: false,
+          pending_upgrade: false,
+          credits_cost: cost,
+          construction_started: new Date(now).toISOString(),
+          construction_completed: completesAt,
+        })
+        .select('id')
+        .single();
+      if (ins.error) {
+        return res.status(500).json({ success: false, code: 'DB_ERROR', error: 'Failed to queue construction', details: ins.error.message });
+      }
     } else {
       // Upgrade existing active doc
-      await supabase
+      const upd = await supabase
         .from('buildings')
         .update({
           is_active: false,
@@ -2846,6 +2849,9 @@ router.post('/bases/:coord/structures/:key/construct', asyncHandler(async (req: 
           construction_completed: completesAt,
         })
         .eq('id', (existingActive.data as any).id);
+      if (upd.error) {
+        return res.status(500).json({ success: false, code: 'DB_ERROR', error: 'Failed to queue upgrade', details: upd.error.message });
+      }
     }
 
     return res.json({ success: true, data: { coord, key, completesAt }, message: 'Construction started' });

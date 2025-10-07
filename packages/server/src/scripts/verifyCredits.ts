@@ -30,8 +30,6 @@ async function verifyCreditsForPlayer(playerId: string): Promise<void> {
     
     console.log(`🏰 Found empire: ${empire.name} (ID: ${empire._id})`);
     console.log(`💰 Current credits: ${empire.resources?.credits || 0}`);
-    console.log(`📊 Other resources:`);
-    console.log(`   ⚡ Energy: ${empire.resources?.energy || 0}`);
     console.log(`📈 Economy per hour: ${empire.economyPerHour || 0}`);
     console.log(`🏭 Base count: ${empire.baseCount || 0}`);
     console.log(`📅 Last updated: ${empire.updatedAt}`);

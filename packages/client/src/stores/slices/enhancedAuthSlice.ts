@@ -292,9 +292,19 @@ const createEnhancedAuthSlice: StateCreator<
     syncAuthWithService: (serviceState: ServiceAuthState): void => {
       const { setAuthState } = get();
       
+      // Normalize empire to ensure stable shape (resources always present)
+      const normalizedEmpire = serviceState.empire
+        ? {
+            ...serviceState.empire,
+            resources: {
+              credits: serviceState.empire.resources?.credits ?? 0,
+            },
+          }
+        : null;
+
       setAuthState({
         user: serviceState.user,
-        empire: serviceState.empire,
+        empire: normalizedEmpire as any,
         token: serviceState.token,
         isAuthenticated: serviceState.isAuthenticated,
         serviceConnected: true,

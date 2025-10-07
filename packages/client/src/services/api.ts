@@ -160,6 +160,46 @@ export function toApiErrorFromAxiosError(error: AxiosError): ApiError {
   };
 }
 
+// Small helper to robustly coerce a value to a non-negative integer
+function toNonNegativeInt(v: any, fallback = 0): number {
+  const n = Number(v);
+  if (!isFinite(n) || isNaN(n)) return fallback;
+  return n < 0 ? 0 : Math.floor(n);
+}
+
+// Normalize empire shape to ensure resources are always present
+function ensureEmpireResources(empire: any): any {
+  if (!empire || typeof empire !== 'object') return empire;
+  const res = empire.resources ?? {};
+  const credits = toNonNegativeInt(res.credits, 0);
+  return {
+    ...empire,
+    resources: { credits },
+  };
+}
+
+// Deep-ish normalization for common payload shapes the app uses
+function normalizeSuccessPayload(resp: AxiosResponse): void {
+  const body: any = resp?.data;
+  if (!body || body.success === false) return;
+
+  // Top-level empire (e.g., auth payloads returning { empire })
+  if (body.empire) {
+    body.empire = ensureEmpireResources(body.empire);
+  }
+
+  // Common API envelope: { success, data: {...} }
+  if (body.data && typeof body.data === 'object') {
+    if (body.data.empire) {
+      body.data.empire = ensureEmpireResources(body.data.empire);
+    }
+    // Dashboard often nests empire at data.dashboard.empire
+    if (body.data.dashboard && body.data.dashboard.empire) {
+      body.data.dashboard.empire = ensureEmpireResources(body.data.dashboard.empire);
+    }
+  }
+}
+
 // Response path: normalize server-declared failures even when HTTP 200
 api.interceptors.response.use(
   (resp: AxiosResponse) => {
@@ -173,6 +213,10 @@ api.interceptors.response.use(
       };
       return Promise.reject(normalized);
     }
+
+    // Normalize successful payloads to ensure consistent empire.resources shape
+    try { normalizeSuccessPayload(resp); } catch {}
+
     return resp;
   },
   async (error: any) => {
