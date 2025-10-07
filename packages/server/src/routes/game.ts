@@ -1828,8 +1828,16 @@ router.get('/bases/summary', asyncHandler(async (req: AuthRequest, res: Response
       // non-fatal
     }
 
-    // Production/Defense queues (pending) by base
-    const [unitQ, defQ] = await Promise.all([
+    // Construction/Production/Defense queues (pending) by base
+    const nowTs = Date.now();
+    const [buildingQ, unitQ, defQ] = await Promise.all([
+      supabase
+        .from('buildings')
+        .select('catalog_key, location_coord, construction_started, construction_completed')
+        .eq('empire_id', (empireRow as any).id)
+        .eq('is_active', false)
+        .gt('construction_completed', new Date(nowTs).toISOString())
+        .in('location_coord', coords),
       supabase
         .from('unit_queue')
         .select('unit_key, location_coord, started_at, completes_at, created_at')
@@ -1844,11 +1852,55 @@ router.get('/bases/summary', asyncHandler(async (req: AuthRequest, res: Response
         .in('location_coord', coords),
     ]);
 
+    const consQueuedByCoord = new Map<string, number>();
+    const consEarliestByCoord = new Map<string, { name: string; remaining: number; percent?: number; ts: number }>();
     const prodQueuedByCoord = new Map<string, number>();
     const prodEarliestByCoord = new Map<string, { name: string; remaining: number; percent?: number; ts: number }>();
     const defQueuedByCoord = new Map<string, number>();
     const defEarliestByCoord = new Map<string, { name: string; remaining: number; percent?: number; ts: number }>();
-    const nowTs = Date.now();
+
+    // Buildings (construction)
+    for (const b of buildingQ.data || []) {
+      const lc = String((b as any).location_coord || '');
+      if (!lc) continue;
+      consQueuedByCoord.set(lc, 1); // single active construction model
+
+      // Determine ordering
+      const completesVal = (b as any).construction_completed as string | null;
+      const startedVal = (b as any).construction_started as string | null;
+      const orderTs = completesVal ? new Date(completesVal).getTime() : Number.POSITIVE_INFINITY;
+
+      // Resolve display name
+      let name = '';
+      const key = String((b as any).catalog_key || '');
+      if (key) {
+        try {
+          const spec = getBuildingSpec(key as any);
+          name = spec?.name || key;
+        } catch {
+          name = key;
+        }
+      }
+
+      // Remaining/percent if scheduled
+      let remaining = 0;
+      let percent: number | undefined = undefined;
+      if (completesVal && startedVal) {
+        const st = new Date(startedVal).getTime();
+        const et = new Date(completesVal).getTime();
+        if (Number.isFinite(st) && Number.isFinite(et) && et > st) {
+          remaining = Math.max(0, et - nowTs);
+          const total = et - st;
+          const elapsed = Math.max(0, nowTs - st);
+          percent = Math.min(100, Math.max(0, Math.floor((elapsed / total) * 100)));
+        }
+      }
+
+      const prev = consEarliestByCoord.get(lc);
+      if (!prev || orderTs < prev.ts) {
+        consEarliestByCoord.set(lc, { name, remaining, percent, ts: orderTs });
+      }
+    }
 
     // Units
     for (const u of unitQ.data || []) {
@@ -1944,7 +1996,7 @@ router.get('/bases/summary', asyncHandler(async (req: AuthRequest, res: Response
         location: coord,
         economy: { metalPerHour: 0, energyPerHour: 0, researchPerHour: 0 },
         occupier: null,
-        construction: { queued: 0 },
+        construction: { queued: consQueuedByCoord.get(coord) || 0, next: (() => { const n = consEarliestByCoord.get(coord); if (!n) return undefined; const { ts, ...rest } = n; return rest; })() },
         production: { queued: prodQueuedByCoord.get(coord) || 0, next: (() => { const n = prodEarliestByCoord.get(coord); if (!n) return undefined; const { ts, ...rest } = n; return rest; })() },
         defenses: { queued: defQueuedByCoord.get(coord) || 0, next: (() => { const n = defEarliestByCoord.get(coord); if (!n) return undefined; const { ts, ...rest } = n; return rest; })() },
         research: researchSummary,
