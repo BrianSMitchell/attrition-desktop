@@ -172,6 +172,28 @@ export async function loginSupabase(req: Request, res: Response) {
     const token = generateAccessToken(userRow.id, req);
     const refreshToken = generateRefreshToken(userRow.id);
 
+    // Load the user's empire to include in the login response (parity with non-Supabase flow)
+    let empireRow: any = null;
+    try {
+      const byUser = await supabase
+        .from('empires')
+        .select('id, name, home_system, territories, credits, energy, user_id')
+        .eq('user_id', userRow.id)
+        .maybeSingle();
+      if (byUser.data) {
+        empireRow = byUser.data;
+      } else if (userRow.empire_id) {
+        const byId = await supabase
+          .from('empires')
+          .select('id, name, home_system, territories, credits, energy, user_id')
+          .eq('id', userRow.empire_id)
+          .maybeSingle();
+        if (byId.data) empireRow = byId.data;
+      }
+    } catch {
+      // non-fatal
+    }
+
     res.json({
       success: true,
       data: {
@@ -181,11 +203,21 @@ export async function loginSupabase(req: Request, res: Response) {
           username: userRow.username,
           gameProfile: {
             startingCoordinate: userRow.starting_coordinate || null,
-            empireId: userRow.empire_id || null,
+            empireId: userRow.empire_id || (empireRow?.id ?? null),
           },
         },
         token,
         refreshToken,
+        empire: empireRow
+          ? {
+              id: empireRow.id,
+              name: empireRow.name,
+              homeSystem: empireRow.home_system,
+              territories: empireRow.territories,
+              credits: empireRow.credits,
+              energy: empireRow.energy,
+            }
+          : null,
       },
     });
   } catch (err: any) {
