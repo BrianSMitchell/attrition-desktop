@@ -468,6 +468,45 @@ router.get('/credits/history', asyncHandler(async (req: AuthRequest, res: Respon
 
 // Get empire territories
 router.get('/territories', asyncHandler(async (req: AuthRequest, res: Response) => {
+  // Supabase implementation
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    // Resolve empire id via empires.user_id or users.empire_id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) {
+      return res.status(404).json({ success: false, error: 'Empire not found' });
+    }
+
+    // Prefer colonies (name + coord). If none, fall back to empires.territories and fetch locations.
+    const coloniesRes = await supabase
+      .from('colonies')
+      .select('location_coord, name')
+      .eq('empire_id', empireId);
+
+    let territories: Array<{ coord: string; name?: string }> = [];
+    if ((coloniesRes.data || []).length > 0) {
+      territories = (coloniesRes.data as any[]).map((c) => ({ coord: String(c.location_coord), name: c.name || undefined }));
+    } else {
+      const emp = await supabase.from('empires').select('territories').eq('id', empireId).maybeSingle();
+      const coords: string[] = Array.isArray(emp.data?.territories) ? emp.data!.territories : [];
+      if (coords.length > 0) {
+        const locs = await supabase.from('locations').select('coord').in('coord', coords);
+        territories = (locs.data || []).map((l: any) => ({ coord: String(l.coord) }));
+      }
+    }
+
+    return res.json({ success: true, data: { territories } });
+  }
+
+  // Legacy (Mongo) implementation
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({
@@ -489,6 +528,53 @@ router.get('/territories', asyncHandler(async (req: AuthRequest, res: Response) 
 
 // List buildings at a specific owned location
 router.get('/buildings/location/:coord', asyncHandler(async (req: AuthRequest, res: Response) => {
+  // Supabase implementation
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+    const { coord } = req.params;
+    if (!coord) {
+      return res.status(400).json({ success: false, error: 'Missing coord' });
+    }
+
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    // Ownership check via locations.owner_id
+    const loc = await supabase.from('locations').select('owner_id').eq('coord', coord).maybeSingle();
+    if (!loc.data) return res.status(404).json({ success: false, error: 'Location not found' });
+    if (String(loc.data.owner_id || '') !== String(userId)) {
+      return res.status(403).json({ success: false, error: 'You do not own this location' });
+    }
+
+    // Fetch buildings at this location for this empire
+    const bRes = await supabase
+      .from('buildings')
+      .select('catalog_key, level, is_active, pending_upgrade, construction_started, construction_completed, credits_cost')
+      .eq('empire_id', empireId)
+      .eq('location_coord', coord);
+
+    const buildings = (bRes.data || []).map((b: any) => ({
+      catalogKey: String(b.catalog_key || ''),
+      level: Number(b.level || 0),
+      isActive: b.is_active === true,
+      pendingUpgrade: b.pending_upgrade === true,
+      constructionStarted: b.construction_started ? new Date(b.construction_started) : null,
+      constructionCompleted: b.construction_completed ? new Date(b.construction_completed) : null,
+      creditsCost: typeof b.credits_cost === 'number' ? b.credits_cost : null,
+    }));
+
+    return res.json({ success: true, data: { buildings } });
+  }
+
+  // Legacy (Mongo) implementation
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
