@@ -15,6 +15,7 @@ import { getDatabaseType } from '../config/database';
 import { SupabaseCompletionService } from './supabaseCompletionService';
 import { SupabaseResourceService } from './resources/SupabaseResourceService';
 import { SupabaseFleetMovementService } from './fleets/SupabaseFleetMovementService';
+import { SupabaseBaseCitizenService } from './bases/SupabaseBaseCitizenService';
 
 export class HybridGameLoopService {
   private static instance: HybridGameLoopService;
@@ -192,8 +193,8 @@ export class HybridGameLoopService {
             const empireId = empire.id;
             await SupabaseResourceService.updateEmpireResources(empireId);
             await SupabaseResourceService.updateEmpireCreditsAligned(empireId);
-            // Note: BaseCitizenService needs Supabase support
-            // TODO: Implement SupabaseBaseCitizenService
+            // Update per-base citizens for this empire
+            await SupabaseBaseCitizenService.updateEmpireBases(empireId);
             updated++;
           } catch (empError) {
             errors++;

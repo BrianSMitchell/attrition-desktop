@@ -29,9 +29,9 @@ export class SupabaseCapacityService {
     const construction = this.computeConstruction(levels, metalYield);
     const production = this.computeProduction(levels, metalYield);
     const research = this.computeResearch(levels);
+    const citizen = this.computeCitizen(levels);
 
     // Citizens bonus (if colony present)
-    let citizen: CapacityResult = { value: 0, breakdown: [] };
     try {
       const col = await supabase
         .from('colonies')
@@ -47,7 +47,6 @@ export class SupabaseCapacityService {
         value: Math.round(res.value * (1 + pct)),
         breakdown: [...(res.breakdown || []), ...(pct > 0 ? [{ source: 'Citizens Bonus', value: pct, kind: 'percent' as const }] : [])],
       });
-      citizen = { value: 0, breakdown: [] };
       return {
         construction: applyPct(construction),
         production: applyPct(production),
@@ -96,5 +95,22 @@ export class SupabaseCapacityService {
     const flat = Math.max(0, levels.get('research_labs') || 0) * 8;
     if (flat) breakdown.push({ source: 'Research Labs (+8 per level)', value: flat, kind: 'flat' });
     return this.result(baseline + flat, breakdown);
+  }
+
+  private static computeCitizen(levels: Map<string, number>): CapacityResult {
+    const breakdown: CapacityResult['breakdown'] = [];
+    const sum = (key: string, perLevel: number, label: string) => {
+      const lv = Math.max(0, levels.get(key) || 0);
+      const v = lv * perLevel;
+      if (v) breakdown.push({ source: label, value: v, kind: 'flat' });
+      return v;
+    };
+    const total =
+      sum('urban_structures', 3, 'Urban Structures') +
+      sum('command_centers', 1, 'Command Centers') +
+      sum('orbital_base', 5, 'Orbital Base') +
+      sum('capital', 8, 'Capital') +
+      sum('biosphere_modification', 10, 'Biosphere Modification');
+    return this.result(total, breakdown);
   }
 }
