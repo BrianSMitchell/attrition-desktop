@@ -2054,6 +2054,35 @@ router.get('/capacities/:coord', asyncHandler(async (req: AuthRequest, res: Resp
  * DTO: { success, data: { coord, stats, capacities }, message }
  */
 router.get('/bases/:coord/stats', asyncHandler(async (req: AuthRequest, res: Response) => {
+  // Supabase implementation: combine base stats + capacities
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+    const { coord } = req.params as { coord: string };
+    if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });
+
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const { SupabaseBaseStatsService } = require('../services/bases/SupabaseBaseStatsService');
+    const { SupabaseCapacityService } = require('../services/bases/SupabaseCapacityService');
+
+    const [stats, capacities] = await Promise.all([
+      SupabaseBaseStatsService.getBaseStats(empireId, coord),
+      SupabaseCapacityService.getBaseCapacities(empireId, coord),
+    ]);
+
+    return res.json({ success: true, data: { coord, stats, capacities }, message: 'Base stats loaded' });
+  }
+
+  // Legacy (Mongo) implementation
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
@@ -2083,6 +2112,13 @@ router.get('/bases/:coord/stats', asyncHandler(async (req: AuthRequest, res: Res
  * DTO: { success, data: { coord, defenseLevels: Array<{ key, name, level, energyDelta }>, inProgress: Array<{ key, name, completesAt }> }, message }
  */
 router.get('/bases/:coord/defenses', asyncHandler(async (req: AuthRequest, res: Response) => {
+  // Supabase implementation: defenses not yet modeled -> return empty but valid payload
+  if (getDatabaseType() === 'supabase') {
+    const { coord } = req.params as { coord: string };
+    if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });
+    return res.json({ success: true, data: { coord, defenseLevels: [], inProgress: [] }, message: 'Base defenses loaded' });
+  }
+
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
