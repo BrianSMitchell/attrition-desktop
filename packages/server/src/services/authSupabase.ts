@@ -214,8 +214,10 @@ export async function loginSupabase(req: Request, res: Response) {
               name: empireRow.name,
               homeSystem: empireRow.home_system,
               territories: empireRow.territories,
-              credits: empireRow.credits,
-              energy: empireRow.energy,
+              resources: {
+                credits: Math.max(0, Number(empireRow.credits || 0)),
+                energy: Math.max(0, Number(empireRow.energy || 0)),
+              },
             }
           : null,
       },
