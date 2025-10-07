@@ -1,6 +1,6 @@
 # Supabase Migration Status
 
-**Last Updated**: January 7, 2025 - 15:05 UTC
+**Last Updated**: January 7, 2025 - 15:10 UTC
 
 ## Overview
 This document tracks the progress of migrating from MongoDB to Supabase as the primary database for the Attrition game server.
@@ -131,7 +131,7 @@ This document tracks the progress of migrating from MongoDB to Supabase as the p
 - ✅ `/tech/status` - **Supabase active**
 - ✅ `/tech/start` - **Supabase active**
 - ✅ `/tech/queue` - **Supabase active**
-- ❌ `/tech/queue/:id` (DELETE) - Still MongoDB only
+- ✅ `/tech/queue/:id` (DELETE) - **Supabase active**
 
 ### Structures Routes
 - ✅ `/structures/catalog` - Using shared game data
@@ -211,8 +211,10 @@ This document tracks the progress of migrating from MongoDB to Supabase as the p
    - Create fleet details endpoint
    - Integrate fleet movement service
 
-2. **Tech queue cancellation**
-   - Add Supabase path to `/tech/queue/:id` DELETE
+2. ✅ **Tech queue cancellation** - COMPLETED 1/7/2025
+   - ✅ Add Supabase path to `/tech/queue/:id` DELETE
+   - ✅ Credit refund logic implemented
+   - ✅ Transaction logging
 
 ### Lower Priority
 3. **Combat system**

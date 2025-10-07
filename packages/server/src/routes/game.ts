@@ -3684,6 +3684,101 @@ router.get('/tech/queue', asyncHandler(async (req: AuthRequest, res: Response) =
 
 // Cancel a pending technology research queue item
 router.delete('/tech/queue/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ success: false, error: 'Invalid queue item id' });
+
+    // Fetch the queue item
+    const { data: qItem, error: fetchError } = await supabase
+      .from('tech_queue')
+      .select('id, empire_id, tech_key, level, status, location_coord')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('[tech/queue/:id DELETE] Error fetching item:', fetchError);
+      return res.status(500).json({ success: false, error: 'Error fetching queue item' });
+    }
+
+    if (!qItem || String((qItem as any).empire_id) !== empireId) {
+      return res.status(404).json({ success: false, error: 'Queue item not found' });
+    }
+
+    if (String((qItem as any).status || '') !== 'pending') {
+      return res.status(400).json({ success: false, error: 'Only pending items can be cancelled' });
+    }
+
+    // Calculate refund
+    let refundedCredits: number | null = null;
+    try {
+      const techKey = String((qItem as any).tech_key || '');
+      const level = Math.max(1, Number((qItem as any).level || 1));
+      const spec = getTechSpec(techKey as TechnologyKey);
+      const credits = getTechCreditCostForLevel(spec, level);
+      refundedCredits = credits;
+
+      // Update empire credits
+      const { data: empire } = await supabase
+        .from('empires')
+        .select('credits')
+        .eq('id', empireId)
+        .single();
+
+      if (empire) {
+        const currentCredits = Number(empire.credits || 0);
+        await supabase
+          .from('empires')
+          .update({ credits: currentCredits + credits })
+          .eq('id', empireId);
+
+        // Log transaction (best effort)
+        try {
+          CreditLedgerService.logTransaction({
+            empireId: empireId as any,
+            amount: credits,
+            type: 'research_refund',
+            note: `Cancel research ${techKey} at ${(qItem as any).location_coord}`,
+            meta: { techKey, level, locationCoord: (qItem as any).location_coord },
+          }).catch(() => {});
+        } catch {}
+      }
+    } catch (e) {
+      // If refund calculation fails, still proceed with cancellation
+      console.warn('[tech/queue/:id DELETE] Refund calculation failed:', e);
+    }
+
+    // Update status to cancelled
+    const { error: updateError } = await supabase
+      .from('tech_queue')
+      .update({ status: 'cancelled' })
+      .eq('id', id);
+
+    if (updateError) {
+      console.error('[tech/queue/:id DELETE] Error cancelling item:', updateError);
+      return res.status(500).json({ success: false, error: 'Failed to cancel queue item' });
+    }
+
+    return res.json({
+      success: true,
+      data: { cancelledId: id, refundedCredits },
+      message: 'Research queue item cancelled'
+    });
+  }
+
+  // MongoDB path
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
