@@ -14,6 +14,7 @@ import { FleetMovementService } from './fleetMovementService';
 import { getDatabaseType } from '../config/database';
 import { SupabaseCompletionService } from './supabaseCompletionService';
 import { SupabaseResourceService } from './resources/SupabaseResourceService';
+import { SupabaseFleetMovementService } from './fleets/SupabaseFleetMovementService';
 
 export class HybridGameLoopService {
   private static instance: HybridGameLoopService;
@@ -847,23 +848,48 @@ export class HybridGameLoopService {
    * This is critical for MMO gameplay - fleets need to arrive promptly!
    */
   private async processFleetArrivals(): Promise<number> {
+    const dbType = getDatabaseType();
+    
     try {
       const currentTime = new Date();
       
-      // Find all movements that should have arrived
-      const { FleetMovement } = await import('../models/FleetMovement');
-      const arrivals = await FleetMovement.find({
-        status: 'travelling',
-        estimatedArrivalTime: { $lte: currentTime }
-      });
+      if (dbType === 'supabase') {
+        // Supabase path: Query arrivals from Supabase
+        const { supabase } = await import('../config/supabase');
+        const { data: arrivals, error } = await supabase
+          .from('fleet_movements')
+          .select('id')
+          .eq('status', 'travelling')
+          .lte('estimated_arrival_time', currentTime.toISOString());
 
-      // Process arrivals using the existing FleetMovementService
-      if (arrivals.length > 0) {
-        await FleetMovementService.processArrivals();
-        console.log(`[HybridLoop] fleet arrivals processed: ${arrivals.length}`);
+        if (error) {
+          console.error('Error fetching fleet arrivals from Supabase:', error);
+          return 0;
+        }
+
+        // Process arrivals using SupabaseFleetMovementService
+        if (arrivals && arrivals.length > 0) {
+          await SupabaseFleetMovementService.processArrivals();
+          console.log(`[HybridLoop] fleet arrivals processed: ${arrivals.length} (Supabase)`);
+        }
+
+        return arrivals?.length || 0;
+      } else {
+        // MongoDB path
+        const { FleetMovement } = await import('../models/FleetMovement');
+        const arrivals = await FleetMovement.find({
+          status: 'travelling',
+          estimatedArrivalTime: { $lte: currentTime }
+        });
+
+        // Process arrivals using the existing FleetMovementService
+        if (arrivals.length > 0) {
+          await FleetMovementService.processArrivals();
+          console.log(`[HybridLoop] fleet arrivals processed: ${arrivals.length} (MongoDB)`);
+        }
+
+        return arrivals.length;
       }
-
-      return arrivals.length;
     } catch (error) {
       console.error('Error processing fleet arrivals in hybrid loop:', error);
       return 0;
