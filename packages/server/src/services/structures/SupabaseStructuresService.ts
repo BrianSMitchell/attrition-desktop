@@ -609,4 +609,173 @@ export class SupabaseStructuresService {
       message: `${spec.name} construction started. ETA ${minutes} minute(s).`,
     };
   }
+
+  /**
+   * Get construction queue for a location
+   */
+  static async getQueue(empireId: string, locationCoord?: string) {
+    let query = supabase
+      .from('buildings')
+      .select('id, catalog_key, level, is_active, pending_upgrade, construction_started, construction_completed, credits_cost, created_at')
+      .eq('empire_id', empireId)
+      .eq('is_active', false);
+
+    if (locationCoord) {
+      query = query.eq('location_coord', locationCoord);
+    }
+
+    const { data: items, error } = await query.order('construction_completed', { ascending: true, nullsFirst: false });
+
+    if (error) {
+      console.error('[SupabaseStructuresService.getQueue] Error:', error);
+      return [];
+    }
+
+    return (items || []).map((item: any) => ({
+      id: String(item.id || ''),
+      catalogKey: String(item.catalog_key || ''),
+      level: Number(item.level || 1),
+      isUpgrade: item.pending_upgrade === true,
+      constructionStarted: item.construction_started || null,
+      constructionCompleted: item.construction_completed || null,
+      creditsCost: Number(item.credits_cost || 0),
+      createdAt: item.created_at || null,
+    }));
+  }
+
+  /**
+   * Cancel a queued construction/upgrade
+   */
+  static async cancel(empireId: string, locationCoord: string): Promise<ServiceResult> {
+    const now = Date.now();
+
+    // Find the active construction at this base (most recent incomplete item)
+    const { data: item, error: fetchError } = await supabase
+      .from('buildings')
+      .select('*')
+      .eq('empire_id', empireId)
+      .eq('location_coord', locationCoord)
+      .eq('is_active', false)
+      .gt('construction_completed', new Date(now).toISOString())
+      .order('construction_completed', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('[SupabaseStructuresService.cancel] Error fetching item:', fetchError);
+      return formatError('FETCH_ERROR', 'Error fetching construction item');
+    }
+
+    if (!item) {
+      return formatError('NO_ACTIVE_CONSTRUCTION', 'No active construction found at this base');
+    }
+
+    const key = String(item.catalog_key || '');
+    const pendingUpgrade = item.pending_upgrade === true;
+    const storedCost = Number(item.credits_cost || 0);
+
+    // Determine refund amount
+    let refundedCredits: number | null = null;
+    try {
+      if (storedCost > 0) {
+        refundedCredits = storedCost;
+      } else if (key) {
+        const level = Math.max(1, Number(item.level || 1));
+        const nextLevel = pendingUpgrade ? level + 1 : 1;
+        try {
+          refundedCredits = getStructureCreditCostForLevel(key as any, nextLevel);
+        } catch {
+          const spec = getBuildingSpec(key as any);
+          refundedCredits = Number(spec?.creditsCost || 0) || null;
+        }
+      }
+    } catch {
+      refundedCredits = null;
+    }
+
+    let cancelled = false;
+
+    if (pendingUpgrade) {
+      // Revert upgrade: restore to active state
+      const { error: updateError } = await supabase
+        .from('buildings')
+        .update({
+          is_active: true,
+          pending_upgrade: false,
+          credits_cost: null,
+          construction_started: null,
+          construction_completed: null,
+          identity_key: null,
+        })
+        .eq('id', item.id)
+        .eq('is_active', false);
+
+      cancelled = !updateError;
+      if (updateError) {
+        console.error('[SupabaseStructuresService.cancel] Error reverting upgrade:', updateError);
+      }
+    } else {
+      // Delete new construction item
+      const { error: deleteError } = await supabase
+        .from('buildings')
+        .delete()
+        .eq('id', item.id);
+
+      cancelled = !deleteError;
+      if (deleteError) {
+        console.error('[SupabaseStructuresService.cancel] Error deleting building:', deleteError);
+      }
+    }
+
+    if (!cancelled) {
+      return formatError('CANCEL_FAILED', 'Failed to cancel active construction');
+    }
+
+    // Refund credits
+    if (refundedCredits && refundedCredits > 0) {
+      const { data: empire } = await supabase
+        .from('empires')
+        .select('credits')
+        .eq('id', empireId)
+        .single();
+
+      if (empire) {
+        const currentCredits = Number(empire.credits || 0);
+        await supabase
+          .from('empires')
+          .update({ credits: currentCredits + refundedCredits })
+          .eq('id', empireId);
+
+        // Log transaction (best effort)
+        try {
+          const { CreditLedgerService } = await import('../creditLedgerService');
+          CreditLedgerService.logTransaction({
+            empireId: empireId as any,
+            amount: refundedCredits,
+            type: 'construction_refund',
+            note: `Cancel construction: ${key} at ${locationCoord}`,
+            meta: { coord: locationCoord, key },
+          }).catch(() => {});
+        } catch {}
+      }
+    }
+
+    // Broadcast cancellation
+    try {
+      const { getIO } = await import('../../index');
+      const io = getIO();
+      (io as any)?.broadcastQueueUpdate?.(empireId, locationCoord, 'queue:item_cancelled', {
+        locationCoord,
+        catalogKey: key,
+      });
+    } catch {}
+
+    return formatSuccess(
+      {
+        cancelledStructure: key,
+        refundedCredits: refundedCredits ?? 0,
+      },
+      'Construction cancelled'
+    );
+  }
 }

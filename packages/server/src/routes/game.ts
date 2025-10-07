@@ -1281,7 +1281,173 @@ router.get('/structures/catalog', asyncHandler(async (_req: AuthRequest, res: Re
   });
 }));
 
+// Get structures queue
+router.get('/structures/queue', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
 
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const locationCoord = String(req.query.base || '').trim() || undefined;
+    const { SupabaseStructuresService } = await import('../services/structures/SupabaseStructuresService');
+    const queue = await SupabaseStructuresService.getQueue(empireId, locationCoord);
+    return res.json({ success: true, data: { queue } });
+  }
+
+  // MongoDB path
+  const empire = await Empire.findOne({ userId: req.user!._id });
+  if (!empire) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+  const base = String(req.query.base || '').trim();
+  const filter: any = { empireId: empire._id, isActive: false };
+  if (base) filter.locationCoord = base;
+
+  const queue = await Building.find(filter).sort({ constructionCompleted: 1, createdAt: 1 }).lean();
+  return res.json({ success: true, data: { queue } });
+}));
+
+// Cancel structures construction
+router.delete('/structures/cancel/:coord', asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+    const { coord } = req.params;
+    if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });
+
+    // Validate location ownership
+    const { data: location } = await supabase
+      .from('locations')
+      .select('coord, owner')
+      .eq('coord', coord)
+      .maybeSingle();
+
+    if (!location) return res.status(404).json({ success: false, error: 'Location not found' });
+    if (location.owner !== userId) {
+      return res.status(403).json({ success: false, error: 'You do not own this location' });
+    }
+
+    const { SupabaseStructuresService } = await import('../services/structures/SupabaseStructuresService');
+    const result = await SupabaseStructuresService.cancel(empireId, coord);
+
+    if (!result.success) {
+      const statusCode = (result as any).code === 'NO_ACTIVE_CONSTRUCTION' ? 404 : 400;
+      return res.status(statusCode).json(result);
+    }
+
+    return res.json(result);
+  }
+
+  // MongoDB path remains unchanged
+  const empire = await Empire.findOne({ userId: req.user!._id });
+  if (!empire) return res.status(404).json({ success: false, error: 'Empire not found' });
+
+  const { coord } = req.params;
+  if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });
+
+  const location = await Location.findOne({ coord });
+  if (!location) return res.status(404).json({ success: false, error: 'Location not found' });
+  if (String(location.owner) !== String(empire.userId)) {
+    return res.status(403).json({ success: false, error: 'You do not own this location' });
+  }
+
+  const now = new Date();
+  const item = await Building.findOne({
+    empireId: empire._id,
+    locationCoord: coord,
+    isActive: false,
+    constructionCompleted: { $gt: now }
+  }).sort({ constructionCompleted: 1 });
+
+  if (!item) {
+    return res.status(404).json({ success: false, code: 'NO_ACTIVE_CONSTRUCTION', error: 'No active construction found at this base' });
+  }
+
+  const key = String((item as any).catalogKey || '');
+  const pendingUpgrade = !!(item as any).pendingUpgrade;
+  let refundedCredits: number | null = null;
+
+  try {
+    const stored = Number((item as any).creditsCost);
+    if (Number.isFinite(stored) && stored > 0) {
+      refundedCredits = stored;
+    } else if (key) {
+      try {
+        const level = Math.max(1, Number((item as any).level || 1));
+        const nextLevel = pendingUpgrade ? level + 1 : 1;
+        refundedCredits = getStructureCreditCostForLevel(key as any, nextLevel);
+      } catch {
+        try {
+          const spec = getBuildingSpec(key as any);
+          refundedCredits = Number(spec?.creditsCost || 0) || null;
+        } catch {
+          refundedCredits = null;
+        }
+      }
+    }
+  } catch {
+    refundedCredits = null;
+  }
+
+  let cancelled = false;
+
+  if (pendingUpgrade) {
+    const result = await Building.updateOne(
+      { _id: (item as any)._id, isActive: false },
+      {
+        $set: { isActive: true, pendingUpgrade: false },
+        $unset: { creditsCost: '', constructionStarted: '', constructionCompleted: '' }
+      }
+    );
+    cancelled = (result.modifiedCount || 0) > 0;
+  } else {
+    const result = await Building.deleteOne({ _id: (item as any)._id });
+    cancelled = (result.deletedCount || 0) > 0;
+  }
+
+  if (!cancelled) {
+    return res.status(400).json({ success: false, code: 'CANCEL_FAILED', error: 'Failed to cancel active construction' });
+  }
+
+  if (refundedCredits && refundedCredits > 0) {
+    await Empire.updateOne(
+      { _id: empire._id },
+      { $inc: { 'resources.credits': refundedCredits } }
+    );
+    CreditLedgerService.logTransaction({
+      empireId: (empire._id as mongoose.Types.ObjectId),
+      amount: refundedCredits,
+      type: 'construction_refund',
+      note: `Cancel construction: ${key} at ${coord}`,
+      meta: { coord, key },
+    }).catch(() => {});
+  }
+
+  return res.json({
+    success: true,
+    data: { cancelledStructure: key, refundedCredits: refundedCredits ?? 0 },
+    message: 'Construction cancelled'
+  });
+}));
 
 /**
  * Defenses Routes (Citizen capacity driven)

@@ -1,6 +1,6 @@
 # Supabase Migration Status
 
-**Last Updated**: January 7, 2025 - 14:58 UTC
+**Last Updated**: January 7, 2025 - 15:05 UTC
 
 ## Overview
 This document tracks the progress of migrating from MongoDB to Supabase as the primary database for the Attrition game server.
@@ -40,10 +40,14 @@ This document tracks the progress of migrating from MongoDB to Supabase as the p
 - **Functions**:
   - `getStatus()` - Get building eligibility
   - `start()` - Start building construction/upgrade
+  - `getQueue()` - List construction queue
+  - `cancel()` - Cancel construction with credit refund
 - **Routes**: 
   - ✅ `/structures/status`
   - ✅ `/structures/start`
-- **Status**: ✅ Complete and in production (fixed TypeScript error 1/7/2025)
+  - ✅ `/structures/queue`
+  - ✅ `/structures/cancel/:coord`
+- **Status**: ✅ Complete and in production
 
 ### 4. **SupabaseDefensesService** ✓
 - **File**: `packages/server/src/services/defenses/SupabaseDefensesService.ts`
@@ -133,8 +137,8 @@ This document tracks the progress of migrating from MongoDB to Supabase as the p
 - ✅ `/structures/catalog` - Using shared game data
 - ✅ `/structures/status` - **Supabase active**
 - ✅ `/structures/start` - **Supabase active**
-- ❌ `/structures/queue` - Not implemented for Supabase
-- ❌ `/structures/cancel/:coord` - Not implemented for Supabase
+- ✅ `/structures/queue` - **Supabase active**
+- ✅ `/structures/cancel/:coord` - **Supabase active**
 
 ### Defense Routes
 - ✅ `/defenses/catalog` - Using shared game data
@@ -149,14 +153,7 @@ This document tracks the progress of migrating from MongoDB to Supabase as the p
 
 ### Services Needed
 
-#### 1. Building Queue Management
-- **Missing**: `SupabaseStructuresService.getQueue()`
-- **Missing**: `SupabaseStructuresService.cancel()`
-- **Routes affected**: 
-  - `/structures/queue`
-  - `/structures/cancel/:coord`
-
-
+#### 1. Fleet Management
 #### 2. Fleet Management
 - **Missing routes**:
   - `/fleets` (list fleets)
@@ -165,22 +162,22 @@ This document tracks the progress of migrating from MongoDB to Supabase as the p
   - `/fleets/:id/merge` (merge fleets)
   - `/fleets/:id/split` (split fleet)
 
-#### 3. Combat System
+#### 2. Combat System
 - **Not started**: No Supabase implementation yet
 - **Needed**: Combat resolution, damage calculation, fleet battles
 
-#### 4. Empire Management
+#### 3. Empire Management
 - **Partially done**: Dashboard uses Supabase
 - **Missing**:
   - Empire settings updates
   - Empire deletion/reset
   - Empire statistics aggregation
 
-#### 5. Leaderboard
+#### 4. Leaderboard
 - **Not started**: `/leaderboard` still MongoDB only
 - **Needs**: Aggregate queries for rankings
 
-#### 6. Credit Ledger
+#### 5. Credit Ledger
 - **Not started**: Transaction logging still MongoDB
 - **File**: `packages/server/src/services/creditLedgerService.ts`
 - **Needs**: Supabase implementation
@@ -203,24 +200,24 @@ This document tracks the progress of migrating from MongoDB to Supabase as the p
    - ✅ Add `/units/queue`
    - ✅ Add `/units/queue/:id` DELETE
 
-4. **Complete structure queue management**
-   - Add `getQueue()` to SupabaseStructuresService
-   - Add `cancel()` to SupabaseStructuresService
-   - Wire up routes
+4. ✅ **Complete structure queue management** - COMPLETED 1/7/2025
+   - ✅ Add `getQueue()` to SupabaseStructuresService
+   - ✅ Add `cancel()` to SupabaseStructuresService
+   - ✅ Wire up routes
 
 ### Medium Priority
-5. **Fleet management routes**
+1. **Fleet management routes**
    - Create fleet listing endpoint
    - Create fleet details endpoint
    - Integrate fleet movement service
 
-6. **Tech queue cancellation**
+2. **Tech queue cancellation**
    - Add Supabase path to `/tech/queue/:id` DELETE
 
 ### Lower Priority
-7. **Combat system**
-8. **Leaderboard Supabase queries**
-9. **Credit ledger migration**
+3. **Combat system**
+4. **Leaderboard Supabase queries**
+5. **Credit ledger migration**
 
 ---
 
@@ -288,12 +285,12 @@ If critical issues occur:
 
 ## Migration Completion Estimate
 
-- **Services**: ~85% complete
-- **Routes**: ~70% integrated
-- **Testing**: ~35% complete
-- **Overall Progress**: ~65% complete
+- **Services**: ~90% complete
+- **Routes**: ~80% integrated
+- **Testing**: ~40% complete
+- **Overall Progress**: ~75% complete
 
-**Estimated completion**: 1-2 weeks with current velocity
+**Estimated completion**: 1 week with current velocity
 
 ---
 
