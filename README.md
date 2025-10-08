@@ -1,6 +1,6 @@
 # Attrition
 
-A strategic desktop space empire game built with Electron, React, Node.js, and a dual-database architecture (MongoDB for development, Supabase for production). This is a desktop-only application that combines rich client-side features with secure server connectivity.
+A strategic desktop space empire game built with Electron, React, Node.js, and Supabase database. This is a desktop-only application that combines rich client-side features with secure server connectivity.
 
 ## Project Structure
 
@@ -9,7 +9,7 @@ attrition/
 ├── packages/            # Application packages
 │   ├── desktop/         # Electron desktop app (main process)
 │   ├── client/          # React UI (embedded in Electron)
-│   ├── server/          # Node.js game server (Express + MongoDB)
+│   ├── server/          # Node.js game server (Express + Supabase)
 │   └── shared/          # Shared types and utilities
 ├── config/              # Configuration files
 │   ├── electron-builder.yml  # Build configuration
@@ -45,16 +45,14 @@ attrition/
 ### Backend (@game/server)
 - **Node.js** - Runtime
 - **Express** - Web framework
-- **MongoDB** - Development database
-- **Supabase (PostgreSQL)** - Production database
-- **Mongoose** - MongoDB ODM
+- **Supabase (PostgreSQL)** - Database
 - **@supabase/supabase-js** - Supabase client
 - **JWT** - Authentication
 - **bcryptjs** - Password hashing
 - **Socket.io** - Real-time communication
 - **TypeScript** - Type safety
 
-**Database Strategy**: Automatically uses MongoDB for `development` and Supabase for `production` based on `NODE_ENV`. See [DATABASE_MIGRATION.md](./DATABASE_MIGRATION.md) for details.
+**Database**: Uses Supabase for all environments (development and production).
 
 ### Shared (@game/shared)
 - **TypeScript** - Shared types and interfaces
@@ -65,10 +63,9 @@ attrition/
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - PNPM (recommended) or npm
-- **For Development**: MongoDB (local installation or Docker)
-- **For Production**: Supabase account (database managed in cloud)
+- **Supabase account** (database managed in cloud)
 
 ### Installation
 
@@ -92,29 +89,23 @@ attrition/
    
    Edit `packages/server/.env` with your configuration:
    ```env
-   # Database
-   MONGODB_URI=mongodb://localhost:27017/space-empire-mmo
-   
+   # Database (Supabase)
+   SUPABASE_URL=your-supabase-project-url
+   SUPABASE_ANON_KEY=your-supabase-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+
    # JWT
    JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
    JWT_EXPIRES_IN=7d
-   
+
    # Server
    PORT=3001
    NODE_ENV=development
-   
+
    # CORS
    CORS_ORIGIN=http://localhost:5173
    ```
 
-4. **Start MongoDB**
-   
-   If using local MongoDB:
-   ```bash
-   mongod
-   ```
-   
-   Or use MongoDB Atlas and update the `MONGODB_URI` in your `.env` file.
 
 5. **Build shared package**
    ```bash
@@ -322,13 +313,12 @@ Environment-specific configurations are in `config/`:
 
 ### Environment Variables (Production)
 Ensure these are set in your production environment:
-- `MONGODB_URI` - Production MongoDB connection string
+- `SUPABASE_URL` - Your Supabase project URL
+- `SUPABASE_ANON_KEY` - Your Supabase anonymous key
+- `SUPABASE_SERVICE_ROLE_KEY` - Your Supabase service role key
 - `JWT_SECRET` - Strong, unique secret key
 - `NODE_ENV=production`
 - `CORS_ORIGIN` - Your frontend domain
-
-### Docker (Optional)
-Docker configuration will be added in future phases.
 
 ## Contributing
 

@@ -112,6 +112,7 @@ publish:
   owner: BrianSMitchell
   repo: attrition-desktop
   publishAutoUpdate: true
+  releaseType: release
 
 # Auto-updater configuration
 electronUpdaterCompatibility: ">= 0.1.0"
