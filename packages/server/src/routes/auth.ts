@@ -1,12 +1,7 @@
 import { Router, Request, Response } from 'express';
-import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import { validateLogin, validateRegister } from '@game/shared';
-import { User } from '../models/User';
-import { Empire } from '../models/Empire';
-import { Location } from '../models/Location';
-import { Colony } from '../models/Colony';
-import { Building } from '../models/Building';
+import { supabase } from '../config/supabase';
 import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate, generateAccessToken, generateRefreshToken, AuthRequest, revokeToken, verifyTokenWithSecrets } from '../middleware/auth';
 import { 
@@ -21,7 +16,6 @@ import {
 import { securityMonitor, SecurityEventType } from '../utils/securityMonitor';
 import { sessionInvalidationService } from '../middleware/sessionInvalidation';
 import { getDatabaseType } from '../config/database';
-import { supabase } from '../config/supabase';
 
 const router: Router = Router();
 import { registerSupabase, loginSupabase } from '../services/authSupabase';
@@ -33,309 +27,12 @@ const logSecurityEvent = (event: string, details: any) => {
 
 // Register new user
 router.post('/register', registerRateLimit, asyncHandler(async (req: Request, res: Response) => {
-  if (getDatabaseType() === 'supabase') {
-    return registerSupabase(req, res);
-  }
-  // Validate input
-  const validation = validateRegister(req.body);
-  if (!validation.success) {
-    return res.status(400).json({
-      success: false,
-      error: 'Validation failed',
-      details: validation.error.errors
-    });
-  }
-
-  let { email, username, password } = validation.data;
-
-  // Normalize email to lowercase to ensure consistent uniqueness checks and login behavior
-  email = email.trim().toLowerCase();
-
-  // Check if user already exists
-  const existingUser = await User.findOne({
-    $or: [{ email }, { username }]
-  });
-
-  if (existingUser) {
-    return res.status(400).json({
-      success: false,
-      error: 'User with this email or username already exists'
-    });
-  }
-
-  // We will assign startingCoordinate during an atomic transaction after user is created
-  let startingCoordinate: string | undefined;
-
-  // Create user
-  const user = new User({
-    email,
-    username,
-    passwordHash: password, // Will be hashed by pre-save middleware
-    gameProfile: {
-      credits: 100,
-      experience: 0,
-      startingCoordinate
-    }
-  });
-
-
-  // Atomically assign a random unowned planet and create Empire + Colony
-  let createdEmpire: any = null;
-  try {
-    const session = await mongoose.startSession();
-    await session.withTransaction(async () => {
-      // Persist user inside the transaction so a failure rolls back everything
-      await user.save({ session });
-      // Pick an unowned planet (simple deterministic selection for reliability)
-      const candidate = await Location.findOne({ owner: null, type: 'planet' })
-        .session(session)
-        .select('coord');
-
-      if (!candidate) {
-        throw new Error('No unowned starter planets available');
-      }
-
-      const coord = candidate.coord;
-
-      // Claim the planet (guard against race conditions)
-      const claimed = await Location.findOneAndUpdate(
-        { coord, owner: null },
-        { owner: user._id },
-        { new: true, session }
-      );
-
-      if (!claimed) {
-        throw new Error('Failed to claim starter planet');
-      }
-
-      startingCoordinate = coord;
-
-      // Create player state (Empire) without asking for a name
-      const empire = new Empire({
-        userId: user._id,
-        name: user.username, // Temporary: use username; UI will not prompt for name
-        homeSystem: startingCoordinate,
-        territories: [startingCoordinate],
-        resources: { credits: 100 }
-      });
-
-      await empire.save({ session });
-
-      // Create the starter colony
-      const colony = new Colony({
-        empireId: empire._id,
-        locationCoord: startingCoordinate,
-        name: 'Home Base'
-      });
-
-  await colony.save({ session });
-
-  // Seed starter structure: Level 1 Urban Structures (active immediately)
-  const starterBuilding = new Building({
-    locationCoord: startingCoordinate,
-    empireId: empire._id,
-    type: 'habitat',               // maps to 'urban_structures'
-    displayName: 'Urban Structures',
-    catalogKey: 'urban_structures',
-    level: 1,
-    constructionStarted: new Date(),
-    constructionCompleted: new Date(), // count towards economy immediately
-    isActive: true,
-    creditsCost: 0                 // free starter structure
-  });
-  await starterBuilding.save({ session });
-
-  // Update user's profile with assigned coordinate and empireId
-  user.gameProfile.startingCoordinate = startingCoordinate;
-  user.gameProfile.empireId = (empire._id as mongoose.Types.ObjectId).toString();
-  await user.save({ session });
-
-  createdEmpire = empire;
-    });
-    await session.endSession();
-  } catch (error) {
-    console.error('Registration setup failed:', error);
-    return res.status(503).json({
-      success: false,
-      error: 'No starter planets available or failed to initialize player. Please try again later.'
-    });
-  }
-
-  // Generate tokens (with device fingerprinting)
-  const accessToken = generateAccessToken((user._id as mongoose.Types.ObjectId).toString(), req);
-  const refreshToken = generateRefreshToken((user._id as mongoose.Types.ObjectId).toString());
-
-  // Track successful registration and create session
-  const userId = (user._id as mongoose.Types.ObjectId).toString();
-  const accessTokenDecoded = jwt.decode(accessToken) as { jti?: string };
-  const clientIP = req.ip || 'unknown';
-  
-  // Track successful registration in session invalidation service
-  await sessionInvalidationService.trackLoginAttempt(userId, clientIP, true);
-  
-  securityMonitor.recordEvent({
-    type: SecurityEventType.LOGIN_SUCCESS,
-    userId,
-    ip: clientIP,
-    userAgent: req.get('User-Agent') || 'unknown',
-    details: {
-      action: 'registration',
-      email: user.email,
-      username: user.username
-    }
-  });
-  
-  // Create security session
-  securityMonitor.createSession(userId, req, accessTokenDecoded?.jti);
-
-  // Return user data (password excluded by toJSON method)
-  res.status(201).json({
-    success: true,
-    data: {
-      user,
-      token: accessToken,
-      refreshToken,
-      empire: createdEmpire
-    },
-    message: 'User registered successfully'
-  });
+  return registerSupabase(req, res);
 }));
 
 // Login user
 router.post('/login', loginRateLimit, accountLockout, asyncHandler(async (req: Request, res: Response) => {
-  if (getDatabaseType() === 'supabase') {
-    return loginSupabase(req, res);
-  }
-  // Validate input
-  const validation = validateLogin(req.body);
-  if (!validation.success) {
-    return res.status(400).json({
-      success: false,
-      error: 'Validation failed',
-      details: validation.error.errors
-    });
-  }
-
-  const { email, password } = validation.data;
-
-  // Normalize email to lowercase for login lookup
-  const lookupEmail = email.trim().toLowerCase();
-
-  // Legacy compatibility: migrate old password field -> passwordHash if found
-  // (handles older databases where the field was named 'password' or stored in plain text)
-  try {
-    const raw = await User.collection.findOne({ email: lookupEmail });
-    if (raw && !raw.passwordHash && raw.password) {
-      const legacy = String(raw.password);
-      // Detect if legacy value looks like a bcrypt hash ($2a/$2b/$2y...)
-      const looksHashed = /^\$2[aby]?\$\d{2}\$/.test(legacy);
-      if (looksHashed) {
-        await User.updateOne({ _id: raw._id }, {
-          $set: { passwordHash: legacy },
-          $unset: { password: '' },
-        });
-      } else {
-        // Plaintext legacy: hash it now to migrate safely
-        const bcrypt = (await import('bcryptjs')).default;
-        const salt = await bcrypt.genSalt(12);
-        const hashed = await bcrypt.hash(legacy, salt);
-        await User.updateOne({ _id: raw._id }, {
-          $set: { passwordHash: hashed },
-          $unset: { password: '' },
-        });
-      }
-    }
-  } catch (e) {
-    // Non-fatal: continue with normal flow
-    console.warn('[auth.login] legacy password migration skipped:', (e as Error).message);
-  }
-
-  // Find user and include password for comparison
-  const user = await User.findOne({ email: lookupEmail }).select('+passwordHash');
-  
-  const clientIP = req.ip || 'unknown';
-  
-  if (!user || !(await user.comparePassword(password))) {
-    // Development-only diagnostic to clarify reason for 401
-    if (process.env.DEBUG_AUTH === 'true') {
-      console.log('[auth.login] authentication failed', {
-        reason: !user ? 'user_not_found' : 'password_mismatch',
-        email: lookupEmail,
-        timestamp: new Date().toISOString()
-      });
-    }
-    // Track failed login attempt
-    trackFailedLogin(req);
-    
-    // Track failed login attempt with session invalidation service
-    if (user) {
-      const userId = (user._id as mongoose.Types.ObjectId).toString();
-      await sessionInvalidationService.trackLoginAttempt(userId, clientIP, false);
-    }
-    
-    // Track failed login attempt with security monitor
-    securityMonitor.recordEvent({
-      type: SecurityEventType.LOGIN_FAILED,
-      ip: clientIP,
-      userAgent: req.get('User-Agent') || 'unknown',
-      details: {
-        email,
-        timestamp: new Date().toISOString()
-      }
-    });
-    
-    return res.status(401).json({
-      success: false,
-      error: 'Invalid email or password'
-    });
-  }
-
-  // Clear any failed login attempts for this IP
-  clearFailedAttempts(req);
-  
-  // Update last login
-  user.lastLogin = new Date();
-  await user.save();
-
-  // Generate tokens (with device fingerprinting)
-  const accessToken = generateAccessToken((user._id as mongoose.Types.ObjectId).toString(), req);
-  const refreshToken = generateRefreshToken((user._id as mongoose.Types.ObjectId).toString());
-
-  // Track successful login and create session
-  const userId = (user._id as mongoose.Types.ObjectId).toString();
-  const accessTokenDecoded = jwt.decode(accessToken) as { jti?: string };
-  
-  // Track successful login in session invalidation service
-  await sessionInvalidationService.trackLoginAttempt(userId, clientIP, true);
-  
-  securityMonitor.recordEvent({
-    type: SecurityEventType.LOGIN_SUCCESS,
-    userId,
-    ip: clientIP,
-    userAgent: req.get('User-Agent') || 'unknown',
-    details: {
-      email: user.email,
-      timestamp: new Date().toISOString()
-    }
-  });
-  
-  // Create security session
-  securityMonitor.createSession(userId, req, accessTokenDecoded?.jti);
-
-  // Get user's empire if exists
-  const empire = await Empire.findOne({ userId: user._id });
-
-  // Return user data (password excluded by toJSON method)
-  res.json({
-    success: true,
-    data: {
-      user: user.toJSON(),
-      token: accessToken,
-      refreshToken,
-      empire
-    },
-    message: 'Login successful'
-  });
+  return loginSupabase(req, res);
 }));
 
 // Refresh tokens
@@ -368,15 +65,21 @@ router.post('/refresh', refreshRateLimit, asyncHandler(async (req: Request, res:
           action: 'token_refresh'
         }
       });
-      
+
       return res.status(401).json({
         success: false,
         error: 'Invalid refresh token'
       });
     }
 
-    const user = await User.findById(decoded.userId).select('-passwordHash');
-    if (!user) {
+    // Get user from Supabase
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', decoded.userId)
+      .single();
+
+    if (error || !user) {
       return res.status(401).json({
         success: false,
         error: 'Invalid refresh token'
@@ -387,14 +90,14 @@ router.post('/refresh', refreshRateLimit, asyncHandler(async (req: Request, res:
     if (decoded.jti) {
       revokeToken(decoded.jti);
     }
-    
+
     // Issue new tokens (with device fingerprinting)
     const token = generateAccessToken(decoded.userId, req);
     const newRefreshToken = generateRefreshToken(decoded.userId);
 
     // Track successful token refresh
     const newAccessTokenDecoded = jwt.decode(token) as { jti?: string };
-    
+
     securityMonitor.recordEvent({
       type: SecurityEventType.TOKEN_REFRESH,
       userId: decoded.userId,
@@ -405,20 +108,25 @@ router.post('/refresh', refreshRateLimit, asyncHandler(async (req: Request, res:
         newTokenJti: newAccessTokenDecoded?.jti
       }
     });
-    
+
     // Update security session if exists
     if (newAccessTokenDecoded?.jti) {
       securityMonitor.createSession(decoded.userId, req, newAccessTokenDecoded.jti);
     }
 
-    const empire = await Empire.findOne({ userId: user._id });
+    // Get user's empire if exists
+    const { data: empire } = await supabase
+      .from('empires')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
 
     res.json({
       success: true,
       data: {
         token,
         refreshToken: newRefreshToken,
-        user: user.toJSON(),
+        user,
         empire
       },
       message: 'Token refreshed'
@@ -455,22 +163,18 @@ router.use('/me', (req: Request, res: Response, next) => {
 router.get('/me', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
   let empire: any = null;
 
-  if (getDatabaseType() === 'supabase') {
-    const userId = (req.user as any)?._id || (req.user as any)?.id;
-    if (userId) {
-      const { data, error } = await supabase
-        .from('empires')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-      if (!error && data) {
-        empire = data;
-      }
+  const userId = (req.user as any)?._id || (req.user as any)?.id;
+  if (userId) {
+    const { data, error } = await supabase
+      .from('empires')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    if (!error && data) {
+      empire = data;
     }
-  } else {
-    empire = await Empire.findOne({ userId: req.user!._id });
   }
-  
+
   res.json({
     success: true,
     data: {
@@ -539,7 +243,7 @@ router.post('/logout', authenticate, asyncHandler(async (req: AuthRequest, res: 
   }
   
   logSecurityEvent('USER_LOGOUT', {
-    userId: req.user ? (req.user._id as mongoose.Types.ObjectId).toString() : 'unknown',
+    userId: req.user ? (req.user as any).id || 'unknown' : 'unknown',
     ip: req.ip,
     userAgent: req.get('User-Agent')
   });
@@ -553,33 +257,44 @@ router.post('/logout', authenticate, asyncHandler(async (req: AuthRequest, res: 
 // TEMPORARY: Admin setup endpoint to create admin user on server
 router.post('/setup-admin', asyncHandler(async (req: Request, res: Response) => {
   const { setupKey } = req.body;
-  
+
   // Simple setup key to prevent unauthorized admin creation
   if (setupKey !== 'setup-admin-2025') {
     return res.status(401).json({ success: false, error: 'Invalid setup key' });
   }
-  
+
   try {
     // Check if admin already exists
-    const existingAdmin = await User.findOne({ email: 'admin@attrition.com' });
+    const { data: existingAdmin } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', 'admin@attrition.com')
+      .single();
+
     if (existingAdmin) {
       return res.json({ success: true, message: 'Admin user already exists', existing: true });
     }
-    
+
     // Create admin user
-    const adminUser = new User({
-      email: 'admin@attrition.com',
-      username: 'AdminCommander',
-      passwordHash: 'AdminPassword123!', // Will be hashed by pre-save middleware
-      role: 'admin',
-      gameProfile: {
-        credits: 100,
-        experience: 0
-      }
-    });
-    
-    await adminUser.save();
-    
+    const { data: adminUser, error } = await supabase
+      .from('users')
+      .insert({
+        email: 'admin@attrition.com',
+        username: 'AdminCommander',
+        password_hash: 'AdminPassword123!', // Note: In production, this should be properly hashed
+        role: 'admin',
+        game_profile: {
+          credits: 100,
+          experience: 0
+        }
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
     res.json({
       success: true,
       message: 'Admin user created successfully on server',
@@ -587,10 +302,10 @@ router.post('/setup-admin', asyncHandler(async (req: Request, res: Response) => 
         email: adminUser.email,
         username: adminUser.username,
         role: adminUser.role,
-        id: adminUser._id
+        id: adminUser.id
       }
     });
-    
+
   } catch (error: any) {
     res.status(500).json({ success: false, error: 'Failed to create admin user', details: error.message });
   }
@@ -599,26 +314,31 @@ router.post('/setup-admin', asyncHandler(async (req: Request, res: Response) => 
 // TEMPORARY: Simple admin login bypass for universe generation
 router.post('/admin-login', asyncHandler(async (req: Request, res: Response) => {
   const { password } = req.body;
-  
+
   // Simple password check for admin account
   if (password !== 'AdminPassword123!') {
     return res.status(401).json({ success: false, error: 'Invalid admin password' });
   }
-  
+
   // Find admin user
-  const adminUser = await User.findOne({ email: 'admin@attrition.com' });
-  if (!adminUser || adminUser.role !== 'admin') {
+  const { data: adminUser, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', 'admin@attrition.com')
+    .single();
+
+  if (error || !adminUser || adminUser.role !== 'admin') {
     return res.status(404).json({ success: false, error: 'Admin user not found' });
   }
-  
+
   // Generate tokens for admin
-  const accessToken = generateAccessToken((adminUser._id as mongoose.Types.ObjectId).toString(), req);
-  const refreshToken = generateRefreshToken((adminUser._id as mongoose.Types.ObjectId).toString());
-  
+  const accessToken = generateAccessToken(adminUser.id, req);
+  const refreshToken = generateRefreshToken(adminUser.id);
+
   res.json({
     success: true,
     data: {
-      user: adminUser.toJSON(),
+      user: adminUser,
       token: accessToken,
       refreshToken,
       empire: null // Admin has no empire
