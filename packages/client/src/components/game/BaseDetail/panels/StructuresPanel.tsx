@@ -19,8 +19,16 @@ export interface StructuresPanelProps {
   structuresLoading: boolean;
   /** Error state */
   structuresError: string | null;
-  /** Active construction */
-  activeConstruction: { key: BuildingKey; completionAt: string } | null;
+  /** Active construction with level and cost info */
+  activeConstruction: { 
+    key: BuildingKey; 
+    completionAt: string; 
+    startedAt?: string;
+    currentLevel: number;
+    targetLevel: number;
+    creditsCost: number;
+    pendingUpgrade: boolean;
+  } | null;
   /** Construction rate */
   constructionPerHour: number | undefined;
   /** Planet resource yields */
@@ -35,6 +43,7 @@ export interface StructuresPanelProps {
   onRefresh: () => void;
   onStart: (structureKey: BuildingKey) => Promise<void>;
   onQueue: (structureKey: BuildingKey) => Promise<{ success: boolean }>;
+  onCancel?: () => Promise<void>;
 }
 
 export const StructuresPanel: React.FC<StructuresPanelProps> = ({
@@ -53,7 +62,8 @@ export const StructuresPanel: React.FC<StructuresPanelProps> = ({
   techLevels,
   onRefresh,
   onStart,
-  onQueue
+  onQueue,
+  onCancel
 }) => {
 
   // Pure presentation component - no data loading logic
@@ -71,6 +81,11 @@ export const StructuresPanel: React.FC<StructuresPanelProps> = ({
           structuresCatalog={structuresCatalog}
           constructionPerHour={constructionPerHour}
           baseCoord={baseCoord}
+          onRefresh={onRefresh}
+          onCancel={onCancel ? async () => {
+            await onCancel();
+            onRefresh(); // Refresh after cancel to update the UI
+          } : undefined}
         />
       )}
         <StructuresBuildTable

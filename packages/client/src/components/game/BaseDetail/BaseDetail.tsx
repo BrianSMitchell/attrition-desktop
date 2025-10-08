@@ -374,7 +374,7 @@ export const BaseDetail: React.FC<BaseDetailProps> = ({
           structuresStatus={gameState?.structures?.status || null}
           structuresLoading={gameState?.loading?.structures || false}
           structuresError={gameState?.structures?.error || null}
-          activeConstruction={gameState?.structures?.activeConstruction || null}
+          activeConstruction={gameState?.structures?.activeConstruction ? (gameState.structures.activeConstruction as { key: BuildingKey; completionAt: string; startedAt?: string; currentLevel: number; targetLevel: number; creditsCost: number; pendingUpgrade: boolean; }) : null}
           constructionPerHour={gameState?.structures?.constructionPerHour}
           planetGasYield={gameState?.structures?.planetYields?.gasYield}
           planetMetalYield={gameState?.structures?.planetYields?.metalYield}
@@ -392,6 +392,7 @@ export const BaseDetail: React.FC<BaseDetailProps> = ({
                 addToast({ type: 'success', message: 'Structure construction started successfully' });
                 // Refresh data
                 gameActions.loadStructuresData(base.locationCoord);
+                await refreshHeaderBudgets();
               } else {
                 addToast({ type: 'error', message: result.error || 'Failed to start structure construction' });
               }
@@ -404,6 +405,26 @@ export const BaseDetail: React.FC<BaseDetailProps> = ({
             // For offline queueing - implement if needed
             showNotice('Offline queueing not yet implemented for structures', 'info');
             return { success: false };
+          }}
+          onCancel={async () => {
+            try {
+              const result = await gameApi.cancelStructure(base.locationCoord);
+              if (result.success) {
+                const refund = result.data?.refundedCredits || 0;
+                const msg = refund > 0 
+                  ? `Construction cancelled. ${refund.toLocaleString()} credits refunded.`
+                  : 'Construction cancelled.';
+                addToast({ type: 'success', message: msg });
+                // Refresh data
+                gameActions.loadStructuresData(base.locationCoord);
+                await refreshHeaderBudgets();
+              } else {
+                addToast({ type: 'error', message: result.error || 'Failed to cancel construction' });
+              }
+            } catch (error) {
+              console.error('Error cancelling construction:', error);
+              addToast({ type: 'error', message: 'Network error cancelling construction' });
+            }
           }}
         />
       )}

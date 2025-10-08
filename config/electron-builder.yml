@@ -55,6 +55,7 @@ nsis:
   createDesktopShortcut: false  # No desktop shortcut - users should use launcher
   createStartMenuShortcut: false # No start menu shortcut - users should use launcher
   displayLanguageSelector: true
+  include: game-upgrade.nsh  # Ensure old versions are uninstalled before install
   # Note: All shortcuts are handled by the launcher installer
 
 mac:

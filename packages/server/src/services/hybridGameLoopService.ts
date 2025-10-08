@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import { TechQueue } from '../models/TechQueue';
 import { UnitQueue } from '../models/UnitQueue';
 import { Fleet } from '../models/Fleet';
+import { Building } from '../models/Building';
 import { BuildingService } from './buildingService';
 import { CapacityService } from './capacityService';
 import { TechService } from './techService';
@@ -12,7 +13,7 @@ import { getTechSpec, getTechCreditCostForLevel, getUnitSpec } from '@game/share
 import { emitFleetUpdate } from '../utils/socketManager';
 import { FleetMovementService } from './fleetMovementService';
 import { getDatabaseType } from '../config/database';
-import { SupabaseCompletionService } from './supabaseCompletionService';
+import { SupabaseCompletionService } from './completionService';
 import { SupabaseResourceService } from './resources/SupabaseResourceService';
 import { SupabaseFleetMovementService } from './fleets/SupabaseFleetMovementService';
 import { SupabaseBaseCitizenService } from './bases/SupabaseBaseCitizenService';
@@ -123,14 +124,15 @@ export class HybridGameLoopService {
       const results = await Promise.all([
         this.processEmpireUnitCompletions(empireId),
         this.processEmpireTechCompletions(empireId),
+        this.processEmpireBuildingCompletions(empireId),
         this.processEmpireDefenseCompletions(empireId),
         this.processEmpireFleetArrivals(empireId)
       ]);
 
-      const [unitResults, techResults, defenseResults, fleetResults] = results;
+      const [unitResults, techResults, buildingResults, defenseResults, fleetResults] = results;
       
-      if (unitResults.completed > 0 || techResults.completed > 0 || defenseResults.completed > 0 || fleetResults > 0) {
-        console.log(`✅ Immediate completions for empire ${empireId}: units=${unitResults.completed} tech=${techResults.completed} defense=${defenseResults.completed} fleets=${fleetResults}`);
+      if (unitResults.completed > 0 || techResults.completed > 0 || buildingResults.completed > 0 || defenseResults.completed > 0 || fleetResults > 0) {
+        console.log(`✅ Immediate completions for empire ${empireId}: units=${unitResults.completed} tech=${techResults.completed} buildings=${buildingResults.completed} defense=${defenseResults.completed} fleets=${fleetResults}`);
       }
     } catch (error) {
       console.error(`Error checking user completions for empire ${empireId}:`, error);
@@ -142,19 +144,20 @@ export class HybridGameLoopService {
    */
   private async processCompletions(): Promise<void> {
     try {
-      const [techStats, unitStats, defenseStats, fleetArrivals] = await Promise.all([
+      const [techStats, unitStats, defenseStats, buildingStats, fleetArrivals] = await Promise.all([
         this.processTechQueue(),
         this.processUnitQueue(),
         this.processDefenseQueue(),
+        this.processBuildingQueue(),
         this.processFleetArrivals()
       ]);
 
       // Only log if there was actual activity
-      const totalActivity = techStats.completed + unitStats.completed + defenseStats.completed + fleetArrivals;
+      const totalActivity = techStats.completed + unitStats.completed + defenseStats.completed + buildingStats.activatedCount + fleetArrivals;
       if (totalActivity > 0) {
         if (process.env.DEBUG_RESOURCES === 'true') {
           console.log(
-            `[HybridLoop] completions: tech=${techStats.completed} units=${unitStats.completed} defense=${defenseStats.completed} fleets=${fleetArrivals}`
+            `[HybridLoop] completions: tech=${techStats.completed} units=${unitStats.completed} defense=${defenseStats.completed} buildings=${buildingStats.activatedCount} fleets=${fleetArrivals}`
           );
         }
       }
@@ -329,6 +332,54 @@ export class HybridGameLoopService {
       }
     } catch (error) {
       console.error(`Error processing empire ${empireId} tech completions:`, error);
+    }
+
+    return { completed, errors };
+  }
+
+  /**
+   * Check building completions for a specific empire
+   */
+  private async processEmpireBuildingCompletions(empireId: string): Promise<{ completed: number; errors: number }> {
+    let completed = 0;
+    let errors = 0;
+
+    try {
+      const now = new Date();
+      const buildings = await Building.find({
+        empireId: new mongoose.Types.ObjectId(empireId),
+        isActive: false,
+        constructionCompleted: { $lte: now }
+      });
+
+      for (const building of buildings) {
+        try {
+          // Handle upgrade vs new building
+          if ((building as any).pendingUpgrade === true) {
+            building.level = Math.max(1, Number(building.level || 0)) + 1;
+            (building as any).pendingUpgrade = false;
+          } else {
+            building.level = Math.max(1, Number(building.level || 0));
+          }
+
+          building.isActive = true;
+          building.constructionCompleted = undefined as any;
+          await building.save();
+          completed++;
+
+          // Schedule next queued building at this base
+          try {
+            await BuildingService.scheduleNextQueuedForBase(empireId, building.locationCoord);
+          } catch (schedErr) {
+            console.error('Error scheduling next building:', schedErr);
+          }
+        } catch (err) {
+          errors++;
+          console.error('Error completing building for empire:', err);
+        }
+      }
+    } catch (error) {
+      console.error(`Error processing empire ${empireId} building completions:`, error);
     }
 
     return { completed, errors };
@@ -612,6 +663,26 @@ export class HybridGameLoopService {
       console.error('Error processing unit queue:', error);
     }
     return { completed, cancelled, errors };
+  }
+
+  /**
+   * Process building queue completions
+   * Activates buildings whose construction time has completed
+   */
+  private async processBuildingQueue(): Promise<{ activatedCount: number; activatedIds: string[] }> {
+    try {
+      // Use the existing BuildingService method which handles both MongoDB and Supabase
+      const result = await BuildingService.completeDueConstructions();
+      
+      if (result.activatedCount > 0) {
+        console.log(`[HybridLoop] buildings activated: ${result.activatedCount}`);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error processing building queue:', error);
+      return { activatedCount: 0, activatedIds: [] };
+    }
   }
 
   /**

@@ -1,15 +1,20 @@
 import * as React from "react";
 import { useState, useEffect, useRef } from "react";
 import type { BuildingKey, StructureSpec } from "@game/shared";
-import { getStructureCreditCostForLevel } from "@game/shared";
 
 interface StructureConstructionProgressProps {
-  /** Active construction data */
-  activeConstruction: { key: BuildingKey; completionAt: string } | null;
+  /** Active construction data with level and cost info */
+  activeConstruction: { 
+    key: BuildingKey; 
+    completionAt: string; 
+    startedAt?: string;
+    currentLevel: number;
+    targetLevel: number;
+    creditsCost: number;
+    pendingUpgrade: boolean;
+  } | null;
   /** Structures catalog for displaying structure names */
   structuresCatalog: StructureSpec[];
-  /** Current structure levels for cost calculation */
-  levels?: Partial<Record<BuildingKey, number>>;
   /** Construction capacity (credits per hour) for time calculations */
   constructionPerHour?: number;
   /** Base coordinate for API calls */
@@ -31,7 +36,6 @@ interface StructureConstructionProgressProps {
 const StructureConstructionProgress: React.FC<StructureConstructionProgressProps> = ({
   activeConstruction,
   structuresCatalog,
-  levels,
   constructionPerHour,
   baseCoord,
   onRefresh,
@@ -80,7 +84,9 @@ const StructureConstructionProgress: React.FC<StructureConstructionProgressProps
     return `${seconds}s`;
   };
 
-  const calculateProgress = (construction: { key: BuildingKey; completionAt: string }): number => {
+  const calculateProgress = (construction: StructureConstructionProgressProps['activeConstruction']): number => {
+    if (!construction) return 0;
+    
     const now = Date.now();
     const end = new Date(construction.completionAt).getTime();
     
@@ -88,25 +94,20 @@ const StructureConstructionProgress: React.FC<StructureConstructionProgressProps
       return now >= end ? 100 : 0;
     }
     
-    // Derive start time from cost/capacity since startedAt is not available
-    let start = NaN;
-    try {
-      const key = construction.key;
-      const lvl = (levels?.[key] ?? 0) + 1;
-      let cost: number | null = null;
-      
-      try {
-        cost = getStructureCreditCostForLevel(key, lvl);
-      } catch {
-        cost = (lvl === 1 ? (structuresCatalog.find(s => s.key === key)?.creditsCost ?? null) : null);
-      }
-      
+    // Use startedAt from server if available, otherwise derive from cost/capacity
+    let start: number;
+    if (construction.startedAt) {
+      start = new Date(construction.startedAt).getTime();
+    } else {
+      // Fallback: derive from cost and capacity
       const perHour = constructionPerHour ?? 0;
-      if (cost && perHour > 0) {
-        const ms = (cost / perHour) * 3600 * 1000;
+      if (construction.creditsCost && perHour > 0) {
+        const ms = (construction.creditsCost / perHour) * 3600 * 1000;
         start = end - ms;
+      } else {
+        return now >= end ? 100 : 0;
       }
-    } catch {}
+    }
     
     if (!Number.isFinite(start) || start >= end) {
       return now >= end ? 100 : 0;
@@ -144,16 +145,8 @@ const StructureConstructionProgress: React.FC<StructureConstructionProgressProps
   const structureName = getStructureDisplayName(activeConstruction.key);
   const isCompleted = progress >= 100;
 
-  // Calculate construction cost for display
-  let constructionCost: number | null = null;
-  try {
-    const lvl = (levels?.[activeConstruction.key] ?? 0) + 1;
-    try {
-      constructionCost = getStructureCreditCostForLevel(activeConstruction.key, lvl);
-    } catch {
-      constructionCost = (lvl === 1 ? (structuresCatalog.find(s => s.key === activeConstruction.key)?.creditsCost ?? null) : null);
-    }
-  } catch {}
+  // Use construction cost directly from server
+  const constructionCost = activeConstruction.creditsCost;
 
   return (
     <div className="space-y-3">
@@ -169,7 +162,10 @@ const StructureConstructionProgress: React.FC<StructureConstructionProgressProps
           <div className="text-sm text-gray-200">
             <span className="font-medium">{structureName}</span>
             <span className="ml-2 text-gray-400">
-              (Level {(levels?.[activeConstruction.key] ?? 0) + 1})
+              {activeConstruction.pendingUpgrade 
+                ? `(Level ${activeConstruction.currentLevel} → ${activeConstruction.targetLevel})`
+                : `(Level ${activeConstruction.targetLevel})`
+              }
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -201,7 +197,7 @@ const StructureConstructionProgress: React.FC<StructureConstructionProgressProps
         {/* Additional info */}
         <div className="flex justify-between text-xs text-gray-400">
           <span>
-            {constructionCost ? `Cost: ${constructionCost.toLocaleString()} credits` : 'Cost: calculating...'}
+            Cost: {constructionCost.toLocaleString()} credits
           </span>
           {constructionPerHour && constructionPerHour > 0 && (
             <span>

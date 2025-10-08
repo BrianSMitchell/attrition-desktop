@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "command": "node",
+      "args": ["C:\\Projects\\Attrition\\packages\\server\\supabase\\build\\index.js"],
+      "env": {
+        "SUPABASE_URL": "https://vgiyiesglcxnzngpyhlb.supabase.co",
+        "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnaXlpZXNnbGN4bnpuZ3B5aGxiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0OTQ0MzUsImV4cCI6MjA3NTA3MDQzNX0.8T9LeDyNwBpGMcA_wr1wQpHRL-c-8bldhHyvCmriWx8"
+      }
+    }
+  }
+}

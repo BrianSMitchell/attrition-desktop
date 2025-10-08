@@ -207,6 +207,21 @@ export class SupabaseUnitsService {
     // Deduct credits after successful enqueue
     await supabase.from('empires').update({ credits: credits - cost }).eq('id', empireId);
 
+    // Log credit transaction (best effort)
+    try {
+      const { SupabaseCreditLedgerService } = await import('../SupabaseCreditLedgerService');
+      await SupabaseCreditLedgerService.logTransaction({
+        empireId,
+        amount: -cost,
+        type: 'unit_production',
+        note: `Unit production started: ${spec.name} at ${baseCoord}`,
+        meta: { coord: baseCoord, unitKey },
+        balanceAfter: credits - cost,
+      });
+    } catch (logErr) {
+      console.warn('[SupabaseUnitsService] Failed to log credit transaction:', logErr);
+    }
+
     return {
       success: true as const,
       data: {

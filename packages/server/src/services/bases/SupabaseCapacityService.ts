@@ -6,16 +6,20 @@ export class SupabaseCapacityService {
     // Load active buildings for this base/empire
     const bRes = await supabase
       .from('buildings')
-      .select('catalog_key, is_active, pending_upgrade, level')
+      .select('catalog_key, is_active, pending_upgrade, construction_completed, level')
       .eq('empire_id', empireId)
       .eq('location_coord', coord);
 
+    const now = Date.now();
     const levels = new Map<string, number>();
     for (const b of bRes.data || []) {
       const key = String((b as any).catalog_key || '');
       if (!key) continue;
       const level = Math.max(0, Number((b as any).level || 0));
-      const effectiveActive = (b as any).is_active === true || (b as any).pending_upgrade === true;
+      const isActive = (b as any).is_active === true;
+      const pending = (b as any).pending_upgrade === true;
+      const completes = (b as any).construction_completed ? new Date((b as any).construction_completed).getTime() : 0;
+      const effectiveActive = isActive || pending || (completes && completes <= now);
       if (effectiveActive) levels.set(key, (levels.get(key) || 0) + level);
     }
 

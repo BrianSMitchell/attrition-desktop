@@ -74,50 +74,95 @@ export class SupabaseTechService {
   }
 
   static async start(userId: string, empireId: string, baseCoord: string, techKey: TechnologyKey) {
+    console.log('[SupabaseTechService.start]', { userId, empireId, baseCoord, techKey });
+    
     // Ownership
     const loc = await supabase.from('locations').select('owner_id').eq('coord', baseCoord).maybeSingle();
-    if (!loc.data) return { success: false as const, code: 'NOT_FOUND', message: 'Location not found' };
+    console.log('[SupabaseTechService.start] Location check:', { found: !!loc.data, ownerId: loc.data?.owner_id });
+    
+    if (!loc.data) {
+      console.log('[SupabaseTechService.start] Location not found');
+      return { success: false as const, code: 'NOT_FOUND', message: 'Location not found' };
+    }
     if (String(loc.data.owner_id || '') !== String(userId)) {
+      console.log('[SupabaseTechService.start] Not owner:', { expected: userId, actual: loc.data.owner_id });
       return { success: false as const, code: 'NOT_OWNER', message: 'You do not own this location' };
     }
 
     // State
     const spec = getTechSpec(techKey);
+    console.log('[SupabaseTechService.start] Tech spec:', spec);
+    
     const techLevels = await this.getTechLevels(empireId);
+    console.log('[SupabaseTechService.start] Tech levels:', techLevels);
+    
     const currentLevel = Math.max(0, techLevels[techKey] ?? 0);
     const desiredLevel = currentLevel + 1;
+    console.log('[SupabaseTechService.start] Current/Desired level:', { currentLevel, desiredLevel });
+    
     const eRes = await supabase.from('empires').select('credits').eq('id', empireId).maybeSingle();
     const credits = Math.max(0, Number((eRes.data as any)?.credits || 0));
+    console.log('[SupabaseTechService.start] Credits:', credits);
+    
     const baseLabTotal = await this.getBaseLabTotal(empireId, baseCoord);
+    console.log('[SupabaseTechService.start] Base lab total:', baseLabTotal);
 
     // Check eligibility
     const check = canStartTechLevel({ techLevels, baseLabTotal, credits }, spec, desiredLevel);
+    console.log('[SupabaseTechService.start] Eligibility check:', check);
+    
     if (!check.canStart) {
+      console.log('[SupabaseTechService.start] Requirements not met:', check.reasons);
       return { success: false as const, code: 'TECH_REQUIREMENTS', message: check.reasons.join(' ') };
     }
 
     // Capacity & cost
-    const caps = await SupabaseCapacityService.getBaseCapacities(empireId, baseCoord);
+    console.log('[SupabaseTechService.start] Getting capacities...');
+    let caps;
+    try {
+      caps = await SupabaseCapacityService.getBaseCapacities(empireId, baseCoord);
+      console.log('[SupabaseTechService.start] Capacities:', caps);
+    } catch (error) {
+      console.error('[SupabaseTechService.start] Error getting capacities:', error);
+      return { success: false as const, code: 'CAPACITY_ERROR', message: `Failed to get capacity: ${error}` };
+    }
+    
     const perHour = Math.max(0, Number((caps as any)?.research?.value || 0));
+    console.log('[SupabaseTechService.start] Research capacity per hour:', perHour);
+    
     if (!(perHour > 0)) {
+      console.log('[SupabaseTechService.start] No research capacity');
       return { success: false as const, code: 'NO_CAPACITY', message: 'Research capacity is zero at this base.' };
     }
 
     const cost = getTechCreditCostForLevel(spec, desiredLevel);
     const nowIso = new Date().toISOString();
+    
+    // Generate identity key for idempotency (prevent duplicate queue entries)
+    const identityKey = `${empireId}:${baseCoord}:${techKey}:${desiredLevel}:${Date.now()}`;
+    console.log('[SupabaseTechService.start] Generated identity key:', identityKey);
 
     if (credits < cost) {
       // Queue uncharged
-      await supabase
+      console.log('[SupabaseTechService.start] Insufficient credits, queuing research without charge');
+      const insertRes = await supabase
         .from('tech_queue')
         .insert({
           empire_id: empireId,
           location_coord: baseCoord,
           tech_key: techKey,
           level: desiredLevel,
+          identity_key: identityKey,
           started_at: nowIso,
           status: 'pending',
         });
+      
+      if (insertRes.error) {
+        console.error('[SupabaseTechService.start] Failed to insert tech_queue entry (uncharged):', insertRes.error);
+        return { success: false as const, code: 'DB_ERROR', message: `Failed to queue research: ${insertRes.error.message}` };
+      }
+      console.log('[SupabaseTechService.start] Successfully queued research (uncharged)');
+      
       return {
         success: true as const,
         data: { techKey, etaMinutes: null, researchCapacityCredPerHour: perHour },
@@ -130,19 +175,48 @@ export class SupabaseTechService {
     const completesAt = new Date(Date.now() + etaMinutes * 60000).toISOString();
 
     // Insert queue charged and deduct credits
-    await supabase
+    console.log('[SupabaseTechService.start] Inserting tech_queue entry with ETA:', { completesAt, etaMinutes });
+    const insertRes = await supabase
       .from('tech_queue')
       .insert({
         empire_id: empireId,
         location_coord: baseCoord,
         tech_key: techKey,
         level: desiredLevel,
+        identity_key: identityKey,
         started_at: nowIso,
         completes_at: completesAt,
         status: 'pending',
       });
 
-    await supabase.from('empires').update({ credits: credits - cost }).eq('id', empireId);
+    if (insertRes.error) {
+      console.error('[SupabaseTechService.start] Failed to insert tech_queue entry:', insertRes.error);
+      return { success: false as const, code: 'DB_ERROR', message: `Failed to start research: ${insertRes.error.message}` };
+    }
+    console.log('[SupabaseTechService.start] Successfully inserted tech_queue entry');
+
+    console.log('[SupabaseTechService.start] Deducting credits:', { cost, newBalance: credits - cost });
+    const updateRes = await supabase.from('empires').update({ credits: credits - cost }).eq('id', empireId);
+    if (updateRes.error) {
+      console.error('[SupabaseTechService.start] Failed to deduct credits:', updateRes.error);
+      // Research was queued but credits not deducted - this is recoverable as the credit deduction
+      // will happen when research completes. Log but continue.
+    } else {
+      // Log credit transaction (best effort)
+      try {
+        const { SupabaseCreditLedgerService } = await import('../SupabaseCreditLedgerService');
+        await SupabaseCreditLedgerService.logTransaction({
+          empireId,
+          amount: -cost,
+          type: 'research',
+          note: `Research started: ${spec.name} level ${desiredLevel} at ${baseCoord}`,
+          meta: { coord: baseCoord, techKey, level: desiredLevel },
+          balanceAfter: credits - cost,
+        });
+      } catch (logErr) {
+        console.warn('[SupabaseTechService] Failed to log credit transaction:', logErr);
+      }
+    }
 
     return {
       success: true as const,

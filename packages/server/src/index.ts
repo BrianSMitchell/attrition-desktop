@@ -4,10 +4,6 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { TechQueue } from './models/TechQueue';
-import { UnitQueue } from './models/UnitQueue';
-import { Building } from './models/Building';
-import { Message } from './models/Message';
 
 import { connectDatabase } from './config/database';
 import { getSSLConfigFromEnvironment, createHttpsServer } from './config/ssl';
@@ -228,16 +224,7 @@ async function startServer() {
     await connectDatabase();
 
     // Eager index sync to enforce idempotency before first writes (important for E2E concurrency)
-    try {
-      await Promise.allSettled([
-        TechQueue.syncIndexes(),
-        UnitQueue.syncIndexes(),
-        Building.syncIndexes(),
-        Message.syncIndexes(),
-      ]);
-    } catch {
-      // ignore sync errors in dev/test
-    }
+    // Note: Legacy MongoDB model index sync removed after Supabase migration
 
     // In production, check if we need to handle SSL ourselves or if it's handled by reverse proxy (like Render)
     if (process.env.NODE_ENV === 'production') {

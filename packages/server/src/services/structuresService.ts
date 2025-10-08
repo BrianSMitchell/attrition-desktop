@@ -1,7 +1,4 @@
-import mongoose from 'mongoose';
-import { Empire, EmpireDocument } from '../models/Empire';
-import { Building } from '../models/Building';
-import { Location } from '../models/Location';
+import { supabase } from '../config/supabase';
 import { CapacityService } from './capacityService';
 import { BaseStatsService } from './baseStatsService';
 import { EconomyService } from './economyService';
@@ -16,35 +13,21 @@ import {
 import { formatAlreadyInProgress } from './utils/idempotency';
 import { BuildingService } from './buildingService';
 
-function mapFromEmpireTechLevels(empire: EmpireDocument): Partial<Record<string, number>> {
-  const raw = (empire as any).techLevels as any;
-  const out: Record<string, number> = {};
+function mapFromEmpireTechLevels(techLevelsJson: any): Partial<Record<string, number>> {
+   const out: Record<string, number> = {};
 
-  // Support Mongoose Map-like (has forEach), native Map, and plain objects
-  if (raw && typeof raw.forEach === 'function') {
-    raw.forEach((v: any, k: string) => {
-      out[k] = typeof v === 'number' ? v : Number(v || 0);
-    });
-    return out;
-  }
+   if (!techLevelsJson || typeof techLevelsJson !== 'object') {
+     return out;
+   }
 
-  if (raw instanceof Map) {
-    for (const [k, v] of raw.entries()) {
-      out[k] = typeof v === 'number' ? v : Number(v || 0);
-    }
-    return out;
-  }
+   // Handle JSONB field from Supabase (plain object)
+   for (const k of Object.keys(techLevelsJson)) {
+     const v = techLevelsJson[k];
+     out[k] = typeof v === 'number' ? v : Number(v || 0);
+   }
 
-  if (raw && typeof raw === 'object') {
-    for (const k of Object.keys(raw)) {
-      const v = (raw as any)[k];
-      out[k] = typeof v === 'number' ? v : Number(v || 0);
-    }
-    return out;
-  }
-
-  return {};
-}
+   return out;
+ }
 
 export interface StructuresStatusDTO {
   techLevels: Partial<Record<string, number>>;
@@ -99,12 +82,18 @@ export class StructuresService {
   private static didSyncIndexes = false;
 
   static async getStatus(empireId: string): Promise<StructuresStatusDTO> {
-    const empire = await Empire.findById(empireId);
-    if (!empire) {
+    // Get empire data from Supabase
+    const { data: empire, error } = await supabase
+      .from('empires')
+      .select('tech_levels')
+      .eq('id', empireId)
+      .maybeSingle();
+
+    if (error || !empire) {
       throw new Error('Empire not found');
     }
 
-    const techLevels = mapFromEmpireTechLevels(empire);
+    const techLevels = mapFromEmpireTechLevels(empire.tech_levels);
     const list = getBuildingsList();
 
     const eligibility: StructuresStatusDTO['eligibility'] = {} as any;
@@ -145,17 +134,28 @@ static async start(empireId: string, locationCoord: string, buildingKey: Buildin
       return base;
     }
     // Load empire
-    const empire = await Empire.findById(empireId);
-    if (!empire) {
+    const { data: empire, error: empireError } = await supabase
+      .from('empires')
+      .select('id, user_id, credits, tech_levels')
+      .eq('id', empireId)
+      .maybeSingle();
+
+    if (empireError || !empire) {
       return formatError('NOT_FOUND', 'Empire not found');
     }
 
     // Validate location exists and is owned by this empire's user
-    const location = await Location.findOne({ coord: locationCoord });
-    if (!location) {
+    const { data: location, error: locationError } = await supabase
+      .from('locations')
+      .select('coord, owner_id, result')
+      .eq('coord', locationCoord)
+      .maybeSingle();
+
+    if (locationError || !location) {
       return formatError('NOT_FOUND', 'Location not found');
     }
-if (location.owner?.toString() !== empire.userId.toString()) {
+
+    if (location.owner_id !== empire.user_id) {
       return formatError('NOT_OWNER', 'You do not own this location', { locationCoord });
     }
 
@@ -179,21 +179,22 @@ const techCheck = canStartBuildingByTech(techLevels as any, spec);
     // Determine whether this is a new construction (no existing) or an upgrade (existing active)
     // IMPORTANT: Prefer matching by catalogKey to avoid collisions when multiple catalog entries
     // share the same legacy mapped type (e.g., 'habitat').
-    const empireObjId = new mongoose.Types.ObjectId(empireId);
-    let existing = await Building.findOne({
-      locationCoord,
-      empireId: empireObjId,
-      catalogKey: buildingKey
-    });
+    let existing = await supabase
+      .from('buildings')
+      .select('id, level, is_active, pending_upgrade, catalog_key')
+      .eq('location_coord', locationCoord)
+      .eq('empire_id', empireId)
+      .eq('catalog_key', buildingKey)
+      .maybeSingle();
 
     let isUpgrade = false;
     let nextLevel = 1;
 
-    if (existing) {
+    if (existing.data) {
       // Existing active building -> queue an upgrade to the next level
-      if (existing.isActive === true) {
+      if (existing.data.is_active === true) {
         isUpgrade = true;
-        nextLevel = Math.max(2, Number((existing as any).level || 1) + 1);
+        nextLevel = Math.max(2, Number(existing.data.level || 1) + 1);
       }
       // If existing building is inactive (queued), allow queuing another instance
       else {
@@ -218,7 +219,7 @@ const msg = `Upgrade cost undefined for ${buildingKey} level ${nextLevel}.`;
     }
     // Credits validation: check if user has enough credits to start construction
     // Simple immediate check - user must have required credits available now
-    const availableCredits = Number((empire as EmpireDocument).resources.credits || 0);
+    const availableCredits = Number(empire.credits || 0);
     if (availableCredits < creditsCost) {
       const shortfall = creditsCost - availableCredits;
       const msg = `Insufficient credits. Requires ${creditsCost}, you have ${availableCredits}.`;
@@ -240,16 +241,19 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
     const minutes = Math.max(1, Math.ceil(hours * 60));
 
     // Energy feasibility check via shared helper (baseline +2, planet scaling, queued reservations)
-    const existingBuildings = await Building.find({
-      empireId: new mongoose.Types.ObjectId(empireId),
-      locationCoord,
-    })
-      .select('isActive pendingUpgrade catalogKey level constructionCompleted')
-      .lean();
+    const { data: existingBuildings, error: buildingsError } = await supabase
+      .from('buildings')
+      .select('is_active, pending_upgrade, catalog_key, level, construction_completed')
+      .eq('empire_id', empireId)
+      .eq('location_coord', locationCoord);
+
+    if (buildingsError) {
+      return formatError('DATABASE_ERROR', 'Failed to fetch existing buildings', { error: buildingsError });
+    }
 
     // Planet-derived values (same sources as BaseStatsService)
-    const solarEnergy = Math.max(0, Number((location as any)?.result?.solarEnergy ?? 0));
-    const gasResource = Math.max(0, Number((location as any)?.result?.yields?.gas ?? 0));
+    const solarEnergy = Math.max(0, Number(location.result?.solarEnergy ?? 0));
+    const gasResource = Math.max(0, Number(location.result?.yields?.gas ?? 0));
 
 
     // Map DB buildings to shared helper input (catalogKey-only; no legacy type mapping)
@@ -331,20 +335,22 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
     const fertility = Math.max(
       0,
       Number(
-        (location as any)?.result?.fertility ??
-          (location as any)?.properties?.fertility ??
+        location.result?.fertility ??
           0
       )
     );
 
     // Build ordered earlier items: scheduled first (by constructionCompleted ASC), then unscheduled (by createdAt ASC)
-    const queuedCapacityItems = await Building.find({
-      empireId: new mongoose.Types.ObjectId(empireId),
-      locationCoord,
-      isActive: false
-    })
-      .select('catalogKey pendingUpgrade constructionCompleted createdAt')
-      .lean();
+    const { data: queuedCapacityItems, error: queuedError } = await supabase
+      .from('buildings')
+      .select('catalog_key, pending_upgrade, construction_completed, created_at')
+      .eq('empire_id', empireId)
+      .eq('location_coord', locationCoord)
+      .eq('is_active', false);
+
+    if (queuedError) {
+      return formatError('DATABASE_ERROR', 'Failed to fetch queued capacity items', { error: queuedError });
+    }
 
     const scheduledCap = (queuedCapacityItems || [])
       .filter((q: any) => !!(q as any).constructionCompleted)
@@ -504,84 +510,68 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
 
     if (!isUpgrade) {
       // Create new building for first-time construction (atomic upsert to guarantee idempotency)
-      // Ensure indexes are synced once to enforce idempotency in dev/test before first write
-      if (!StructuresService.didSyncIndexes) {
-        try {
-          await Building.syncIndexes();
-        } catch {
-          // ignore sync errors in dev
-        } finally {
-          StructuresService.didSyncIndexes = true;
-        }
+      // Compute per-queue sequence to allow multiple queued copies at same level (L1:Q1, L1:Q2, …)
+      const { count: queuedCount, error: countError } = await supabase
+        .from('buildings')
+        .select('*', { count: 'exact', head: true })
+        .eq('empire_id', empireId)
+        .eq('location_coord', locationCoord)
+        .eq('catalog_key', buildingKey)
+        .eq('is_active', false);
+
+      if (countError) {
+        return formatError('DATABASE_ERROR', 'Failed to count existing queued buildings', { error: countError });
       }
 
-      // Compute per-queue sequence to allow multiple queued copies at same level (L1:Q1, L1:Q2, …)
-      let queuedCount = 0;
-      if (typeof (Building as any).countDocuments === 'function') {
-        queuedCount = await (Building as any).countDocuments({
-          empireId: new mongoose.Types.ObjectId(empireId),
-          locationCoord,
-          catalogKey: buildingKey,
-          isActive: false
-        });
-      }
-      const seq = Number(queuedCount) + 1;
+      const seq = Number(queuedCount || 0) + 1;
       identityKey = `${empireId}:${locationCoord}:${buildingKey}:L${nextLevel}:Q${seq}`;
 
       const insertDoc = {
-        locationCoord,
-        empireId: new mongoose.Types.ObjectId(empireId),
-        type: buildingKey as any, // Now using catalogKey as type
-        displayName: spec.name,
-        catalogKey: buildingKey,
+        location_coord: locationCoord,
+        empire_id: empireId,
+        type: buildingKey,
+        display_name: spec.name,
+        catalog_key: buildingKey,
         level: 1,
-        isActive: false,
-        creditsCost: creditsCost,
-        pendingUpgrade: false,
-        identityKey,
-        constructionStarted: constructionStarted,
-        constructionCompleted: constructionCompleted
+        is_active: false,
+        credits_cost: creditsCost,
+        pending_upgrade: false,
+        identity_key: identityKey,
+        construction_started: constructionStarted,
+        construction_completed: constructionCompleted
       };
 
       // Use upsert to avoid race between concurrent starts; if a document already exists, treat as idempotent.
-      // Some test harnesses mock Building without updateOne; provide a safe fallback path.
-      let didInsert = false;
-      let insertedDoc: any | undefined;
+      const { data: upsertResult, error: upsertError } = await supabase
+        .from('buildings')
+        .upsert(insertDoc, { onConflict: 'identity_key', ignoreDuplicates: false })
+        .select()
+        .maybeSingle();
 
-      if (typeof (Building as any).updateOne === 'function') {
-        try {
-          const upsertResult: any = await (Building as any).updateOne(
-            { identityKey, isActive: false },
-            { $setOnInsert: insertDoc },
-            { upsert: true }
-          );
-
-          didInsert =
-            (typeof upsertResult?.upsertedCount === 'number' && upsertResult.upsertedCount > 0) ||
-            (Array.isArray(upsertResult?.upserted) && upsertResult.upserted.length > 0) ||
-            (!!upsertResult?.upsertedId);
-        } catch (err: any) {
-          // Log error but allow the operation to continue for non-duplicate issues
-          console.error(`[StructuresService.start] upsert failed:`, err);
-          throw err;
+      if (upsertError) {
+        // Check if it's a duplicate key error (another request already queued the same item)
+        if (upsertError.code === '23505' || upsertError.message?.includes('duplicate')) {
+          if (process.env.DEBUG_RESOURCES === 'true') {
+            console.log(`[StructuresService.start] idempotent existing queued for identityKey=${identityKey}`);
+          }
+          return formatAlreadyInProgress('structures', identityKey, buildingKey);
         }
-      } else {
-        // Fallback for mocks that don't implement updateOne (e.g., unit/E2E tests)
-        insertedDoc = new (Building as any)(insertDoc);
-        await insertedDoc.save();
-        didInsert = true;
+        console.error(`[StructuresService.start] upsert failed:`, upsertError);
+        return formatError('DATABASE_ERROR', 'Failed to create building', { error: upsertError });
       }
 
-      if (!didInsert) {
-        // Another request already queued the same item
-        if (process.env.DEBUG_RESOURCES === 'true') {
-          console.log(`[StructuresService.start] idempotent existing queued for identityKey=${identityKey}`);
-        }
-        return formatAlreadyInProgress('structures', identityKey, buildingKey);
+      // Fetch the newly created document to return in the response
+      const { data: fetchedBuilding, error: fetchError } = await supabase
+        .from('buildings')
+        .select('*')
+        .eq('identity_key', identityKey)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error(`[StructuresService.start] fetch failed:`, fetchError);
       }
 
-      // Fetch the newly created document to return in the response (best-effort).
-      building = await (Building as any).findOne({ identityKey });
+      building = fetchedBuilding || upsertResult;
 
       // Broadcast queue addition
       try {
@@ -594,43 +584,30 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
           isUpgrade: false,
         });
       } catch {}
-      if (!building) {
-        // Fallback: if not fetched, synthesize a minimal DTO-compatible object to avoid failing flows/tests.
-        building =
-          insertedDoc ||
-          {
-            catalogKey: buildingKey,
-            constructionStarted: constructionStarted,
-            constructionCompleted: constructionCompleted,
-            isActive: false,
-            level: 1,
-            creditsCost
-          };
-      }
     } else if (existing) {
       // Queue upgrade on the existing building document (atomic guard to enforce idempotency)
       // Upgrades remain single-identity per target level (no Q suffix)
       identityKey = `${empireId}:${locationCoord}:${buildingKey}:L${nextLevel}`;
 
-      await (Building as any).updateOne(
-        {
-          _id: existing._id,
-          isActive: true,
-          $or: [{ pendingUpgrade: { $exists: false } }, { pendingUpgrade: false }],
-        },
-        {
-          $set: {
-            isActive: false,
-            pendingUpgrade: true,
-            creditsCost,
-            identityKey,
-            constructionStarted: constructionStarted,
-            constructionCompleted: constructionCompleted,
-          },
-        }
-      );
+      await supabase
+        .from('buildings')
+        .update({
+          is_active: false,
+          pending_upgrade: true,
+          credits_cost: creditsCost,
+          identity_key: identityKey,
+          construction_started: constructionStarted,
+          construction_completed: constructionCompleted,
+        })
+        .eq('id', existing.data!.id)
+        .eq('is_active', true)
+        .or('pending_upgrade.is.null,pending_upgrade.eq.false');
 
-      building = await (Building as any).findOne({ _id: existing._id });
+      building = await supabase
+        .from('buildings')
+        .select('*')
+        .eq('id', existing.data!.id)
+        .maybeSingle();
 
       // Broadcast queue addition for upgrade
       try {

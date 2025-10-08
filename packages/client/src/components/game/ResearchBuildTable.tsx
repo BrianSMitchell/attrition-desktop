@@ -100,7 +100,7 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
   };
 
   const formatRequires = (t: TechnologySpec): string => {
-    if (!t.prerequisites || t.prerequisites.length === 0) return "—";
+    if (!t || !t.prerequisites || t.prerequisites.length === 0) return "—";
     return t.prerequisites.map((p) => `${p.key.replace(/_/g, " ")} ${p.level}`).join(", ");
   };
 
@@ -110,6 +110,7 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
       header: "Credits",
       align: "left",
       render: (t) => {
+        if (!t || !t.key) return "—";
         const level = Math.max(0, status?.techLevels[t.key as TechnologyKey] ?? 0);
         const nextLevel = level + 1;
         const nextCost = getTechCreditCostForLevel(t.key as TechnologyKey, nextLevel);
@@ -120,13 +121,14 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
       key: "labs",
       header: "Labs",
       align: "left",
-      render: (t) => t.requiredLabs,
+      render: (t) => (t && t.requiredLabs) || "—",
     },
     {
       key: "requires",
       header: "Requires",
       align: "left",
       render: (t) => {
+        if (!t) return <span className="text-gray-400">—</span>;
         const text = formatRequires(t);
         const hasReq = !!t.prerequisites && t.prerequisites.length > 0;
         if (!hasReq) {
@@ -143,13 +145,14 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
       key: "effect",
       header: "Effect",
       align: "left",
-      render: (t) => (t.description ? "" : "—"),
+      render: (t) => (t && t.description ? "" : "—"),
     },
     {
       key: "time",
       header: "Time",
       align: "left",
       render: (t) => {
+        if (!t || !t.key) return "—";
         const level = Math.max(0, status?.techLevels[t.key as TechnologyKey] ?? 0);
         const nextLevel = level + 1;
         const nextCost = getTechCreditCostForLevel(t.key as TechnologyKey, nextLevel);
@@ -162,6 +165,7 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
   ];
 
   const getEligibility = (t: TechnologySpec): Eligibility => {
+    if (!t || !t.key) return { canStart: false, reasons: ['Invalid tech spec'] };
     const elig = status?.eligibility[t.key as TechnologyKey];
     const reasons = elig?.reasons || [];
     // Credits-only blocked rows are allowed to enqueue
@@ -172,6 +176,10 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
   };
 
   const getTitleText = (t: TechnologySpec): React.ReactNode => {
+    if (!t || !t.key) {
+      console.error('[ResearchBuildTable] Invalid tech spec:', t);
+      return <div className="text-red-400">Invalid tech spec</div>;
+    }
     const level = Math.max(0, status?.techLevels[t.key as TechnologyKey] ?? 0);
     return (
       <div
@@ -179,14 +187,14 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
         data-testid={`name-${t.key}`}
         onClick={() => openModal("research_levels_table", { techKey: t.key as TechnologyKey })}
       >
-        {t.name}
+        {t.name || t.key}
         {level > 0 ? ` (Level ${level})` : ""}
       </div>
     );
   };
 
   const getDescriptionText = (t: TechnologySpec): React.ReactNode => {
-    return t.description ? <div className="text-xs text-gray-400">{t.description}</div> : null;
+    return (t && t.description) ? <div className="text-xs text-gray-400">{t.description}</div> : null;
   };
 
   // Summary (header right) per table standard: show Credits and Labs, plus Refresh button from BuildTable
@@ -205,6 +213,7 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
 
   // Helper: determine if this row is credits-only blocked (eligible to queue even with no active)
   const isCreditsOnlyBlocked = (t: TechnologySpec) => {
+    if (!t || !t.key) return false;
     const elig = status?.eligibility[t.key as TechnologyKey];
     const reasons = elig?.reasons || [];
     return reasons.length > 0 && reasons.every((r) => /credit/i.test(String(r)));
@@ -218,7 +227,7 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
       summary={summary}
       loading={loading}
       onRefresh={onRefresh}
-      items={(catalog || []).slice().sort((a, b) => a.creditsCost - b.creditsCost)}
+      items={(catalog || []).filter(t => t && t.key).slice().sort((a, b) => a.creditsCost - b.creditsCost)}
       getKey={(t) => t.key}
       getTitleText={getTitleText}
       getDescriptionText={getDescriptionText}

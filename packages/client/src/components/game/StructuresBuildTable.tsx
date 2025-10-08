@@ -370,7 +370,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
       onAction={(s) => onStart(s.key as BuildingKey)}
       actionLabel={(_, eligible, isLoading) => {
         if (isLoading) return "...";
-        if (hasActive) return "Unavailable";
+        if (hasActive) return "Construction Underway";
         return eligible ? "Start" : "Unavailable";
       }}
       actionTestIdPrefix="start"

@@ -4,10 +4,15 @@ import { useEnhancedAppStore } from "../../stores/enhancedAppStore";
 
 interface TechQueueItem {
   _id?: string;
-  locationCoord: string;
-  techKey: TechnologyKey;
-  startedAt: string | Date;
+  id?: string; // API might return 'id' instead of '_id'
+  locationCoord?: string;
+  location_coord?: string; // API returns snake_case
+  techKey?: TechnologyKey;
+  tech_key?: TechnologyKey; // API returns snake_case
+  startedAt?: string | Date;
+  started_at?: string | Date; // API returns snake_case
   completesAt?: string | Date | null;
+  completes_at?: string | Date | null; // API returns snake_case
   status: "pending" | "completed" | "cancelled";
 }
 
@@ -94,11 +99,11 @@ const ResearchQueuePanel: React.FC<ResearchQueuePanelProps> = ({ baseCoord, onCh
   }, [compact]);
 
   const underway = React.useMemo(
-    () => queue.filter((q) => q.status === "pending" && !!q.completesAt),
+    () => queue.filter((q) => q.status === "pending" && !!(q.completesAt || q.completes_at)),
     [queue, tick]
   );
   const waiting = React.useMemo(
-    () => queue.filter((q) => q.status === "pending" && !q.completesAt),
+    () => queue.filter((q) => q.status === "pending" && !(q.completesAt || q.completes_at)),
     [queue, tick]
   );
 
@@ -173,33 +178,48 @@ const ResearchQueuePanel: React.FC<ResearchQueuePanelProps> = ({ baseCoord, onCh
             ) : (
               <div className={compact ? "space-y-1" : "space-y-3"}>
                 {underway.map((item) => {
-                  const spec = getTechSpec(item.techKey);
-                  const started = new Date(item.startedAt).getTime();
-                  const completes = new Date(item.completesAt as any).getTime();
+                  // Add null safety for tech spec - handle both camelCase and snake_case keys
+                  const techKey = item.techKey || item.tech_key;
+                  if (!techKey) {
+                    console.error('[ResearchQueuePanel] Invalid queue item (no tech_key):', item);
+                    return null;
+                  }
+                  const spec = getTechSpec(techKey);
+                  if (!spec) {
+                    console.error('[ResearchQueuePanel] Tech spec not found for:', techKey);
+                    return null;
+                  }
+                  const startedAt = item.startedAt || item.started_at;
+                  const completesAt = item.completesAt || item.completes_at;
+                  const started = new Date(startedAt as any).getTime();
+                  const completes = new Date(completesAt as any).getTime();
                   const now = Date.now();
                   const percent = percentBetween(started, completes, now);
                   const eta = formatEta(completes - now);
 
+                  const itemId = item._id || item.id;
+                  const locationCoord = item.locationCoord || item.location_coord;
+                  
                   return (
                     <div
-                      key={item._id || `${item.techKey}-${item.locationCoord}-${item.startedAt}`}
+                      key={itemId || `${techKey}-${locationCoord}-${startedAt}`}
                       className={`${compact ? 'p-2' : 'p-4'} bg-gray-700 rounded-lg border border-gray-600`}
                     >
                       <div className={"flex items-center justify-between " + (compact ? "mb-1" : "mb-2")}>
                         <div className="font-medium text-white flex items-center gap-2">
-                          {spec.name} <span className="text-xs text-gray-400">({item.techKey})</span>
+                          {spec.name} <span className="text-xs text-gray-400">({techKey})</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs px-2 py-1 rounded bg-gray-800 text-purple-300">
-                            {item.locationCoord}
+                            {locationCoord}
                           </span>
                           <button
-                            onClick={() => handleCancel(item._id)}
+                            onClick={() => handleCancel(itemId)}
                             className="text-xs px-2 py-1 bg-red-700 text-white rounded hover:bg-red-800 disabled:opacity-50"
-                            disabled={cancelingId === item._id}
+                            disabled={cancelingId === itemId}
                             title="Cancel this research item"
                           >
-                            {cancelingId === item._id ? "Cancelling..." : "Cancel"}
+                            {cancelingId === itemId ? "Cancelling..." : "Cancel"}
                           </button>
                         </div>
                       </div>
@@ -222,9 +242,9 @@ className={`bg-purple-600 ${compact ? 'h-1' : 'h-2'} rounded-full transition-all
                         </div>
 
 {!compact && (
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>Started: {new Date(item.startedAt).toLocaleString()}</span>
-                            <span>Completes: {new Date(item.completesAt as any).toLocaleString()}</span>
+                        <div className="flex justify-between text-xs text-gray-500">
+                            <span>Started: {new Date(startedAt as any).toLocaleString()}</span>
+                            <span>Completes: {new Date(completesAt as any).toLocaleString()}</span>
                           </div>
                         )}
                       </div>
@@ -245,29 +265,41 @@ className={`bg-purple-600 ${compact ? 'h-1' : 'h-2'} rounded-full transition-all
             ) : (
               <div className="space-y-2">
                 {waiting.map((item, idx) => {
-                  const spec = getTechSpec(item.techKey);
+                  // Add null safety for tech spec - handle both camelCase and snake_case keys
+                  const techKey = item.techKey || item.tech_key;
+                  if (!techKey) {
+                    console.error('[ResearchQueuePanel] Invalid waiting item (no tech_key):', item);
+                    return null;
+                  }
+                  const spec = getTechSpec(techKey);
+                  if (!spec) {
+                    console.error('[ResearchQueuePanel] Tech spec not found for waiting item:', techKey);
+                    return null;
+                  }
+                  const itemId = item._id || item.id;
+                  const locationCoord = item.locationCoord || item.location_coord;
                   return (
                     <div
-                      key={item._id || `${item.techKey}-${item.locationCoord}-${item.startedAt}-waiting`}
+                      key={itemId || `${techKey}-${locationCoord}-waiting-${idx}`}
 className={`flex items-center justify-between ${compact ? 'p-2' : 'p-3'} bg-gray-800/60 border border-gray-700 rounded`}
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-gray-400 w-5 text-right">{idx + 1}.</span>
                         <div className="text-white">
-                          {spec.name} <span className="text-xs text-gray-400">({item.techKey})</span>
+                          {spec.name} <span className="text-xs text-gray-400">({techKey})</span>
                         </div>
                         <span className="text-xs px-2 py-1 rounded bg-gray-900 text-purple-300">
-                          {item.locationCoord}
+                          {locationCoord}
                         </span>
                         <span className="text-xs text-gray-400">(Queued)</span>
                       </div>
                       <button
-                        onClick={() => handleCancel(item._id)}
+                        onClick={() => handleCancel(itemId)}
                         className="text-xs px-2 py-1 bg-red-700 text-white rounded hover:bg-red-800 disabled:opacity-50"
-                        disabled={cancelingId === item._id}
+                        disabled={cancelingId === itemId}
                         title="Cancel this queued item"
                       >
-                        {cancelingId === item._id ? "Cancelling..." : "Cancel"}
+                        {cancelingId === itemId ? "Cancelling..." : "Cancel"}
                       </button>
                     </div>
                   );

@@ -423,9 +423,9 @@ const createGameSlice: StateCreator<
       const queueResponse = await gameApi.getResearchQueue(baseCoord);
       if (queueResponse.success && queueResponse.data) {
         const queue = queueResponse.data;
-        // Find active research from queue
-        const activeResearch = queue.length > 0 && queue[0].completesAt 
-          ? { key: queue[0].key as TechnologyKey, completesAt: queue[0].completesAt }
+        // Find active research from queue (note: queue uses tech_key, not key)
+        const activeResearch = queue.length > 0 && queue[0].completes_at 
+          ? { key: (queue[0].tech_key || queue[0].key) as TechnologyKey, completesAt: queue[0].completes_at || queue[0].completesAt }
           : null;
         setResearchData({ activeResearch });
       } else {

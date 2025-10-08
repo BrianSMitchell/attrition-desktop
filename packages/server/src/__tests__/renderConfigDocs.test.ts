@@ -3,7 +3,7 @@ import path from 'path';
 
 describe('Render config and docs smoke tests', () => {
   test('render.yaml contains USE_REVERSE_PROXY_SSL: true', () => {
-const file = path.resolve(__dirname, '../../../../render.yaml');
+const file = path.resolve(__dirname, '../../../../config/deployment/render.yaml');
     const content = fs.readFileSync(file, 'utf8');
     expect(content).toMatch(/USE_REVERSE_PROXY_SSL\s*\n\s*value:\s*true/);
   });

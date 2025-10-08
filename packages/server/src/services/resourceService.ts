@@ -1,6 +1,7 @@
 import { Empire } from '../models/Empire';
 import { EconomyService } from './economyService';
 import { EmpireEconomyService } from './empireEconomyService';
+import { SupabaseEconomyService } from './economy/SupabaseEconomyService';
 import { ResourceCost } from '@game/shared';
 import { CreditLedgerService } from './creditLedgerService';
 
@@ -8,7 +9,7 @@ export class ResourceService {
   
   /**
    * Calculate resource production for an empire based on buildings and technology
-   * Includes optional empire object to avoid redundant database queries
+   * Uses Supabase for fast production calculation instead of slow MongoDB queries
    */
   private static async calculateCreditsPerHour(empireId: string, empire?: any): Promise<number> {
     if (!empire) {
@@ -18,12 +19,12 @@ export class ResourceService {
       }
     }
 
-    // Use cached empire economy (fast)
-    const creditsPerHour = await EmpireEconomyService.getCachedEmpireEconomy(empireId);
+    // Use Supabase for fast economy calculation (production fix)
+    const creditsPerHour = await SupabaseEconomyService.sumCreditsPerHourForEmpire(empireId);
 
     // Diagnostic logging (only in debug mode)
     if (process.env.DEBUG_RESOURCES === 'true') {
-      console.log(`📊 Empire ${empireId} (${empire.name}) credits/hour (cached): ${creditsPerHour}`);
+      console.log(`📊 Empire ${empireId} (${empire.name}) credits/hour (supabase): ${creditsPerHour}`);
     }
 
     return creditsPerHour;

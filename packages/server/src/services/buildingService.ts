@@ -1,9 +1,5 @@
-import mongoose from 'mongoose';
-import { Building, type BuildingDocument } from '../models/Building';
-import { Empire } from '../models/Empire';
 import { CapacityService } from './capacityService';
 import { getIO } from '../index';
-import { getDatabaseType } from '../config/database';
 import { supabase } from '../config/supabase';
 
 /**
@@ -36,248 +32,219 @@ export class BuildingService {
   }
 
   /**
-   * Activate all buildings whose constructionCompleted timestamp has passed.
-   * Returns a summary so callers (e.g., the game loop) can log progress.
-   */
-  static async completeDueConstructions(): Promise<{
-    activatedCount: number;
-    activatedIds: string[];
-  }> {
-    const now = new Date();
+    * Activate all buildings whose constructionCompleted timestamp has passed.
+    * Returns a summary so callers (e.g., the game loop) can log progress.
+    */
+   static async completeDueConstructions(): Promise<{
+     activatedCount: number;
+     activatedIds: string[];
+   }> {
+     const now = new Date();
 
-    // Supabase path
-    if (getDatabaseType() === 'supabase') {
-      const { data: dueBuildings, error } = await supabase
-        .from('buildings')
-        .select('id, empire_id, location_coord, catalog_key, level, pending_upgrade, construction_started, construction_completed')
-        .eq('is_active', false)
-        .lte('construction_completed', now.toISOString());
+     const { data: dueBuildings, error } = await supabase
+       .from('buildings')
+       .select('id, empire_id, location_coord, catalog_key, level, pending_upgrade, construction_started, construction_completed')
+       .eq('is_active', false)
+       .lte('construction_completed', now.toISOString());
 
-      if (error || !dueBuildings || dueBuildings.length === 0) {
-        return { activatedCount: 0, activatedIds: [] };
-      }
+     if (error || !dueBuildings || dueBuildings.length === 0) {
+       return { activatedCount: 0, activatedIds: [] };
+     }
 
-      const activatedIds: string[] = [];
-      
-      for (const building of dueBuildings) {
-        try {
-          const isPendingUpgrade = building.pending_upgrade === true;
-          const currentLevel = Math.max(0, Number(building.level || 0));
-          const newLevel = isPendingUpgrade ? currentLevel + 1 : Math.max(1, currentLevel);
+     const activatedIds: string[] = [];
 
-          const { error: updateError } = await supabase
-            .from('buildings')
-            .update({
-              is_active: true,
-              level: newLevel,
-              pending_upgrade: false,
-              construction_completed: null,
-              construction_started: null
-            })
-            .eq('id', building.id);
+     for (const building of dueBuildings) {
+       try {
+         const isPendingUpgrade = building.pending_upgrade === true;
+         const currentLevel = Math.max(0, Number(building.level || 0));
+         const newLevel = isPendingUpgrade ? currentLevel + 1 : Math.max(1, currentLevel);
 
-          if (updateError) {
-            console.error('[BuildingService] Error activating building:', building.id, updateError);
-            continue;
-          }
+         const { error: updateError } = await supabase
+           .from('buildings')
+           .update({
+             is_active: true,
+             level: newLevel,
+             pending_upgrade: false
+             // Keep construction_started and construction_completed for history
+             // Supabase schema has NOT NULL constraints on these fields
+           })
+           .eq('id', building.id);
 
-          activatedIds.push(building.id);
+         if (updateError) {
+           console.error('[BuildingService] Error activating building:', building.id, updateError);
+           continue;
+         }
 
-          // Broadcast completion event
-          try {
-            const io = getIO();
-            (io as any)?.broadcastQueueUpdate?.(building.empire_id, building.location_coord, 'queue:item_completed', {
-              buildingId: building.id,
-              locationCoord: building.location_coord,
-              catalogKey: building.catalog_key,
-              pendingUpgrade: isPendingUpgrade,
-            });
-          } catch {}
-        } catch (err) {
-          console.error('[BuildingService] Error processing building:', building.id, err);
-        }
-      }
+         activatedIds.push(building.id);
 
-      return { activatedCount: activatedIds.length, activatedIds };
-    }
+         // Broadcast completion event
+         try {
+           const io = getIO();
+           (io as any)?.broadcastQueueUpdate?.(building.empire_id, building.location_coord, 'queue:item_completed', {
+             buildingId: building.id,
+             locationCoord: building.location_coord,
+             catalogKey: building.catalog_key,
+             pendingUpgrade: isPendingUpgrade,
+           });
+         } catch {}
+       } catch (err) {
+         console.error('[BuildingService] Error processing building:', building.id, err);
+       }
+     }
 
-    // MongoDB path
-    // Find all queued buildings that should now be active
-    const dueDocs = await Building.find({
-      isActive: false,
-      constructionCompleted: { $lte: now },
-    });
-
-    if (!dueDocs || dueDocs.length === 0) {
-      return { activatedCount: 0, activatedIds: [] };
-    }
-
-    const activatedIds: string[] = [];
-    const basesToSchedule = new Set<string>();
-    for (const doc of dueDocs) {
-      try {
-        // If this was an upgrade, bump level and clear flag
-        if ((doc as any).pendingUpgrade === true) {
-          doc.level = Math.max(1, Number(doc.level || 0)) + 1;
-          (doc as any).pendingUpgrade = false;
-        } else {
-          // First-time activation: ensure level is at least 1
-          doc.level = Math.max(1, Number(doc.level || 0));
-        }
-
-        // Activate the building
-        doc.isActive = true;
-
-        // Optional cleanup: clear constructionCompleted to avoid stale scheduling sorts
-        doc.constructionCompleted = undefined as any;
-
-        await doc.save();
-        activatedIds.push((doc._id as mongoose.Types.ObjectId).toString());
-        // Broadcast completion event
-        try {
-          const io = getIO();
-          const empireIdStr = (doc.empireId as mongoose.Types.ObjectId).toString();
-          (io as any)?.broadcastQueueUpdate?.(empireIdStr, doc.locationCoord, 'queue:item_completed', {
-            buildingId: (doc._id as mongoose.Types.ObjectId).toString(),
-            locationCoord: doc.locationCoord,
-            catalogKey: (doc as any).catalogKey,
-            pendingUpgrade: (doc as any).pendingUpgrade === true,
-          });
-        } catch {}
-        try {
-          const baseKey = `${(doc.empireId as mongoose.Types.ObjectId).toString()}|${doc.locationCoord}`;
-          basesToSchedule.add(baseKey);
-        } catch {}
-      } catch (err) {
-        // Continue processing other docs even if one fails
-        // eslint-disable-next-line no-console
-        console.error('Error activating building', doc._id, err);
-      }
-    }
-
-    // After activating buildings, schedule the next queued item (if any) per base
-    for (const key of basesToSchedule) {
-      const [empireIdStr, coord] = key.split('|');
-      try {
-        await BuildingService.scheduleNextQueuedForBase(empireIdStr, coord);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error('[BuildingService] scheduleNextQueuedForBase error', { empireIdStr, coord }, err);
-      }
-    }
-
-    return { activatedCount: activatedIds.length, activatedIds };
-  }
+     return { activatedCount: activatedIds.length, activatedIds };
+   }
 
   /**
-   * Schedule the next queued construction at a base if none is currently in progress.
-   * This enforces single-active construction per base and sequential queuing.
-   */
-  static async scheduleNextQueuedForBase(empireId: string, locationCoord: string): Promise<void> {
-    const now = new Date();
+    * Schedule the next queued construction at a base if none is currently in progress.
+    * This enforces single-active construction per base and sequential queuing.
+    */
+   static async scheduleNextQueuedForBase(empireId: string, locationCoord: string): Promise<void> {
+     const now = new Date();
+     const nowIso = now.toISOString();
 
-    // If there is already a queued item with a future completion, do nothing (one active at a time).
-    const inProgress = await Building.findOne({
-      empireId: new mongoose.Types.ObjectId(empireId),
-      locationCoord,
-      isActive: false,
-      constructionCompleted: { $gt: now }
-    }).select('_id');
-    if (inProgress) return;
+     // Check if there's already an item in progress
+     const { data: inProgress } = await supabase
+       .from('buildings')
+       .select('id')
+       .eq('empire_id', empireId)
+       .eq('location_coord', locationCoord)
+       .eq('is_active', false)
+       .not('construction_completed', 'is', null)
+       .gt('construction_completed', nowIso)
+       .limit(1)
+       .maybeSingle();
 
-    // Find the earliest queued item that has not been scheduled yet
-    const nextQueued = await Building.findOne({
-      empireId: new mongoose.Types.ObjectId(empireId),
-      locationCoord,
-      isActive: false,
-      $or: [{ constructionCompleted: { $exists: false } }, { constructionCompleted: null }]
-    }).sort({ createdAt: 1 });
+     if (inProgress) return; // Already has active construction
 
-    if (!nextQueued) return;
+     // Find earliest unscheduled item
+     const { data: nextQueued } = await supabase
+       .from('buildings')
+       .select('id, catalog_key, level, pending_upgrade, credits_cost')
+       .eq('empire_id', empireId)
+       .eq('location_coord', locationCoord)
+       .eq('is_active', false)
+       .is('construction_completed', null)
+       .order('created_at', { ascending: true })
+       .limit(1)
+       .maybeSingle();
 
-    // Credits gating and deduction at schedule-time (top-of-queue only)
-    const empireDoc = await Empire.findById(empireId);
-    if (!empireDoc) {
-      return;
-    }
-    const required = Number(nextQueued.creditsCost || 0);
-    const available = Number((empireDoc as any).resources?.credits || 0);
-    if (available < required) {
-      try {
-        console.log(
-          `[BuildingService.scheduleNext] credits gating: needed=${required} available=${available} coord=${locationCoord}`
-        );
-      } catch {}
-      // Insufficient credits — leave unscheduled; game loop will retry later
-      return;
-    }
-    // Deduct credits at start-time
-    (empireDoc as any).resources.credits = available - required;
-    await empireDoc.save();
+     if (!nextQueued) return; // No items to schedule
 
-    // Compute ETA from current construction capacity at this base
-    const { construction } = await CapacityService.getBaseCapacities(empireId, locationCoord);
-    const cap = Math.max(0, Number(construction?.value || 0));
-    if (cap <= 0) {
-      // No capacity right now; leave unscheduled and try again in a future tick
-      return;
-    }
+     const required = Math.max(0, Number(nextQueued.credits_cost || 0));
 
-    const minutes = BuildingService.etaMinutesFromCostAndCapacity(Number(nextQueued.creditsCost || 0), cap);
-    if (!isFinite(minutes) || minutes === Number.POSITIVE_INFINITY) {
-      // Cannot schedule without a finite ETA
-      return;
-    }
+     // Get empire credits
+     const { data: empire } = await supabase
+       .from('empires')
+       .select('credits')
+       .eq('id', empireId)
+       .maybeSingle();
 
-    // Deterministic scheduling: chain from last scheduled completion at this base
-    const lastScheduled = await Building.findOne({
-      empireId: new mongoose.Types.ObjectId(empireId),
-      locationCoord,
-      isActive: false,
-      constructionCompleted: { $ne: null }
-    })
-      .sort({ constructionCompleted: -1 })
-      .select('constructionCompleted')
-      .lean();
+     if (!empire) return;
 
-    const startAt = lastScheduled 
-      ? new Date((lastScheduled as any).constructionCompleted)
-      : now;
+     const available = Math.max(0, Number(empire.credits || 0));
+     if (available < required) {
+       console.log(`[BuildingService.scheduleNext] Supabase credits gating: needed=${required} available=${available}`);
+       return; // Insufficient credits
+     }
 
-    nextQueued.constructionStarted = startAt;
-    nextQueued.constructionCompleted = new Date(startAt.getTime() + minutes * 60 * 1000);
-    await nextQueued.save();
+     // Deduct credits
+     const newBalance = available - required;
+     await supabase
+       .from('empires')
+       .update({ credits: newBalance })
+       .eq('id', empireId);
 
-    // Broadcast schedule event
-    try {
-      const io = getIO();
-      const empireIdStr = (nextQueued.empireId as mongoose.Types.ObjectId).toString();
-      (io as any)?.broadcastQueueUpdate?.(empireIdStr, nextQueued.locationCoord, 'queue:item_scheduled', {
-        buildingId: (nextQueued._id as mongoose.Types.ObjectId).toString(),
-        locationCoord: nextQueued.locationCoord,
-        catalogKey: (nextQueued as any).catalogKey,
-        constructionStarted: nextQueued.constructionStarted,
-        constructionCompleted: nextQueued.constructionCompleted,
-      });
-    } catch {}
-  }
+     // Log credit transaction
+     try {
+       const catalogKey = String(nextQueued.catalog_key || '');
+       const { CreditLedgerService } = await import('./creditLedgerService');
+       await CreditLedgerService.logTransaction({
+         empireId,
+         amount: -required,
+         type: 'construction',
+         note: `Construction started: ${catalogKey} at ${locationCoord}`,
+         meta: { coord: locationCoord, key: catalogKey },
+         balanceAfter: newBalance,
+       });
+     } catch (logErr) {
+       console.warn('[BuildingService] Failed to log credit transaction:', logErr);
+     }
+
+     // Get construction capacity
+     const caps = await CapacityService.getBaseCapacities(empireId, locationCoord);
+     const cap = Math.max(0, Number((caps as any)?.construction?.value || 0));
+     if (cap <= 0) return; // No capacity
+
+     const minutes = BuildingService.etaMinutesFromCostAndCapacity(required, cap);
+     if (!isFinite(minutes) || minutes === Number.POSITIVE_INFINITY) return;
+
+     // Find last scheduled completion for chaining
+     const { data: lastScheduled } = await supabase
+       .from('buildings')
+       .select('construction_completed')
+       .eq('empire_id', empireId)
+       .eq('location_coord', locationCoord)
+       .eq('is_active', false)
+       .not('construction_completed', 'is', null)
+       .order('construction_completed', { ascending: false })
+       .limit(1)
+       .maybeSingle();
+
+     const startAt = lastScheduled?.construction_completed
+       ? new Date(lastScheduled.construction_completed)
+       : now;
+
+     const completesAt = new Date(startAt.getTime() + minutes * 60 * 1000);
+
+     // Update building with schedule
+     await supabase
+       .from('buildings')
+       .update({
+         construction_started: startAt.toISOString(),
+         construction_completed: completesAt.toISOString(),
+       })
+       .eq('id', nextQueued.id);
+
+     // Broadcast
+     try {
+       const io = getIO();
+       (io as any)?.broadcastQueueUpdate?.(empireId, locationCoord, 'queue:item_scheduled', {
+         buildingId: nextQueued.id,
+         locationCoord,
+         catalogKey: nextQueued.catalog_key,
+         constructionStarted: startAt.toISOString(),
+         constructionCompleted: completesAt.toISOString(),
+       });
+     } catch {}
+   }
 
   /**
-   * Convenience helper to fetch buildings at a base for an empire.
-   * You can filter by active state to get only completed buildings.
-   */
-  static async getBaseBuildings(
-    empireId: string,
-    locationCoord: string,
-    options?: { onlyActive?: boolean }
-  ): Promise<BuildingDocument[]> {
-    const filter: any = {
-      empireId: new mongoose.Types.ObjectId(empireId),
-      locationCoord,
-    };
-    if (options?.onlyActive === true) {
-      filter.isActive = true;
-    }
-    return await Building.find(filter).sort({ constructionCompleted: 1 });
-  }
+    * Convenience helper to fetch buildings at a base for an empire.
+    * You can filter by active state to get only completed buildings.
+    */
+   static async getBaseBuildings(
+     empireId: string,
+     locationCoord: string,
+     options?: { onlyActive?: boolean }
+   ): Promise<any[]> {
+     let query = supabase
+       .from('buildings')
+       .select('*')
+       .eq('empire_id', empireId)
+       .eq('location_coord', locationCoord);
+
+     if (options?.onlyActive === true) {
+       query = query.eq('is_active', true);
+     }
+
+     const { data, error } = await query.order('construction_completed', { ascending: true });
+
+     if (error) {
+       console.error('[BuildingService] Error fetching buildings:', error);
+       return [];
+     }
+
+     return data || [];
+   }
 }

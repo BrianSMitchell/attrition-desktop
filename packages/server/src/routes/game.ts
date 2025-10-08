@@ -484,12 +484,59 @@ router.post('/empire/update-resources', asyncHandler(async (req: AuthRequest, re
 
 // Credit history for current empire
 router.get('/credits/history', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const limitRaw = Number(req.query.limit || 50);
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(1, limitRaw), 200) : 50;
+
+  // Supabase implementation
+  if (getDatabaseType() === 'supabase') {
+    const user = req.user! as any;
+    const userId = user?._id || user?.id;
+
+    // Resolve empire id
+    let empireId: string | null = null;
+    const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();
+    if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
+    if (!empireId) {
+      const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();
+      if (e.data?.id) empireId = String(e.data.id);
+    }
+    if (!empireId) {
+      return res.status(404).json({ success: false, error: 'Empire not found' });
+    }
+
+    // Fetch credit transactions from Supabase
+    const { data: txns, error } = await supabase
+      .from('credit_transactions')
+      .select('id, amount, type, note, balance_after, created_at')
+      .eq('empire_id', empireId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching credit history:', error);
+      return res.status(500).json({ success: false, error: 'Failed to fetch credit history' });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        history: (txns || []).map(t => ({
+          _id: t.id,
+          amount: t.amount,
+          type: t.type,
+          note: t.note || null,
+          balanceAfter: typeof t.balance_after === 'number' ? t.balance_after : null,
+          createdAt: t.created_at,
+        }))
+      }
+    });
+  }
+
+  // Legacy MongoDB implementation (kept for backward compatibility)
   const empire = await Empire.findOne({ userId: req.user!._id });
   if (!empire) {
     return res.status(404).json({ success: false, error: 'Empire not found' });
   }
-  const limitRaw = Number(req.query.limit || 50);
-  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(1, limitRaw), 200) : 50;
   const txns = await CreditTransaction.find({ empireId: empire._id })
     .sort({ createdAt: -1 })
     .limit(limit)
@@ -1212,7 +1259,11 @@ router.post('/tech/start', asyncHandler(async (req: AuthRequest, res: Response) 
     const user = req.user! as any;
     const userId = user?._id || user?.id;
     const { locationCoord, techKey } = req.body as { locationCoord?: string; techKey?: TechnologyKey };
-    if (!locationCoord || !techKey) return res.status(400).json({ success: false, error: 'locationCoord and techKey are required' });
+    console.log('[tech/start] Request:', { userId, locationCoord, techKey, body: req.body });
+    if (!locationCoord || !techKey) {
+      console.log('[tech/start] Missing required params');
+      return res.status(400).json({ success: false, error: 'locationCoord and techKey are required' });
+    }
 
     // Resolve empire id
     let empireId: string | null = null;
@@ -2831,7 +2882,7 @@ router.get('/bases/:coord/structures', asyncHandler(async (req: AuthRequest, res
     // Current buildings at base
     const bRes = await supabase
       .from('buildings')
-      .select('catalog_key, level, is_active, pending_upgrade, construction_started, construction_completed')
+      .select('catalog_key, level, is_active, pending_upgrade, construction_started, construction_completed, credits_cost')
       .eq('empire_id', empireId)
       .eq('location_coord', coord);
 
@@ -2854,7 +2905,7 @@ router.get('/bases/:coord/structures', asyncHandler(async (req: AuthRequest, res
     }
 
     // Determine currently active construction (earliest future completion among inactive docs)
-    let activeConstruction: { key: BuildingKey; completionAt: string; startedAt?: string } | null = null;
+    let activeConstruction: { key: BuildingKey; completionAt: string; startedAt?: string; currentLevel: number; targetLevel: number; creditsCost: number; pendingUpgrade: boolean } | null = null;
     let earliest = Number.POSITIVE_INFINITY;
     for (const b of bRes.data || []) {
       const isActive = (b as any).is_active === true;
@@ -2863,7 +2914,12 @@ router.get('/bases/:coord/structures', asyncHandler(async (req: AuthRequest, res
         earliest = completes;
         const key = String((b as any).catalog_key || '') as BuildingKey;
         const st = (b as any).construction_started ? new Date((b as any).construction_started as any).toISOString() : undefined;
-        activeConstruction = { key, completionAt: new Date(completes).toISOString(), startedAt: st };
+        const level = Math.max(1, Number((b as any).level || 1));
+        const pendingUpgrade = (b as any).pending_upgrade === true;
+        const currentLevel = pendingUpgrade ? level : 0;
+        const targetLevel = pendingUpgrade ? level + 1 : level;
+        const creditsCost = Math.max(0, Number((b as any).credits_cost || 0));
+        activeConstruction = { key, completionAt: new Date(completes).toISOString(), startedAt: st, currentLevel, targetLevel, creditsCost, pendingUpgrade };
       }
     }
 
@@ -2960,7 +3016,7 @@ router.get('/bases/:coord/structures', asyncHandler(async (req: AuthRequest, res
   }
 
   // Determine currently active construction at this base (earliest future completion among inactive docs)
-  let activeConstruction: { key: BuildingKey; completionAt: string; startedAt?: string } | null = null;
+  let activeConstruction: { key: BuildingKey; completionAt: string; startedAt?: string; currentLevel: number; targetLevel: number; creditsCost: number; pendingUpgrade: boolean } | null = null;
   try {
     const nowTs = Date.now();
     let earliest = Number.POSITIVE_INFINITY;
@@ -2974,7 +3030,12 @@ router.get('/bases/:coord/structures', asyncHandler(async (req: AuthRequest, res
           const st = (b as any)?.constructionStarted ? new Date((b as any).constructionStarted as any).getTime() : null;
           startedForEarliest = st ?? startedForEarliest;
           if (key) {
-            activeConstruction = { key: key as BuildingKey, completionAt: new Date(ts).toISOString(), startedAt: startedForEarliest ? new Date(startedForEarliest).toISOString() : undefined };
+            const level = Math.max(1, Number((b as any).level || 1));
+            const pendingUpgrade = (b as any).pendingUpgrade === true;
+            const currentLevel = pendingUpgrade ? level : 0;
+            const targetLevel = pendingUpgrade ? level + 1 : level;
+            const creditsCost = Math.max(0, Number((b as any).creditsCost || 0));
+            activeConstruction = { key: key as BuildingKey, completionAt: new Date(ts).toISOString(), startedAt: startedForEarliest ? new Date(startedForEarliest).toISOString() : undefined, currentLevel, targetLevel, creditsCost, pendingUpgrade };
           }
         }
       }
@@ -3666,6 +3727,7 @@ router.get('/tech/queue', asyncHandler(async (req: AuthRequest, res: Response) =
 
     const { SupabaseTechService } = await import('../services/tech/SupabaseTechService');
     const queue = await SupabaseTechService.getQueue(empireId, base || undefined);
+    console.log('[tech/queue] Returning queue:', { empireId, base, queueLength: queue.length, queue });
     return res.json({ success: true, data: { queue } });
   }
   const empire = await Empire.findOne({ userId: req.user!._id });

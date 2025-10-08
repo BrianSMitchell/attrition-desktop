@@ -11,6 +11,7 @@ import { TechService } from './techService';
 import { getTechSpec, getTechCreditCostForLevel, getUnitSpec } from '@game/shared';
 import { emitFleetUpdate } from '../utils/socketManager';
 import { BaseCitizenService } from './baseCitizenService';
+import { FleetMovementService } from './fleetMovementService';
 
 export class GameLoopService {
   private static instance: GameLoopService;
@@ -93,6 +94,9 @@ export class GameLoopService {
       // Update empire resources for active empires
       const resourceStats = await this.updateEmpireResources();
 
+      // Process fleet arrivals
+      const fleetStats = await this.processFleetArrivals();
+
       // Structured tick summary
       console.log(
         `[GameLoop] tick summary researchCompleted=${researchCompleted} ` +
@@ -100,6 +104,7 @@ export class GameLoopService {
         `techCompleted=${techStats.completed} techCancelled=${techStats.cancelled} techErrors=${techStats.errors} ` +
         `unitCompleted=${unitStats.completed} unitCancelled=${unitStats.cancelled} unitErrors=${unitStats.errors} ` +
         `defenseCompleted=${defenseStats.completed} defenseActivated=${defenseStats.activated} defenseErrors=${defenseStats.errors} ` +
+        `fleetArrivals=${fleetStats.processed} fleetErrors=${fleetStats.errors} ` +
         `activatedBuildings=${activatedCount} resourcesUpdated=${resourceStats.updated} resourceErrors=${resourceStats.errors}`
       );
 
@@ -590,6 +595,24 @@ export class GameLoopService {
       console.error('Error updating empire resources:', error);
     }
     return { updated, errors };
+  }
+
+  /**
+   * Process fleet arrivals
+   */
+  private async processFleetArrivals(): Promise<{ processed: number; errors: number }> {
+    let processed = 0;
+    let errors = 0;
+
+    try {
+      await FleetMovementService.processArrivals();
+      processed++;
+    } catch (error) {
+      errors++;
+      console.error('Error processing fleet arrivals:', error);
+    }
+
+    return { processed, errors };
   }
 
   /**

@@ -31,12 +31,16 @@ class ServiceErrorBoundary extends Component<
   }
 
   static getDerivedStateFromError(error: Error): ServiceProviderState {
-    // Suppress known transient dev-only React errors that occur during service init timing
+    // Suppress transient React errors during service initialization timing
+    // Log them for diagnostics but don't crash the app
     if (typeof error?.message === 'string') {
       if (error.message.includes('Minified React error #300') || error.message.includes('Minified React error #310')) {
+        console.warn('[ServiceErrorBoundary] Suppressing known transient error:', error.message);
+        console.warn('[ServiceErrorBoundary] This is typically a timing issue during service initialization');
         return { hasError: false, error: null } as ServiceProviderState;
       }
     }
+    console.error('[ServiceErrorBoundary] Unhandled error:', error);
     return { hasError: true, error };
   }
 
