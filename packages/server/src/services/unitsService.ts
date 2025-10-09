@@ -1,6 +1,6 @@
 import { supabase } from '../config/supabase';
 import { CreditLedgerService } from './creditLedgerService';
-import { CapacityService } from './capacityService';
+import { CapacityService } from './bases/CapacityService';
 import { getUnitsList, UnitKey, TechnologyKey } from '@game/shared';
 import { formatAlreadyInProgress } from './utils/idempotency';
 

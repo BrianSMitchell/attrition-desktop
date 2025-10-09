@@ -14,7 +14,7 @@ function assertNoError<T>(res: { data: T | null; error: any }): T {
   return res.data as T;
 }
 
-export async function registerSupabase(req: Request, res: Response) {
+export async function register(req: Request, res: Response) {
   const { email, username, password } = req.body as { email: string; username: string; password: string };
 
   const normEmail = String(email || '').trim().toLowerCase();
@@ -136,12 +136,12 @@ export async function registerSupabase(req: Request, res: Response) {
       message: 'User registered successfully',
     });
   } catch (err: any) {
-    console.error('[authSupabase.register] failed:', err);
+    console.error('[authService.register] failed:', err);
     res.status(500).json({ success: false, error: 'Registration failed' });
   }
 }
 
-export async function loginSupabase(req: Request, res: Response) {
+export async function login(req: Request, res: Response) {
   const { email, password } = req.body as { email: string; password: string };
   const lookupEmail = String(email || '').trim().toLowerCase();
 
@@ -223,7 +223,7 @@ export async function loginSupabase(req: Request, res: Response) {
       },
     });
   } catch (err: any) {
-    console.error('[authSupabase.login] failed:', err);
+    console.error('[authService.login] failed:', err);
     res.status(500).json({ success: false, error: 'Login failed' });
   }
 }

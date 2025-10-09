@@ -38,7 +38,7 @@ async function universeExistsForServer(server: string): Promise<boolean> {
   return (count ?? 0) > 0;
 }
 
-export async function generateUniverseSupabase() {
+export async function generateUniverse() {
   // We're fully migrated to Supabase, no need to check database type
 
   console.log('🌌 Starting Supabase universe generation for server:', UNIVERSE_CONFIG.serverName);
@@ -197,7 +197,7 @@ export async function generateUniverseSupabase() {
 }
 
 if (require.main === module) {
-  generateUniverseSupabase()
+  generateUniverse()
     .catch((e) => {
       console.error('💥 Script failed:', e);
       process.exit(1);

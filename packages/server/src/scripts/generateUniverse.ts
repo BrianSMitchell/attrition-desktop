@@ -1,7 +1,7 @@
-import { generateUniverseSupabase } from './generateUniverseSupabase';
+import { generateUniverse } from './generateUniverse.impl';
 
-// Re-export the Supabase version
-export const generateUniverse = generateUniverseSupabase;
+// Re-export for public API
+export { generateUniverse };
 
 // For backwards compatibility
-export default generateUniverseSupabase;
+export default generateUniverse;

@@ -18,7 +18,7 @@ import { sessionInvalidationService } from '../middleware/sessionInvalidation';
 import { getDatabaseType } from '../config/database';
 
 const router: Router = Router();
-import { registerSupabase, loginSupabase } from '../services/authSupabase';
+import { register, login } from '../services/authService';
 
 // Security event logging
 const logSecurityEvent = (event: string, details: any) => {
@@ -27,12 +27,12 @@ const logSecurityEvent = (event: string, details: any) => {
 
 // Register new user
 router.post('/register', registerRateLimit, asyncHandler(async (req: Request, res: Response) => {
-  return registerSupabase(req, res);
+  return register(req, res);
 }));
 
 // Login user
 router.post('/login', loginRateLimit, accountLockout, asyncHandler(async (req: Request, res: Response) => {
-  return loginSupabase(req, res);
+  return login(req, res);
 }));
 
 // Refresh tokens

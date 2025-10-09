@@ -1,4 +1,4 @@
-import { CapacityService } from './capacityService';
+import { CapacityService } from './bases/CapacityService';
 import { getIO } from '../index';
 import { supabase } from '../config/supabase';
 

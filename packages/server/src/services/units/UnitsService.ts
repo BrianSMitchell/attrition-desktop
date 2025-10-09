@@ -209,8 +209,8 @@ const caps = await CapacityService.getBaseCapacities(empireId, baseCoord);
 
     // Log credit transaction (best effort)
     try {
-      const { CreditLedgerService: SupabaseCreditLedgerService } = await import('../creditLedgerService');
-      await SupabaseCreditLedgerService.logTransaction({
+const { CreditLedgerService } = await import('../creditLedgerService');
+await CreditLedgerService.logTransaction({
         empireId,
         amount: -cost,
         type: 'unit_production',
@@ -219,7 +219,7 @@ const caps = await CapacityService.getBaseCapacities(empireId, baseCoord);
         balanceAfter: credits - cost,
       });
     } catch (logErr) {
-      console.warn('[SupabaseUnitsService] Failed to log credit transaction:', logErr);
+console.warn('[UnitsService] Failed to log credit transaction:', logErr);
     }
 
     return {

@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase';
-import { CapacityService } from './capacityService';
+import { CapacityService } from './bases/CapacityService';
 
 /**
  * BaseCitizenService - Production-ready citizen accrual service for Supabase.

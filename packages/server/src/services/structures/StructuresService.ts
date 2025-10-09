@@ -232,7 +232,7 @@ export class StructuresService {
     }
 
     // Capacity-driven ETA
-    const capacities = await SupabaseCapacityService.getBaseCapacities(empireId, locationCoord);
+const capacities = await CapacityService.getBaseCapacities(empireId, locationCoord);
     const cap = Math.max(0, Number(capacities.construction?.value || 0));
     if (cap <= 0) {
       const msg = 'Cannot start: construction capacity is zero at this base.';
@@ -317,7 +317,7 @@ export class StructuresService {
     }
 
     // Population/Area feasibility check
-    const baseStats = await SupabaseBaseStatsService.getBaseStats(empireId, locationCoord);
+const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
     const popReq = Math.max(0, Number(spec.populationRequired || 0));
     const areaReq = Math.max(0, Number(spec.areaRequired || 0));
 

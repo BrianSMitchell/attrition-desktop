@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase';
-import { CapacityService } from './capacityService';
+import { CapacityService } from './bases/CapacityService';
 import { BaseStatsService } from './baseStatsService';
 import { EconomyService } from './economyService';
 import {

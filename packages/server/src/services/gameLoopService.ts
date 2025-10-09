@@ -1,12 +1,12 @@
 import { supabase } from '../config/supabase';
-import { ResourceService } from './resourceService';
+import { ResourceService } from './resources/ResourceService';
 import { BuildingService } from './buildingService';
-import { CapacityService } from './capacityService';
-import { TechService } from './techService';
+import { CapacityService } from './bases/CapacityService';
+import { TechService } from './tech/TechService';
 import { getTechSpec, getTechCreditCostForLevel, getUnitSpec } from '@game/shared';
 import { emitFleetUpdate } from '../utils/socketManager';
 import { BaseCitizenService } from './baseCitizenService';
-import { FleetMovementService } from './fleetMovementService';
+import { FleetMovementService } from './fleets/FleetMovementService';
 
 export class GameLoopService {
   private static instance: GameLoopService;

@@ -1,14 +1,12 @@
 import { supabase } from '../config/supabase';
-import { ResourceService } from './resourceService';
+import { ResourceService } from './resources/ResourceService';
 import { BuildingService } from './buildingService';
-import { CapacityService } from './capacityService';
-import { TechService } from './techService';
+import { CapacityService } from './bases/CapacityService';
+import { TechService } from './tech/TechService';
 import { getTechSpec, getTechCreditCostForLevel, getUnitSpec } from '@game/shared';
 import { emitFleetUpdate } from '../utils/socketManager';
-import { FleetMovementService } from './fleetMovementService';
+import { FleetMovementService } from './fleets/FleetMovementService';
 import { SupabaseCompletionService } from './completionService';
-import { SupabaseResourceService } from './resources/ResourceService';
-import { SupabaseFleetMovementService } from './fleets/FleetMovementService';
 import { CitizenService } from './bases/CitizenService';
 
 export class HybridGameLoopService {
@@ -183,8 +181,8 @@ export class HybridGameLoopService {
       for (const empire of activeEmpires || []) {
         try {
           const empireId = empire.id;
-          await SupabaseResourceService.updateEmpireResources(empireId);
-          await SupabaseResourceService.updateEmpireCreditsAligned(empireId);
+await ResourceService.updateEmpireResources(empireId);
+await ResourceService.updateEmpireCreditsAligned(empireId);
           // Update per-base citizens for this empire
 await CitizenService.updateEmpireBases(empireId);
           updated++;
@@ -443,7 +441,7 @@ await CitizenService.updateEmpireBases(empireId);
 
       if (dueArrivals && dueArrivals.length > 0) {
         // Use the existing SupabaseFleetMovementService to process arrivals
-        await SupabaseFleetMovementService.processArrivals();
+await FleetMovementService.processArrivals();
         completed = dueArrivals.length;
       }
     } catch (error) {
@@ -900,7 +898,7 @@ await CitizenService.updateEmpireBases(empireId);
 
       // Process arrivals using SupabaseFleetMovementService
       if (arrivals && arrivals.length > 0) {
-        await SupabaseFleetMovementService.processArrivals();
+await FleetMovementService.processArrivals();
         console.log(`[HybridLoop] fleet arrivals processed: ${arrivals.length}`);
       }
 

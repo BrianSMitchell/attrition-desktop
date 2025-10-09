@@ -2,8 +2,8 @@ import { Router, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { ResourceService } from '../services/resourceService';
-import { EconomyService } from '../services/economyService';
+import { ResourceService } from '../services/resources/ResourceService';
+import { EconomyService } from '../services/economy/EconomyService';
 import { getTechnologyList, getBuildingsList, getDefensesList, getUnitsList, getTechSpec } from '@game/shared';
 
 const router: Router = Router();
@@ -58,8 +58,9 @@ router.get('/bootstrap', asyncHandler(async (req: AuthRequest, res: Response) =>
   const empireId = empire.id; // Supabase uses UUID directly as string
   const resourceUpdate = await ResourceService.updateEmpireResources(empireId);
 
-  // Compute economy breakdown for profile
-  const economyBreakdown = await EconomyService.computeEmpireEconomy(empireId);
+// Compute economy breakdown for profile (using Supabase-based EconomyService)
+const totalCreditsPerHour = await EconomyService.sumCreditsPerHourForEmpire(empireId);
+const economyBreakdown = { totalCreditsPerHour } as { totalCreditsPerHour: number };
 
   // Compute technology score from researched technologies
   function computeTechnologyScore(empireData: any): number {
@@ -81,7 +82,7 @@ router.get('/bootstrap', asyncHandler(async (req: AuthRequest, res: Response) =>
     return totalScore;
   }
 
-  const technologyScore = computeTechnologyScore(resourceUpdate.empire);
+const technologyScore = computeTechnologyScore(empire);
   const fleetScore = 0; // Placeholder until fleet system is implemented
   const level = Math.pow(economyBreakdown.totalCreditsPerHour * 100 + fleetScore + technologyScore, 0.25);
 
@@ -100,7 +101,7 @@ router.get('/bootstrap', asyncHandler(async (req: AuthRequest, res: Response) =>
       username: user.username,
       email: user.email
     },
-    empire: resourceUpdate.empire,
+empire,
     profile: {
       economyPerHour: economyBreakdown.totalCreditsPerHour,
       fleetScore,
