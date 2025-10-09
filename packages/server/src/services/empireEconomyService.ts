@@ -1,5 +1,4 @@
-import mongoose from 'mongoose';
-import { Empire } from '../models/Empire';
+import { supabase } from '../config/supabase';
 import { EconomyService } from './economyService';
 
 /**
@@ -18,8 +17,13 @@ export class EmpireEconomyService {
    */
   static async updateEmpireEconomy(empireId: string): Promise<number> {
     try {
-      const empire = await Empire.findById(empireId);
-      if (!empire) {
+      const { data: empire, error: fetchError } = await supabase
+        .from('empires')
+        .select('name')
+        .eq('id', empireId)
+        .single();
+
+      if (fetchError || !empire) {
         throw new Error('Empire not found');
       }
 
@@ -29,8 +33,14 @@ export class EmpireEconomyService {
       const totalEconomy = economyBreakdown.totalCreditsPerHour + researchBonuses;
 
       // Cache the result
-      empire.economyPerHour = totalEconomy;
-      await empire.save();
+      const { error: updateError } = await supabase
+        .from('empires')
+        .update({ economy_per_hour: totalEconomy })
+        .eq('id', empireId);
+
+      if (updateError) {
+        throw new Error(`Failed to update empire economy: ${updateError.message}`);
+      }
 
       if (process.env.DEBUG_RESOURCES === 'true') {
         console.log(`💰 Empire ${empireId} (${empire.name}) economy updated: ${totalEconomy} credits/hour (cached)`);
@@ -49,20 +59,25 @@ export class EmpireEconomyService {
    */
   static async getCachedEmpireEconomy(empireId: string): Promise<number> {
     try {
-      const empire = await Empire.findById(empireId).select('economyPerHour name');
-      if (!empire) {
+      const { data: empire, error: fetchError } = await supabase
+        .from('empires')
+        .select('economy_per_hour, name')
+        .eq('id', empireId)
+        .single();
+
+      if (fetchError || !empire) {
         throw new Error('Empire not found');
       }
 
       // If economy hasn't been cached yet, calculate it once
-      if (empire.economyPerHour === undefined || empire.economyPerHour === null) {
+      if (empire.economy_per_hour === undefined || empire.economy_per_hour === null) {
         if (process.env.DEBUG_RESOURCES === 'true') {
           console.log(`⚠️ Empire ${empireId} economy not cached, calculating...`);
         }
         return await this.updateEmpireEconomy(empireId);
       }
 
-      return empire.economyPerHour;
+      return empire.economy_per_hour;
     } catch (error) {
       console.error(`Error getting cached empire ${empireId} economy:`, error);
       throw error;
@@ -75,16 +90,25 @@ export class EmpireEconomyService {
    */
   static async recalculateAllEmpires(): Promise<void> {
     try {
-      const empires = await Empire.find().select('_id name');
-      if (process.env.DEBUG_RESOURCES === 'true') {
-        console.log(`🔄 Recalculating economy for ${empires.length} empires...`);
+      const { data: empires, error: fetchError } = await supabase
+        .from('empires')
+        .select('id, name');
+
+      if (fetchError) {
+        throw new Error(`Failed to fetch empires: ${fetchError.message}`);
       }
+
+      if (process.env.DEBUG_RESOURCES === 'true') {
+        console.log(`🔄 Recalculating economy for ${empires?.length ?? 0} empires...`);
+      }
+
+      if (!empires) return;
 
       for (const empire of empires) {
         try {
-          await this.updateEmpireEconomy((empire._id as mongoose.Types.ObjectId).toString());
+          await this.updateEmpireEconomy(empire.id);
         } catch (error) {
-          console.error(`Error recalculating economy for empire ${empire._id}:`, error);
+          console.error(`Error recalculating economy for empire ${empire.id}:`, error);
         }
       }
 

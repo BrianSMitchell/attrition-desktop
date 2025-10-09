@@ -1,6 +1,5 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
-import { User } from '../models/User';
 import { getDatabaseType } from '../config/database';
 import { supabase } from '../config/supabase';
 import { parseCoord } from '@game/shared';
@@ -44,7 +43,8 @@ export function setupSocketIO(io: Server): void {
           },
         };
       } else {
-        user = await User.findById(decoded.userId);
+        // Mongodb handling has been removed as we're fully migrated to Supabase
+        return next(new Error('This operation is no longer supported'));
         if (!user) {
           return next(new Error('User not found'));
         }

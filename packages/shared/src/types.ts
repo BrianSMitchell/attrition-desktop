@@ -210,6 +210,14 @@ export interface CelestialBody {
     energy: number;
     research: number;
   };
+  debris?: {
+    amount: number;
+    generationRate: number;
+    recyclers: {
+      empireId: string;
+      startedAt: Date;
+    }[];
+  };
   owner: string | null; // User._id
 }
 
@@ -264,6 +272,15 @@ export interface Location {
   };
   // For stars
   starProperties?: StarProperties;
+  // Space debris fields
+  debris?: {
+    amount: number;
+    generationRate: number;
+    recyclers: {
+      empireId: string;
+      startedAt: Date;
+    }[];
+  };
   owner: string | null; // User._id
   createdAt: Date;
 }

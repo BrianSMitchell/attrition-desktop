@@ -1,6 +1,4 @@
-import mongoose from 'mongoose';
-import { Building } from '../models/Building';
-import { Location } from '../models/Location';
+import { supabase } from '../config/supabase';
 import {
   getBuildingSpec,
   type BuildingKey,
@@ -41,31 +39,40 @@ export interface BaseStatsDTO {
 export class BaseStatsService {
   static async getBaseStats(empireId: string, locationCoord: string): Promise<BaseStatsDTO> {
     // 1) Environment totals from Overhaul (area, etc.)
-    const location = await Location.findOne({ coord: locationCoord })
-      .select('result properties.fertility')
-      .lean();
+    const { data: location, error: locationError } = await supabase
+      .from('locations')
+      .select('result, properties:legacy_properties')
+      .eq('coord', locationCoord)
+      .single();
 
-    const areaTotal = Math.max(0, Number((location as any)?.result?.area ?? 0));
+    if (locationError) {
+      throw new Error(`Failed to fetch location: ${locationError.message}`);
+    }
+
+    const areaTotal = Math.max(0, Number(location?.result?.area ?? 0));
     const fertility = Math.max(
       0,
       Number(
-        (location as any)?.result?.fertility ??
-          (location as any)?.properties?.fertility ??
-          0
+        location?.result?.fertility ??
+        location?.properties?.fertility ??
+        0
       )
     );
 
     // Extract per-planet resource values for solar/gas plants
-    const solarEnergy = Math.max(0, Number((location as any)?.result?.solarEnergy ?? 0));
-    const gasResource = Math.max(0, Number((location as any)?.result?.yields?.gas ?? 0));
+    const solarEnergy = Math.max(0, Number(location?.result?.solarEnergy ?? 0));
+    const gasResource = Math.max(0, Number(location?.result?.yields?.gas ?? 0));
 
     // 2) Get all buildings for this empire at this location
-    const buildings = await Building.find({
-      empireId: new mongoose.Types.ObjectId(empireId),
-      locationCoord,
-    })
-      .select('level catalogKey isActive constructionStarted constructionCompleted')
-      .lean();
+    const { data: buildings, error: buildingsError } = await supabase
+      .from('buildings')
+      .select('level, catalog_key, is_active, construction_started, construction_completed')
+      .eq('empire_id', empireId)
+      .eq('location_coord', locationCoord);
+
+    if (buildingsError) {
+      throw new Error(`Failed to fetch buildings: ${buildingsError.message}`);
+    }
 
     let areaUsed = 0;
     let areaReserved = 0;
@@ -79,13 +86,13 @@ export class BaseStatsService {
     const constructionQueue: Array<{ key: string; level: number }> = [];
 
     for (const b of (buildings || [])) {
-      const isActive = (b as any).isActive === true;
-      const pendingUpgrade = (b as any).pendingUpgrade === true;
-      const level = Math.max(0, Number((b as any).level || 0));
-      const catalogKey = (b as any).catalogKey as BuildingKey | undefined;
+      const isActive = b.is_active === true;
+      const pendingUpgrade = (b as any).pending_upgrade === true;  // Handle legacy field name
+      const level = Math.max(0, Number(b.level || 0));
+      const catalogKey = b.catalog_key as BuildingKey | undefined;
 
       if (!catalogKey) {
-        console.warn("[BaseStatsService] skip: missing catalogKey _id=%s", (b as any)._id?.toString?.());
+        console.warn("[BaseStatsService] skip: missing catalog_key for building at %s", locationCoord);
         continue;
       }
 
@@ -94,7 +101,7 @@ export class BaseStatsService {
       const popReq = Math.max(0, Number(spec.populationRequired ?? 0));
 
       const countsAsActive = (isActive || pendingUpgrade) && level > 0;
-      const isUnderConstruction = !isActive && (b as any).constructionCompleted; // queued step exists
+      const isUnderConstruction = !isActive && b.construction_completed;
 
       if (countsAsActive) {
         // Count the current level even when upgrading (pendingUpgrade=true)

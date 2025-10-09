@@ -1,14 +1,10 @@
-import mongoose from 'mongoose';
-import { Empire, EmpireDocument } from '../models/Empire';
-import { Location } from '../models/Location';
+import { supabase } from '../config/supabase';
 import { CreditLedgerService } from './creditLedgerService';
-import { Building } from '../models/Building';
 import { CapacityService } from './capacityService';
-import { UnitQueue } from '../models/UnitQueue';
 import { getUnitsList, UnitKey, TechnologyKey } from '@game/shared';
 import { formatAlreadyInProgress } from './utils/idempotency';
 
-function mapFromEmpireTechLevels(empire: EmpireDocument): Partial<Record<string, number>> {
+function mapFromEmpireTechLevels(empire: any): Partial<Record<string, number>> {
   const mapVal = (empire as any).techLevels as Map<string, number> | undefined;
   if (!mapVal) return {};
   const obj: Record<string, number> = {};
@@ -71,7 +67,17 @@ function formatError(code: string, message: string, details?: any) {
  */
 export class UnitsService {
   static async getStatus(empireId: string, locationCoord?: string): Promise<UnitsStatusDTO> {
-    const empire = await Empire.findById(empireId);
+    const { data: empire, error } = await supabase
+      .from('empires')
+      .select('*')
+      .eq('id', empireId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[UnitsService.getStatus] Error fetching empire:', error);
+      throw new Error('Empire not found');
+    }
+
     if (!empire) {
       throw new Error('Empire not found');
     }
@@ -82,25 +88,35 @@ export class UnitsService {
     // Get shipyard levels for the location if specified
     let shipyardLevels: Record<string, number> = {};
     if (locationCoord) {
-      const shipyards = await Building.find({
-        empireId: new mongoose.Types.ObjectId(empireId),
-        locationCoord,
-        catalogKey: 'shipyards',
-        isActive: true,
-      }).select('level');
-      
-      const maxShipyardLevel = (shipyards || []).reduce((max, b: any) => Math.max(max, Number(b.level || 0)), 0);
+      const { data: shipyards, error: shipyardError } = await supabase
+        .from('buildings')
+        .select('level')
+        .eq('empire_id', empireId)
+        .eq('location_coord', locationCoord)
+        .eq('catalog_key', 'shipyards')
+        .eq('is_active', true);
+
+      if (shipyardError) {
+        console.error('[UnitsService.getStatus] Error fetching shipyards:', shipyardError);
+      }
+
+      const maxShipyardLevel = (shipyards || []).reduce((max: number, b: any) => Math.max(max, Number(b.level || 0)), 0);
       shipyardLevels['shipyards'] = maxShipyardLevel;
-      
+
       // Also check for orbital shipyards if needed
-      const orbitalShipyards = await Building.find({
-        empireId: new mongoose.Types.ObjectId(empireId),
-        locationCoord,
-        catalogKey: 'orbital_shipyards',
-        isActive: true,
-      }).select('level');
-      
-      const maxOrbitalShipyardLevel = (orbitalShipyards || []).reduce((max, b: any) => Math.max(max, Number(b.level || 0)), 0);
+      const { data: orbitalShipyards, error: orbitalError } = await supabase
+        .from('buildings')
+        .select('level')
+        .eq('empire_id', empireId)
+        .eq('location_coord', locationCoord)
+        .eq('catalog_key', 'orbital_shipyards')
+        .eq('is_active', true);
+
+      if (orbitalError) {
+        console.error('[UnitsService.getStatus] Error fetching orbital shipyards:', orbitalError);
+      }
+
+      const maxOrbitalShipyardLevel = (orbitalShipyards || []).reduce((max: number, b: any) => Math.max(max, Number(b.level || 0)), 0);
       shipyardLevels['orbital_shipyards'] = maxOrbitalShipyardLevel;
     }
 
@@ -154,21 +170,42 @@ export class UnitsService {
    * Deducts credits and enqueues a UnitQueue item to complete later.
    */
   static async start(empireId: string, locationCoord: string, unitKey: UnitKey) {
-    const empire = await Empire.findById(empireId);
+    const { data: empire, error: empireError } = await supabase
+      .from('empires')
+      .select('*')
+      .eq('id', empireId)
+      .maybeSingle();
+
+    if (empireError) {
+      console.error('[UnitsService.start] Error fetching empire:', empireError);
+      return formatError('NOT_FOUND', 'Empire not found');
+    }
+
     if (!empire) {
       return formatError('NOT_FOUND', 'Empire not found');
     }
 
     // Validate location and ownership
-    const location = await Location.findOne({ coord: locationCoord });
+    const { data: location, error: locationError } = await supabase
+      .from('locations')
+      .select('*')
+      .eq('coord', locationCoord)
+      .maybeSingle();
+
+    if (locationError) {
+      console.error('[UnitsService.start] Error fetching location:', locationError);
+      return formatError('NOT_FOUND', 'Location not found');
+    }
+
     if (!location) {
       return formatError('NOT_FOUND', 'Location not found');
     }
-    if (location.owner?.toString() !== empire.userId.toString()) {
+
+    if (location.owner !== empire.user_id) {
       return {
         ...formatError('NOT_OWNER', 'You do not own this location', {
-          requiredOwner: empire.userId.toString(),
-          currentOwner: location.owner?.toString()
+          requiredOwner: empire.user_id,
+          currentOwner: location.owner
         }),
         reasons: ['not_owner']
       };
@@ -197,14 +234,20 @@ export class UnitsService {
 
     // Optional shipyard level validation if spec defines it
     if (typeof spec.requiredShipyardLevel === 'number' && spec.requiredShipyardLevel > 0) {
-      const shipyards = await Building.find({
-        empireId: new mongoose.Types.ObjectId(empireId),
-        locationCoord,
-        catalogKey: 'shipyards',
-        isActive: true,
-      }).select('level');
+      const { data: shipyards, error: shipyardError } = await supabase
+        .from('buildings')
+        .select('level')
+        .eq('empire_id', empireId)
+        .eq('location_coord', locationCoord)
+        .eq('catalog_key', 'shipyards')
+        .eq('is_active', true);
 
-      const maxShipyardLevel = (shipyards || []).reduce((max, b: any) => Math.max(max, Number(b.level || 0)), 0);
+      if (shipyardError) {
+        console.error('[UnitsService.start] Error fetching shipyards:', shipyardError);
+        return formatError('TECH_REQUIREMENTS', 'Error checking shipyard requirements');
+      }
+
+      const maxShipyardLevel = (shipyards || []).reduce((max: number, b: any) => Math.max(max, Number(b.level || 0)), 0);
       if (maxShipyardLevel < spec.requiredShipyardLevel) {
         const msg = `Requires Shipyard level ${spec.requiredShipyardLevel} at this base (current ${maxShipyardLevel}).`;
         return {
@@ -250,47 +293,61 @@ export class UnitsService {
     const nonce = `${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`;
     const identityKey = `${empireId}:${locationCoord}:${unitKey}:${nonce}`;
 
-    // Enqueue first, then deduct credits after successful insert to avoid race-condition double-charge
+    // Create the unit queue item in Supabase
     const completesAt = new Date(now.getTime() + etaMinutes * 60 * 1000);
 
-    const queueItem = new UnitQueue({
-      empireId: new mongoose.Types.ObjectId(empireId),
-      locationCoord,
-      unitKey,
-      identityKey,
-      startedAt: now,
-      completesAt,
-      status: 'pending',
-    });
+    const { data: queueItem, error: queueError } = await supabase
+      .from('unit_queues')
+      .insert({
+        empire_id: empireId,
+        location_coord: locationCoord,
+        unit_key: unitKey,
+        identity_key: identityKey,
+        started_at: now.toISOString(),
+        completes_at: completesAt.toISOString(),
+        status: 'pending',
+      })
+      .select('id')
+      .single();
 
-    try {
-      await queueItem.save();
-    } catch (err: any) {
-      // Handle duplicate key race (unique partial index on identityKey,status=pending)
-      if (err?.code === 11000) {
+    if (queueError) {
+      // Handle unique constraint violations (identity_key + status)
+      if (queueError.code === '23505') { // PostgreSQL unique_violation
         if (process.env.DEBUG_RESOURCES === 'true') {
           console.log(`[UnitsService.start] idempotent duplicate key for identityKey=${identityKey}`);
         }
         return formatAlreadyInProgress('units', identityKey, unitKey);
       }
-      throw err;
+      console.error('[UnitsService.start] Error creating queue item:', queueError);
+      return formatError('QUEUE_ERROR', 'Failed to create unit queue item');
     }
 
     // Deduct credits only after queue creation succeeds
-    empire.resources.credits -= creditsCost;
-    await empire.save();
+    const { error: creditError } = await supabase
+      .from('empires')
+      .update({
+        credits: empire.credits - creditsCost
+      })
+      .eq('id', empireId);
+
+    if (creditError) {
+      console.error('[UnitsService.start] Error deducting credits:', creditError);
+      // TODO: Implement compensation logic to remove the queue item if credit deduction fails
+      return formatError('CREDIT_ERROR', 'Failed to deduct credits');
+    }
+
     // Log unit production charge
     CreditLedgerService.logTransaction({
       empireId,
       amount: -creditsCost,
       type: 'unit_production',
       note: `Start unit ${unitKey} at ${locationCoord}`,
-      meta: { locationCoord, unitKey, queueId: queueItem._id?.toString?.() },
+      meta: { locationCoord, unitKey, queueId: queueItem.id },
     }).catch(() => {});
 
     return formatSuccess(
       {
-        queueId: queueItem._id?.toString(),
+        queueId: queueItem.id,
         unitKey,
         completesAt,
         etaMinutes,

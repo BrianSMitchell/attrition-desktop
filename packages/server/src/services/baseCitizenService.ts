@@ -83,7 +83,7 @@ export class BaseCitizenService {
       }
 
       // Get per-hour citizen generation using optimized query
-      const capacities = await CapacityService.getBaseCapacities(empireId, locationCoord);
+      const capacities = await CapacityService.getBaseCapacities(colony.empire_id, locationCoord);
       const perHour = Math.max(0, Number((capacities as any)?.citizen?.value || 0));
 
       if (!(perHour > 0)) {

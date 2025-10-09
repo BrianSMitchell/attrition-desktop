@@ -6,11 +6,6 @@ interface AuthRequest extends Request {
   user?: any;
 }
 import { asyncHandler } from '../middleware/errorHandler';
-import { Message } from '../models/Message';
-import { User } from '../models/User';
-import { Empire } from '../models/Empire';
-import mongoose from 'mongoose';
-import { getDatabaseType } from '../config/database';
 import { supabase } from '../config/supabase';
 
 const router = express.Router();
@@ -18,84 +13,46 @@ const router = express.Router();
 // Get message summary (unread count, etc.)
 router.get('/summary', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
   const userId = (req.user as any)?._id || (req.user as any)?.id || (req.user as any)?.userId;
+  const uid = String(userId);
 
-  if (getDatabaseType() === 'supabase') {
-    const uid = String(userId);
+  // Perform counts using Supabase exact counts (head requests to avoid payloads)
+  const [inboxRes, sentRes, unreadRes] = await Promise.all([
+    supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('to_user_id', uid),
+    supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('from_user_id', uid),
+    supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('to_user_id', uid)
+      .eq('is_read', false),
+  ]);
 
-    // Perform counts using Supabase exact counts (head requests to avoid payloads)
-    const [inboxRes, sentRes, unreadRes] = await Promise.all([
-      supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('to_user_id', uid),
-      supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('from_user_id', uid),
-      supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('to_user_id', uid)
-        .eq('is_read', false),
-    ]);
+  const inboxCount = inboxRes.error ? 0 : (inboxRes.count ?? 0);
+  const sentCount = sentRes.error ? 0 : (sentRes.count ?? 0);
+  const unreadMessages = unreadRes.error ? 0 : (unreadRes.count ?? 0);
+  const totalMessages = inboxCount + sentCount;
 
-    const inboxCount = inboxRes.error ? 0 : (inboxRes.count ?? 0);
-    const sentCount = sentRes.error ? 0 : (sentRes.count ?? 0);
-    const unreadMessages = unreadRes.error ? 0 : (unreadRes.count ?? 0);
-    const totalMessages = inboxCount + sentCount;
-
-    if (inboxRes.error || sentRes.error || unreadRes.error) {
-      // Log minimal error context; return what we have
-      return res.status(200).json({
-        success: true,
-        data: { totalMessages, unreadMessages, inboxCount, sentCount },
-        warnings: [
-          inboxRes.error?.message,
-          sentRes.error?.message,
-          unreadRes.error?.message,
-        ].filter(Boolean),
-      });
-    }
-
-    return res.json({
+  if (inboxRes.error || sentRes.error || unreadRes.error) {
+    // Log minimal error context; return what we have
+    return res.status(200).json({
       success: true,
       data: { totalMessages, unreadMessages, inboxCount, sentCount },
+      warnings: [
+        inboxRes.error?.message,
+        sentRes.error?.message,
+        unreadRes.error?.message,
+      ].filter(Boolean),
     });
   }
 
-  // MongoDB path
-  // Count total messages
-  const totalMessages = await Message.countDocuments({
-    $or: [
-      { 'to._id': userId },
-      { 'from._id': userId }
-    ]
-  });
-
-  // Count unread messages in inbox
-  const unreadMessages = await Message.countDocuments({
-    'to._id': userId,
-    isRead: false
-  });
-
-  // Count inbox messages
-  const inboxCount = await Message.countDocuments({
-    'to._id': userId
-  });
-
-  // Count sent messages
-  const sentCount = await Message.countDocuments({
-    'from._id': userId
-  });
-
-  res.json({
+  return res.json({
     success: true,
-    data: {
-      totalMessages,
-      unreadMessages,
-      inboxCount,
-      sentCount
-    }
+    data: { totalMessages, unreadMessages, inboxCount, sentCount }
   });
 }));
 
@@ -104,21 +61,45 @@ router.get('/inbox', authenticate, asyncHandler(async (req: AuthRequest, res: Re
   const userId = req.user!.userId;
   const page = parseInt(req.query.page as string) || 1;
   const limit = Math.min(parseInt(req.query.limit as string) || 20, 50); // Max 50 per page
-  const skip = (page - 1) * limit;
+  const offset = (page - 1) * limit;
+  const uid = String(userId);
 
-  const messages = await Message.find({ 'to._id': userId })
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit)
-    .lean();
+  // Get paginated messages
+  const { data: messages, error: messagesError } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('to_user_id', uid)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
-  const totalCount = await Message.countDocuments({ 'to._id': userId });
-  const totalPages = Math.ceil(totalCount / limit);
+  if (messagesError) {
+    console.error('Error fetching inbox messages:', messagesError);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch inbox messages'
+    });
+  }
 
-  res.json({
+  // Get total count
+  const { count: totalCount, error: countError } = await supabase
+    .from('messages')
+    .select('*', { count: 'exact', head: true })
+    .eq('to_user_id', uid);
+
+  if (countError) {
+    console.error('Error counting inbox messages:', countError);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to count inbox messages'
+    });
+  }
+
+  const totalPages = Math.ceil((totalCount || 0) / limit);
+
+  return res.json({
     success: true,
     data: {
-      messages,
+      messages: messages || [],
       totalPages
     }
   });
@@ -129,21 +110,45 @@ router.get('/sent', authenticate, asyncHandler(async (req: AuthRequest, res: Res
   const userId = req.user!.userId;
   const page = parseInt(req.query.page as string) || 1;
   const limit = Math.min(parseInt(req.query.limit as string) || 20, 50); // Max 50 per page
-  const skip = (page - 1) * limit;
+  const offset = (page - 1) * limit;
+  const uid = String(userId);
 
-  const messages = await Message.find({ 'from._id': userId })
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit)
-    .lean();
+  // Get paginated messages
+  const { data: messages, error: messagesError } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('from_user_id', uid)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
-  const totalCount = await Message.countDocuments({ 'from._id': userId });
-  const totalPages = Math.ceil(totalCount / limit);
+  if (messagesError) {
+    console.error('Error fetching sent messages:', messagesError);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch sent messages'
+    });
+  }
 
-  res.json({
+  // Get total count
+  const { count: totalCount, error: countError } = await supabase
+    .from('messages')
+    .select('*', { count: 'exact', head: true })
+    .eq('from_user_id', uid);
+
+  if (countError) {
+    console.error('Error counting sent messages:', countError);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to count sent messages'
+    });
+  }
+
+  const totalPages = Math.ceil((totalCount || 0) / limit);
+
+  return res.json({
     success: true,
     data: {
-      messages,
+      messages: messages || [],
       totalPages
     }
   });
@@ -153,8 +158,11 @@ router.get('/sent', authenticate, asyncHandler(async (req: AuthRequest, res: Res
 router.get('/:messageId', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
   const userId = req.user!.userId;
   const messageId = req.params.messageId;
+  const uid = String(userId);
 
-  if (!mongoose.Types.ObjectId.isValid(messageId)) {
+  // Basic UUID validation (Supabase uses UUID for IDs)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(messageId)) {
     return res.status(400).json({
       success: false,
       code: 'INVALID_MESSAGE_ID',
@@ -162,13 +170,21 @@ router.get('/:messageId', authenticate, asyncHandler(async (req: AuthRequest, re
     });
   }
 
-  const message = await Message.findOne({
-    _id: messageId,
-    $or: [
-      { 'to._id': userId },
-      { 'from._id': userId }
-    ]
-  }).lean();
+  // Get message with authorization check
+  const { data: message, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('id', messageId)
+    .or(`from_user_id.eq.${uid},to_user_id.eq.${uid}`)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching message by ID:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch message'
+    });
+  }
 
   if (!message) {
     return res.status(404).json({
@@ -178,7 +194,7 @@ router.get('/:messageId', authenticate, asyncHandler(async (req: AuthRequest, re
     });
   }
 
-  res.json({
+  return res.json({
     success: true,
     data: message
   });
@@ -214,9 +230,17 @@ router.post('/', authenticate, asyncHandler(async (req: AuthRequest, res: Respon
     });
   }
 
+  const uid = String(userId);
+
   // Find sender
-  const sender = await User.findById(userId).lean();
-  if (!sender) {
+  const { data: sender, error: senderError } = await supabase
+    .from('users')
+    .select('id, username')
+    .eq('id', uid)
+    .maybeSingle();
+
+  if (senderError || !sender) {
+    console.error('Error finding sender:', senderError);
     return res.status(400).json({
       success: false,
       code: 'SENDER_NOT_FOUND',
@@ -225,11 +249,21 @@ router.post('/', authenticate, asyncHandler(async (req: AuthRequest, res: Respon
   }
 
   // Find sender's empire
-  const senderEmpire = await Empire.findOne({ owner: userId }).lean();
+  const { data: senderEmpire } = await supabase
+    .from('empires')
+    .select('id, name')
+    .eq('user_id', uid)
+    .maybeSingle();
 
   // Find recipient
-  const recipient = await User.findOne({ username: toUsername }).lean();
-  if (!recipient) {
+  const { data: recipient, error: recipientError } = await supabase
+    .from('users')
+    .select('id, username')
+    .eq('username', toUsername)
+    .maybeSingle();
+
+  if (recipientError || !recipient) {
+    console.error('Error finding recipient:', recipientError);
     return res.status(400).json({
       success: false,
       code: 'RECIPIENT_NOT_FOUND',
@@ -238,28 +272,39 @@ router.post('/', authenticate, asyncHandler(async (req: AuthRequest, res: Respon
   }
 
   // Find recipient's empire
-  const recipientEmpire = await Empire.findOne({ owner: recipient._id }).lean();
+  const { data: recipientEmpire } = await supabase
+    .from('empires')
+    .select('id, name')
+    .eq('user_id', String(recipient.id))
+    .maybeSingle();
 
   // Create message
-  const message = new Message({
-    from: {
-      _id: sender._id,
-      username: sender.username,
-      empireName: senderEmpire?.name
-    },
-    to: {
-      _id: recipient._id,
-      username: recipient.username,
-      empireName: recipientEmpire?.name
-    },
-    subject: subject.trim(),
-    content: content.trim(),
-    isRead: false
-  });
+  const { data: message, error: messageError } = await supabase
+    .from('messages')
+    .insert({
+      from_user_id: sender.id,
+      to_user_id: recipient.id,
+      from_username: sender.username,
+      to_username: recipient.username,
+      from_empire_name: senderEmpire?.name || null,
+      to_empire_name: recipientEmpire?.name || null,
+      subject: subject.trim(),
+      content: content.trim(),
+      is_read: false,
+      created_at: new Date().toISOString()
+    })
+    .select('*')
+    .single();
 
-  await message.save();
+  if (messageError) {
+    console.error('Error creating message:', messageError);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to create message'
+    });
+  }
 
-  res.status(201).json({
+  return res.status(201).json({
     success: true,
     data: message
   });
@@ -269,8 +314,11 @@ router.post('/', authenticate, asyncHandler(async (req: AuthRequest, res: Respon
 router.patch('/:messageId/read', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
   const userId = req.user!.userId;
   const messageId = req.params.messageId;
+  const uid = String(userId);
 
-  if (!mongoose.Types.ObjectId.isValid(messageId)) {
+  // Basic UUID validation (Supabase uses UUID for IDs)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(messageId)) {
     return res.status(400).json({
       success: false,
       code: 'INVALID_MESSAGE_ID',
@@ -278,15 +326,24 @@ router.patch('/:messageId/read', authenticate, asyncHandler(async (req: AuthRequ
     });
   }
 
-  const result = await Message.updateOne(
-    { 
-      _id: messageId, 
-      'to._id': userId // Only recipient can mark as read
-    },
-    { isRead: true }
-  );
+  // Update message to mark as read (only if user is recipient)
+  const { data, error } = await supabase
+    .from('messages')
+    .update({ is_read: true })
+    .eq('id', messageId)
+    .eq('to_user_id', uid) // Only recipient can mark as read
+    .select('id')
+    .single();
 
-  if (result.matchedCount === 0) {
+  if (error) {
+    console.error('Error marking message as read:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to mark message as read'
+    });
+  }
+
+  if (!data) {
     return res.status(404).json({
       success: false,
       code: 'MESSAGE_NOT_FOUND',
@@ -294,7 +351,7 @@ router.patch('/:messageId/read', authenticate, asyncHandler(async (req: AuthRequ
     });
   }
 
-  res.json({
+  return res.json({
     success: true,
     message: 'Message marked as read'
   });
@@ -303,13 +360,23 @@ router.patch('/:messageId/read', authenticate, asyncHandler(async (req: AuthRequ
 // Mark all messages as read
 router.patch('/mark-all-read', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
   const userId = req.user!.userId;
+  const uid = String(userId);
 
-  await Message.updateMany(
-    { 'to._id': userId },
-    { isRead: true }
-  );
+  // Update all messages for this user as read
+  const { error } = await supabase
+    .from('messages')
+    .update({ is_read: true })
+    .eq('to_user_id', uid);
 
-  res.json({
+  if (error) {
+    console.error('Error marking all messages as read:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to mark all messages as read'
+    });
+  }
+
+  return res.json({
     success: true,
     message: 'All messages marked as read'
   });
@@ -319,8 +386,11 @@ router.patch('/mark-all-read', authenticate, asyncHandler(async (req: AuthReques
 router.delete('/:messageId', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
   const userId = req.user!.userId;
   const messageId = req.params.messageId;
+  const uid = String(userId);
 
-  if (!mongoose.Types.ObjectId.isValid(messageId)) {
+  // Basic UUID validation (Supabase uses UUID for IDs)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(messageId)) {
     return res.status(400).json({
       success: false,
       code: 'INVALID_MESSAGE_ID',
@@ -328,15 +398,24 @@ router.delete('/:messageId', authenticate, asyncHandler(async (req: AuthRequest,
     });
   }
 
-  const result = await Message.deleteOne({
-    _id: messageId,
-    $or: [
-      { 'to._id': userId },
-      { 'from._id': userId }
-    ]
-  });
+  // Delete message (only if user is sender or recipient)
+  const { data, error } = await supabase
+    .from('messages')
+    .delete()
+    .eq('id', messageId)
+    .or(`from_user_id.eq.${uid},to_user_id.eq.${uid}`)
+    .select('id')
+    .single();
 
-  if (result.deletedCount === 0) {
+  if (error) {
+    console.error('Error deleting message:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to delete message'
+    });
+  }
+
+  if (!data) {
     return res.status(404).json({
       success: false,
       code: 'MESSAGE_NOT_FOUND',
@@ -344,7 +423,7 @@ router.delete('/:messageId', authenticate, asyncHandler(async (req: AuthRequest,
     });
   }
 
-  res.json({
+  return res.json({
     success: true,
     message: 'Message deleted'
   });

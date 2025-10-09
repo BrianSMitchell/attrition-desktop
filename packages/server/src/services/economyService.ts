@@ -1,7 +1,4 @@
-import mongoose from 'mongoose';
-import { Empire } from '../models/Empire';
-import { Building } from '../models/Building';
-import { ResearchProject } from '../models/ResearchProject';
+import { supabase } from '../config/supabase';
 import {
   getBuildingSpec,
   BuildingKey,
@@ -30,7 +27,17 @@ export class EconomyService {
    */
   static async computeEmpireEconomy(empireId: string): Promise<EconomyBreakdown> {
     // Verify empire exists
-    const empire = await Empire.findById(empireId);
+    const { data: empire, error } = await supabase
+      .from('empires')
+      .select('*')
+      .eq('id', empireId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[EconomyService] Error fetching empire:', error);
+      throw new Error('Empire not found');
+    }
+
     if (!empire) {
       throw new Error('Empire not found');
     }
@@ -67,25 +74,28 @@ export class EconomyService {
    */
   static async computeStructuresEconomy(empireId: string): Promise<number> {
     // Get all effectively active buildings for this empire (active OR being upgraded)
-    const buildings = await Building.find({
-      empireId: new mongoose.Types.ObjectId(empireId),
-      $or: [
-        { isActive: true },
-        { pendingUpgrade: true }
-      ],
-      constructionCompleted: { $exists: true, $ne: null }
-    });
+    const { data: buildings, error } = await supabase
+      .from('buildings')
+      .select('id, type, catalog_key, level, is_active, pending_upgrade, construction_completed')
+      .eq('empire_id', empireId)
+      .or('is_active.eq.true,pending_upgrade.eq.true')
+      .not('construction_completed', 'is', null);
+
+    if (error) {
+      console.error('[EconomyService] Error fetching buildings:', error);
+      return 0;
+    }
 
     let totalEconomy = 0;
     const buildingContributions: Array<{id: string, type: string, catalogKey: string, level: number, economy: number, contribution: number}> = [];
 
-    for (const building of buildings) {
+    for (const building of (buildings || [])) {
       const level = Math.max(0, Number((building as any).level || 0));
-      const catalogKey = (building as any).catalogKey as BuildingKey | undefined;
+      const catalogKey = (building as any).catalog_key as BuildingKey | undefined;
 
       if (!catalogKey) {
         // Aggregation-only diagnostic; skip legacy docs missing catalogKey
-        console.warn("[EconomyService] skip: missing catalogKey _id=%s", (building as any)._id?.toString?.());
+        console.warn("[EconomyService] skip: missing catalog_key id=%s", (building as any).id);
         continue;
       }
 
@@ -95,7 +105,7 @@ export class EconomyService {
       totalEconomy += contribution;
 
       buildingContributions.push({
-        id: (building as any)._id.toString(),
+        id: (building as any).id,
         type: (building as any).type,
         catalogKey,
         level,
@@ -181,16 +191,23 @@ export class EconomyService {
    * Get research bonuses that affect credits per hour
    */
   static async getResearchCreditBonuses(empireId: string): Promise<number> {
-    const completedResearch = await ResearchProject.find({
-      empireId: new mongoose.Types.ObjectId(empireId),
-      isCompleted: true
-    });
+    const { data: completedResearch, error } = await supabase
+      .from('research_projects')
+      .select('benefits')
+      .eq('empire_id', empireId)
+      .eq('is_completed', true);
+
+    if (error) {
+      console.error('[EconomyService] Error fetching research projects:', error);
+      return 0;
+    }
 
     let creditBonus = 0;
 
-    for (const research of completedResearch) {
-      if (research.benefits.resourceBonus?.creditsPerHour) {
-        creditBonus += research.benefits.resourceBonus.creditsPerHour;
+    for (const research of (completedResearch || [])) {
+      const benefits = (research as any).benefits;
+      if (benefits?.resourceBonus?.creditsPerHour) {
+        creditBonus += benefits.resourceBonus.creditsPerHour;
       }
     }
 

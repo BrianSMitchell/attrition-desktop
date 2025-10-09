@@ -1,6 +1,9 @@
 import { Socket } from "socket.io-client";
 import { SocketManager } from "./core/SocketManager";
 
+// Create a singleton socket instance
+export const socket = getSocket();
+
 /**
  * Legacy socket API - now acts as a compatibility layer that delegates to SocketManager.
  * This maintains existing API contracts while using the new architecture.

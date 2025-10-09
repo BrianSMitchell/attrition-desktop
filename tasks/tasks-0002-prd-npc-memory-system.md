@@ -25,24 +25,28 @@
 ## Tasks
 
 - [ ] 1.0 Setup NPC Memory Service Package
-  - [ ] 1.1 Create new package directory structure
-    - Create packages/npc-memory-service directory
-    - Setup src/, __tests__, and config/ directories
-    - Create README.md with package documentation
-  - [ ] 1.2 Initialize package.json with dependencies
-    - Add Supermemory client dependencies
-    - Add TypeScript, Jest, and other dev dependencies
-    - Configure package scripts for build/test/lint
-  - [ ] 1.3 Configure TypeScript and testing setup
-    - Create tsconfig.json with proper module settings
-    - Setup Jest configuration for testing
-    - Add ESLint configuration matching main project
-    - Configure build output directory
-  - [ ] 1.4 Create service interfaces and type definitions
-    - Define NPCMemory interface matching PRD spec
-    - Create enum types for interaction categories
-    - Define service interface contracts
-    - Setup shared type exports
+- [x] 1.1 Create new package directory structure
+    - Create packages/npc-memory-service directory ✓
+    - Setup src/, __tests__, and config/ directories ✓
+    - Create README.md with package documentation ✓
+- [x] 1.2 Initialize package.json with dependencies
+    - Add Supermemory client dependencies ✓
+    - Add TypeScript, Jest, and other dev dependencies ✓
+    - Configure package scripts for build/test/lint ✓
+- [x] 1.3 Configure TypeScript and testing setup
+    - Create tsconfig.json with proper module settings ✓
+    - Setup Jest configuration for testing ✓
+    - Add ESLint configuration matching main project ✓
+    - Configure build output directory ✓
+- [x] 1.4 Create service interfaces and type definitions
+    - Define NPCMemory interface matching PRD spec ✓
+    - Create enum types for interaction categories ✓
+    - Define service interface contracts ✓
+    - Setup shared type exports ✓
+    - Write type validation tests:
+      - Test type constraints
+      - Validate enum values
+      - Test interface compatibility
 
 - [ ] 2.0 Implement Supermemory Integration
   - [ ] 2.1 Create Supermemory client wrapper
@@ -50,21 +54,40 @@
     - Implement connection management
     - Add retry logic for failed requests
     - Setup proper error types
+    - Write client wrapper tests:
+      - Test connection handling
+      - Verify retry behavior
+      - Test error propagation
   - [ ] 2.2 Implement memory storage and retrieval functions
     - Create memory insertion function with proper tags
     - Implement memory search with relevant filters
     - Add batch operation support
     - Create memory update functions
+    - Write storage function tests:
+      - Test memory insertion
+      - Verify search functionality
+      - Test batch operations
+      - Validate update operations
   - [ ] 2.3 Add caching layer for relationship scores
     - Implement in-memory LRU cache
     - Add cache invalidation logic
     - Setup cache size limits
     - Add cache stats monitoring
+    - Write cache layer tests:
+      - Test cache hit/miss behavior
+      - Verify invalidation logic
+      - Test size limit enforcement
+      - Validate stats collection
   - [ ] 2.4 Setup API key configuration and error handling
     - Add environment variable configuration
     - Implement connection validation
     - Create error recovery mechanisms
     - Add detailed error logging
+    - Write configuration tests:
+      - Test env var handling
+      - Verify connection validation
+      - Test error recovery
+      - Validate logging behavior
 
 - [ ] 3.0 Develop Core NPC Memory Services
   - [ ] 3.1 Create NPCMemoryService for basic memory operations
@@ -72,26 +95,51 @@
     - Create memory retrieval methods
     - Add memory categorization logic
     - Setup memory cleanup utilities
+    - Write memory service tests:
+      - Test recording functions
+      - Verify retrieval methods
+      - Test categorization
+      - Validate cleanup operations
   - [ ] 3.2 Implement NPCRelationshipService for score calculations
     - Create relationship score calculator
     - Implement interaction weighting system
     - Add score threshold management
     - Create score history tracking
+    - Write relationship service tests:
+      - Test score calculations
+      - Verify weighting system
+      - Test threshold handling
+      - Validate history tracking
   - [ ] 3.3 Build NPCPersonalityService for personality-based behaviors
     - Implement personality type definitions
     - Create personality-based multipliers
     - Add behavior modification rules
     - Setup personality initialization system
+    - Write personality service tests:
+      - Test personality types
+      - Verify multiplier effects
+      - Test behavior rules
+      - Validate initialization
   - [ ] 3.4 Add event recording and memory context system
     - Create event type categorization
     - Implement context gathering
     - Add event importance scoring
     - Setup event correlation system
+    - Write event system tests:
+      - Test event categorization
+      - Verify context gathering
+      - Test importance scoring
+      - Validate correlation logic
   - [ ] 3.5 Implement memory querying and aggregation functions
     - Create memory search functions
     - Implement aggregation pipelines
     - Add trend analysis utilities
     - Setup memory summarization
+    - Write query system tests:
+      - Test search functions
+      - Verify aggregation pipelines
+      - Test trend analysis
+      - Validate summarization
 
 - [ ] 4.0 Integrate Memory System with Game Logic
   - [ ] 4.1 Modify game routes to record NPC interactions
@@ -99,26 +147,51 @@
     - Integrate with trade system
     - Add territorial expansion tracking
     - Implement diplomatic action recording
+    - Write integration tests:
+      - Test combat recording
+      - Verify trade integration
+      - Test territory tracking
+      - Validate diplomatic actions
   - [ ] 4.2 Update NPC service with memory-based behaviors
     - Add relationship score checks
     - Implement behavior modifications
     - Create response selection system
     - Setup event reaction handlers
+    - Write behavior tests:
+      - Test score checking
+      - Verify behavior changes
+      - Test response selection
+      - Validate event reactions
   - [ ] 4.3 Implement relationship-based pricing adjustments
     - Create price modification calculator
     - Add relationship thresholds
     - Implement trade bonus/penalty system
     - Setup dynamic pricing updates
+    - Write pricing tests:
+      - Test price calculations
+      - Verify threshold effects
+      - Test bonus/penalty system
+      - Validate price updates
   - [ ] 4.4 Add memory-based dialogue system
     - Create dialogue template system
     - Implement context-aware responses
     - Add memory reference generator
     - Setup dialogue selection logic
+    - Write dialogue tests:
+      - Test template system
+      - Verify context awareness
+      - Test memory references
+      - Validate selection logic
   - [ ] 4.5 Create relationship status display component
     - Build relationship indicator UI
     - Add tooltip with basic info
     - Implement status update system
     - Create personality-based styling
+    - Write UI component tests:
+      - Test indicator rendering
+      - Verify tooltip behavior
+      - Test status updates
+      - Validate styling logic
 
 - [ ] 5.0 Testing and Documentation
   - [ ] 5.1 Write unit tests for all new services

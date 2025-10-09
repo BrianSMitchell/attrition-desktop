@@ -1,0 +1,96 @@
+.container {
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 16px;
+  color: #fff;
+  min-width: 300px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  color: #4a9;
+}
+
+.resources {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.resource {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.resource:last-child {
+  margin-bottom: 0;
+}
+
+.debrisSection {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.sectionTitle {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  color: #4a9;
+}
+
+.debrisInfo {
+  margin-bottom: 12px;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.label {
+  color: #aaa;
+}
+
+.value {
+  font-weight: 500;
+  color: #fff;
+}
+
+.recycleButton {
+  width: 100%;
+  background: #4a9;
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.recycleButton:hover {
+  background: #5ba;
+}
+
+.recycleButton:active {
+  background: #398;
+}
+
+.recycleButton:disabled {
+  background: #666;
+  cursor: not-allowed;
+}

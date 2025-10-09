@@ -3,7 +3,7 @@ import path from 'path';
 import { config as dotenvConfig } from 'dotenv';
 import seedrandom from 'seedrandom';
 import { supabase } from '../config/supabase';
-import { getDatabaseType } from '../config/database';
+// Removed legacy database type check - we're fully on Supabase now
 import {
   formatCoord,
   randomInt,
@@ -39,9 +39,7 @@ async function universeExistsForServer(server: string): Promise<boolean> {
 }
 
 export async function generateUniverseSupabase() {
-  if (getDatabaseType() !== 'supabase') {
-    throw new Error('DB_TYPE must be supabase to run this script.');
-  }
+  // We're fully migrated to Supabase, no need to check database type
 
   console.log('🌌 Starting Supabase universe generation for server:', UNIVERSE_CONFIG.serverName);
 

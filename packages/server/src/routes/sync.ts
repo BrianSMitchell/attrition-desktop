@@ -1,8 +1,7 @@
 import { Router, Response } from 'express';
-import mongoose from 'mongoose';
+import { supabase } from '../config/supabase';
 import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { Empire } from '../models/Empire';
 import { ResourceService } from '../services/resourceService';
 import { EconomyService } from '../services/economyService';
 import { getTechnologyList, getBuildingsList, getDefensesList, getUnitsList, getTechSpec } from '@game/shared';
@@ -37,12 +36,16 @@ router.get('/status', (req, res) => {
  */
 router.get('/bootstrap', asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user!;
-  
-  // Get user's empire
-  const userId = (user._id as mongoose.Types.ObjectId).toString();
-  const empire = await Empire.findOne({ userId: user._id });
-  
-  if (!empire) {
+  const userId = user.id; // Supabase uses UUID directly, no ObjectId casting needed
+
+  // Get user's empire using Supabase query
+  const { data: empire, error: empireError } = await supabase
+    .from('empires')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (empireError || !empire) {
     return res.status(404).json({
       success: false,
       code: 'NOT_FOUND',
@@ -52,19 +55,19 @@ router.get('/bootstrap', asyncHandler(async (req: AuthRequest, res: Response) =>
   }
 
   // Update empire resources before creating snapshot
-  const empireId = (empire._id as mongoose.Types.ObjectId).toString();
+  const empireId = empire.id; // Supabase uses UUID directly as string
   const resourceUpdate = await ResourceService.updateEmpireResources(empireId);
 
   // Compute economy breakdown for profile
   const economyBreakdown = await EconomyService.computeEmpireEconomy(empireId);
 
   // Compute technology score from researched technologies
-  function computeTechnologyScore(empire: any): number {
-    const techLevels = empire.techLevels as Map<string, number> | undefined;
+  function computeTechnologyScore(empireData: any): number {
+    const techLevels = empireData.tech_levels as Record<string, number> | undefined;
     if (!techLevels) return 0;
 
     let totalScore = 0;
-    for (const [techKey, level] of techLevels.entries()) {
+    for (const [techKey, level] of Object.entries(techLevels)) {
       if (level >= 1) {
         try {
           const spec = getTechSpec(techKey as any);
@@ -85,7 +88,7 @@ router.get('/bootstrap', asyncHandler(async (req: AuthRequest, res: Response) =>
   // Gather all catalog data
   const catalogs = {
     technologies: getTechnologyList(),
-    buildings: getBuildingsList(), 
+    buildings: getBuildingsList(),
     defenses: getDefensesList(),
     units: getUnitsList()
   };
@@ -93,10 +96,9 @@ router.get('/bootstrap', asyncHandler(async (req: AuthRequest, res: Response) =>
   // Create profile snapshot
   const profileSnapshot = {
     user: {
-      _id: user._id,
+      id: user.id,
       username: user.username,
-      email: user.email,
-      createdAt: (user as any).createdAt
+      email: user.email
     },
     empire: resourceUpdate.empire,
     profile: {
@@ -117,11 +119,11 @@ router.get('/bootstrap', asyncHandler(async (req: AuthRequest, res: Response) =>
   // Generate version identifiers for caching validation
   const version = {
     catalogs: Date.now().toString(), // Simple timestamp-based versioning for now
-    profile: resourceUpdate.empire.lastResourceUpdate?.getTime()?.toString() || Date.now().toString(),
+    profile: empire.last_resource_update?.getTime()?.toString() || Date.now().toString(),
     timestamp: new Date().toISOString()
   };
 
-  console.log(`[SyncService.bootstrap] Generated bootstrap data for empire ${empire._id} with ${catalogs.technologies.length} technologies, ${catalogs.buildings.length} buildings, ${catalogs.defenses.length} defenses, ${catalogs.units.length} units`);
+  console.log(`[SyncService.bootstrap] Generated bootstrap data for empire ${empire.id} with ${catalogs.technologies.length} technologies, ${catalogs.buildings.length} buildings, ${catalogs.defenses.length} defenses, ${catalogs.units.length} units`);
 
   res.json({
     success: true,

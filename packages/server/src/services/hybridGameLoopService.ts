@@ -1,22 +1,15 @@
+import { supabase } from '../config/supabase';
 import { ResourceService } from './resourceService';
-import { ResearchProject } from '../models/ResearchProject';
-import { Empire } from '../models/Empire';
-import mongoose from 'mongoose';
-import { TechQueue } from '../models/TechQueue';
-import { UnitQueue } from '../models/UnitQueue';
-import { Fleet } from '../models/Fleet';
-import { Building } from '../models/Building';
 import { BuildingService } from './buildingService';
 import { CapacityService } from './capacityService';
 import { TechService } from './techService';
 import { getTechSpec, getTechCreditCostForLevel, getUnitSpec } from '@game/shared';
 import { emitFleetUpdate } from '../utils/socketManager';
 import { FleetMovementService } from './fleetMovementService';
-import { getDatabaseType } from '../config/database';
 import { SupabaseCompletionService } from './completionService';
-import { SupabaseResourceService } from './resources/SupabaseResourceService';
-import { SupabaseFleetMovementService } from './fleets/SupabaseFleetMovementService';
-import { SupabaseBaseCitizenService } from './bases/SupabaseBaseCitizenService';
+import { SupabaseResourceService } from './resources/ResourceService';
+import { SupabaseFleetMovementService } from './fleets/FleetMovementService';
+import { CitizenService } from './bases/CitizenService';
 
 export class HybridGameLoopService {
   private static instance: HybridGameLoopService;
@@ -170,76 +163,39 @@ export class HybridGameLoopService {
    * MODERATE: Update empire resources (60 second interval)
    */
   private async updateEmpireResources(): Promise<void> {
-    const dbType = getDatabaseType();
-    
     try {
-      if (dbType === 'supabase') {
-        // Supabase path: Query active empires from Supabase
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const { supabase } = await import('../config/supabase');
-        
-        const { data: activeEmpires, error } = await supabase
-          .from('empires')
-          .select('id')
-          .or(`last_resource_update.gte.${oneDayAgo.toISOString()},last_resource_update.is.null`);
+      // Get all empires that have been active in the last 24 hours
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-        if (error) {
-          console.error('Error fetching active empires from Supabase:', error);
-          return;
+      const { data: activeEmpires, error } = await supabase
+        .from('empires')
+        .select('id')
+        .or(`last_resource_update.gte.${oneDayAgo.toISOString()},last_resource_update.is.null`);
+
+      if (error) {
+        console.error('Error fetching active empires from Supabase:', error);
+        return;
+      }
+
+      let updated = 0;
+      let errors = 0;
+
+      for (const empire of activeEmpires || []) {
+        try {
+          const empireId = empire.id;
+          await SupabaseResourceService.updateEmpireResources(empireId);
+          await SupabaseResourceService.updateEmpireCreditsAligned(empireId);
+          // Update per-base citizens for this empire
+await CitizenService.updateEmpireBases(empireId);
+          updated++;
+        } catch (empError) {
+          errors++;
+          console.error(`Error updating resources for empire ${empire.id}:`, empError);
         }
+      }
 
-        let updated = 0;
-        let errors = 0;
-
-        for (const empire of activeEmpires || []) {
-          try {
-            const empireId = empire.id;
-            await SupabaseResourceService.updateEmpireResources(empireId);
-            await SupabaseResourceService.updateEmpireCreditsAligned(empireId);
-            // Update per-base citizens for this empire
-            await SupabaseBaseCitizenService.updateEmpireBases(empireId);
-            updated++;
-          } catch (empError) {
-            errors++;
-            console.error(`Error updating resources for empire ${empire.id}:`, empError);
-          }
-        }
-
-        if (process.env.DEBUG_RESOURCES === 'true') {
-          console.log(`[HybridLoop] resources updated: ${updated}/${activeEmpires?.length || 0} empires (Supabase)`);
-        }
-      } else {
-        // MongoDB path
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        
-        const activeEmpires = await Empire.find({
-          $or: [
-            { lastResourceUpdate: { $gte: oneDayAgo } },
-            { lastResourceUpdate: { $exists: false } }
-          ]
-        });
-
-        let updated = 0;
-        let errors = 0;
-
-        for (const empire of activeEmpires) {
-          try {
-            const empireId = (empire._id as mongoose.Types.ObjectId).toString();
-            await ResourceService.updateEmpireResources(empireId);
-            await ResourceService.updateEmpireCreditsAligned(empireId);
-            // Update per-base citizens for this empire
-            const { BaseCitizenService } = await import('./baseCitizenService');
-            await BaseCitizenService.updateEmpireBases(empireId);
-            updated++;
-          } catch (error) {
-            errors++;
-            console.error(`Error updating resources for empire ${empire._id}:`, error);
-          }
-        }
-
-        if (process.env.DEBUG_RESOURCES === 'true') {
-          console.log(`[HybridLoop] resources updated: ${updated}/${activeEmpires.length} empires (MongoDB)`);
-        }
+      if (process.env.DEBUG_RESOURCES === 'true') {
+        console.log(`[HybridLoop] resources updated: ${updated}/${activeEmpires?.length || 0} empires`);
       }
     } catch (error) {
       console.error('Error in resource updates:', error);
@@ -282,15 +238,22 @@ export class HybridGameLoopService {
     let errors = 0;
 
     try {
-      const dueItems = await UnitQueue.find({
-        empireId: new mongoose.Types.ObjectId(empireId),
-        status: 'pending',
-        completesAt: { $lte: now }
-      });
+      const { data: dueItems, error } = await supabase
+        .from('unit_queues')
+        .select('*')
+        .eq('empire_id', empireId)
+        .eq('status', 'pending')
+        .lte('completes_at', now.toISOString());
 
-      for (const item of dueItems) {
+      if (error) {
+        console.error('Error fetching due unit items:', error);
+        errors++;
+        return { completed, errors };
+      }
+
+      for (const item of dueItems || []) {
         try {
-          // Use your existing completion logic
+          // Use existing completion logic adapted for Supabase
           await this.completeUnitItem(item);
           completed++;
         } catch (err) {
@@ -314,15 +277,22 @@ export class HybridGameLoopService {
     let errors = 0;
 
     try {
-      const dueItems = await TechQueue.find({
-        empireId: new mongoose.Types.ObjectId(empireId),
-        status: 'pending',
-        completesAt: { $lte: now }
-      });
+      const { data: dueItems, error } = await supabase
+        .from('tech_queues')
+        .select('*')
+        .eq('empire_id', empireId)
+        .eq('status', 'pending')
+        .lte('completes_at', now.toISOString());
 
-      for (const item of dueItems) {
+      if (error) {
+        console.error('Error fetching due tech items:', error);
+        errors++;
+        return { completed, errors };
+      }
+
+      for (const item of dueItems || []) {
         try {
-          // Use your existing completion logic
+          // Use existing completion logic adapted for Supabase
           await this.completeTechItem(item);
           completed++;
         } catch (err) {
@@ -346,30 +316,49 @@ export class HybridGameLoopService {
 
     try {
       const now = new Date();
-      const buildings = await Building.find({
-        empireId: new mongoose.Types.ObjectId(empireId),
-        isActive: false,
-        constructionCompleted: { $lte: now }
-      });
 
-      for (const building of buildings) {
+      const { data: buildings, error } = await supabase
+        .from('buildings')
+        .select('*')
+        .eq('empire_id', empireId)
+        .eq('is_active', false)
+        .lte('construction_completed', now.toISOString());
+
+      if (error) {
+        console.error('Error fetching due buildings:', error);
+        errors++;
+        return { completed, errors };
+      }
+
+      for (const building of buildings || []) {
         try {
           // Handle upgrade vs new building
-          if ((building as any).pendingUpgrade === true) {
-            building.level = Math.max(1, Number(building.level || 0)) + 1;
-            (building as any).pendingUpgrade = false;
-          } else {
-            building.level = Math.max(1, Number(building.level || 0));
+          const newLevel = building.pending_upgrade
+            ? Math.max(1, Number(building.level || 0)) + 1
+            : Math.max(1, Number(building.level || 0));
+
+          // Update building as completed
+          const { error: updateError } = await supabase
+            .from('buildings')
+            .update({
+              level: newLevel,
+              is_active: true,
+              pending_upgrade: false,
+              construction_completed: null
+            })
+            .eq('id', building.id);
+
+          if (updateError) {
+            console.error('Error updating building:', updateError);
+            errors++;
+            continue;
           }
 
-          building.isActive = true;
-          building.constructionCompleted = undefined as any;
-          await building.save();
           completed++;
 
           // Schedule next queued building at this base
           try {
-            await BuildingService.scheduleNextQueuedForBase(empireId, building.locationCoord);
+            await BuildingService.scheduleNextQueuedForBase(empireId, building.location_coord);
           } catch (schedErr) {
             console.error('Error scheduling next building:', schedErr);
           }
@@ -389,22 +378,37 @@ export class HybridGameLoopService {
    * Check defense completions for a specific empire  
    */
   private async processEmpireDefenseCompletions(empireId: string): Promise<{ completed: number; errors: number }> {
-    const { DefenseQueue } = await import('../models/DefenseQueue');
     const now = new Date();
     let completed = 0;
     let errors = 0;
 
     try {
-      const dueItems = await DefenseQueue.find({
-        empireId: new mongoose.Types.ObjectId(empireId),
-        status: 'pending',
-        completesAt: { $lte: now }
-      });
+      const { data: dueItems, error } = await supabase
+        .from('defense_queues')
+        .select('*')
+        .eq('empire_id', empireId)
+        .eq('status', 'pending')
+        .lte('completes_at', now.toISOString());
 
-      for (const item of dueItems) {
+      if (error) {
+        console.error('Error fetching due defense items:', error);
+        errors++;
+        return { completed, errors };
+      }
+
+      for (const item of dueItems || []) {
         try {
-          await DefenseQueue.updateOne({ _id: item._id }, { $set: { status: 'completed' } });
-          completed++;
+          const { error: updateError } = await supabase
+            .from('defense_queues')
+            .update({ status: 'completed' })
+            .eq('id', item.id);
+
+          if (updateError) {
+            console.error('Error updating defense item:', updateError);
+            errors++;
+          } else {
+            completed++;
+          }
         } catch (err) {
           errors++;
           console.error('Error completing defense for empire:', err);
@@ -425,16 +429,21 @@ export class HybridGameLoopService {
     let completed = 0;
 
     try {
-      const { FleetMovement } = await import('../models/FleetMovement');
-      const dueArrivals = await FleetMovement.find({
-        empireId: new mongoose.Types.ObjectId(empireId),
-        status: 'travelling',
-        estimatedArrivalTime: { $lte: now }
-      });
+      const { data: dueArrivals, error } = await supabase
+        .from('fleet_movements')
+        .select('*')
+        .eq('empire_id', empireId)
+        .eq('status', 'travelling')
+        .lte('estimated_arrival_time', now.toISOString());
 
-      if (dueArrivals.length > 0) {
-        // Use the existing FleetMovementService to process arrivals
-        await FleetMovementService.processArrivals();
+      if (error) {
+        console.error('Error fetching due fleet arrivals:', error);
+        return completed;
+      }
+
+      if (dueArrivals && dueArrivals.length > 0) {
+        // Use the existing SupabaseFleetMovementService to process arrivals
+        await SupabaseFleetMovementService.processArrivals();
         completed = dueArrivals.length;
       }
     } catch (error) {
@@ -447,61 +456,119 @@ export class HybridGameLoopService {
   // ===== HELPER METHODS (Extracted from your original code) =====
 
   private async completeUnitItem(item: any): Promise<void> {
-    // Your existing unit completion logic from processUnitQueue
-    const empire = await Empire.findById(item.empireId);
-    if (!empire) {
-      item.status = 'cancelled';
-      await item.save();
+    // Your existing unit completion logic adapted for Supabase
+    const { data: empire, error: empireError } = await supabase
+      .from('empires')
+      .select('*')
+      .eq('id', item.empire_id)
+      .maybeSingle();
+
+    if (empireError || !empire) {
+      // Mark as cancelled if empire is missing
+      await supabase
+        .from('unit_queues')
+        .update({ status: 'cancelled' })
+        .eq('id', item.id);
       return;
     }
 
-    item.status = 'completed';
-    await item.save();
+    // Mark unit queue item as completed
+    await supabase
+      .from('unit_queues')
+      .update({ status: 'completed' })
+      .eq('id', item.id);
 
-    // Add to fleet logic... (your existing code)
-    const baseCoord = String(item.locationCoord || '');
-    const empireId = empire._id as mongoose.Types.ObjectId;
-    
-    let fleet = await Fleet.findOne({ empireId, locationCoord: baseCoord }).sort({ createdAt: -1 });
-    
-    if (!fleet) {
-      const nextNum = Math.max(1, Number((empire as any).nextFleetNumber || 1));
-      const name = `Fleet ${nextNum}`;
-      
-      (empire as any).nextFleetNumber = nextNum + 1;
-      await empire.save();
-      
-      fleet = new Fleet({
-        empireId,
-        locationCoord: baseCoord,
-        name,
-        units: [],
-        sizeCredits: 0
-      });
+    // Add to fleet logic... (adapted for Supabase)
+    const baseCoord = String(item.location_coord || '');
+    const empireId = empire.id;
+
+    // Find most recent stationed fleet at this base; if none, create a new one with auto-generated name
+    const { data: existingFleets, error: fleetError } = await supabase
+      .from('fleets')
+      .select('*')
+      .eq('empire_id', empireId)
+      .eq('location_coord', baseCoord)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (fleetError) {
+      console.error('Error fetching existing fleets:', fleetError);
+      return;
     }
 
-    const key = String(item.unitKey || '');
+    let fleet = existingFleets?.[0];
+
+    if (!fleet) {
+      const nextNum = Math.max(1, Number(empire.next_fleet_number || 1));
+      const name = `Fleet ${nextNum}`;
+
+      // Increment nextFleetNumber for the empire
+      await supabase
+        .from('empires')
+        .update({ next_fleet_number: nextNum + 1 })
+        .eq('id', empire.id);
+
+      const { data: newFleet, error: createError } = await supabase
+        .from('fleets')
+        .insert({
+          empire_id: empireId,
+          location_coord: baseCoord,
+          name,
+          units: [],
+          size_credits: 0
+        })
+        .select('*')
+        .single();
+
+      if (createError) {
+        console.error('Error creating new fleet:', createError);
+        return;
+      }
+
+      fleet = newFleet;
+    }
+
+    const key = String(item.unit_key || '');
     const spec = getUnitSpec(key as any);
     const unitCredits = Number(spec?.creditsCost || 0);
-    
-    const existing = fleet.units.find(u => u.unitKey === key);
+
+    const currentUnits = fleet.units || [];
+    type UnitInfo = { unitKey: string; count: number };
+    const existing = currentUnits.find((u: UnitInfo) => u.unitKey === key);
+
+    let updatedUnits;
     if (existing) {
-      existing.count += 1;
+      updatedUnits = currentUnits.map((u: UnitInfo) =>
+        u.unitKey === key ? { ...u, count: u.count + 1 } : u
+      );
     } else {
-      fleet.units.push({ unitKey: key as any, count: 1 });
+      updatedUnits = [...currentUnits, { unitKey: key, count: 1 }];
     }
 
-    fleet.sizeCredits = Math.max(0, Number(fleet.sizeCredits || 0)) + unitCredits;
-    await fleet.save();
+    const newSizeCredits = Math.max(0, Number(fleet.size_credits || 0)) + unitCredits;
 
-    // Emit Socket.IO event
-    const unitCount = fleet.units.reduce((sum, u) => sum + u.count, 0);
-    const fleetId = (fleet._id as mongoose.Types.ObjectId).toString();
-    emitFleetUpdate(empireId.toString(), {
+    // Update fleet in database
+    const { error: fleetUpdateError } = await supabase
+      .from('fleets')
+      .update({
+        units: updatedUnits,
+        size_credits: newSizeCredits
+      })
+      .eq('id', fleet.id);
+
+    if (fleetUpdateError) {
+      console.error('Error updating fleet:', fleetUpdateError);
+      return;
+    }
+
+    // Emit Socket.IO event to notify client of fleet update
+    const unitCount = updatedUnits.reduce((sum: number, u: UnitInfo) => sum + u.count, 0);
+    const fleetId = fleet.id;
+    emitFleetUpdate(empireId, {
       fleetId,
-      locationCoord: fleet.locationCoord,
+      locationCoord: fleet.location_coord,
       name: fleet.name,
-      sizeCredits: fleet.sizeCredits,
+      sizeCredits: newSizeCredits,
       unitCount,
       unitAdded: {
         unitKey: key,
@@ -511,27 +578,44 @@ export class HybridGameLoopService {
   }
 
   private async completeTechItem(item: any): Promise<void> {
-    // Your existing tech completion logic from processTechQueue
-    const empire = await Empire.findById(item.empireId);
-    if (!empire) {
-      item.status = 'cancelled';
-      await item.save();
+    // Your existing tech completion logic adapted for Supabase
+    const { data: empire, error: empireError } = await supabase
+      .from('empires')
+      .select('*')
+      .eq('id', item.empire_id)
+      .maybeSingle();
+
+    if (empireError || !empire) {
+      // Mark as cancelled if empire is missing
+      await supabase
+        .from('tech_queues')
+        .update({ status: 'cancelled' })
+        .eq('id', item.id);
       return;
     }
 
-    const mapVal = (empire as any).techLevels as Map<string, number> | undefined;
-    const targetLevel = Math.max(1, Number((item as any).level || 1));
-    if (mapVal) {
-      const current = Number(mapVal.get(item.techKey as any) || 0);
-      mapVal.set(item.techKey as any, Math.max(current, targetLevel));
-    } else {
-      (empire as any).techLevels = new Map<string, number>([[item.techKey as any, targetLevel]]);
+    // Promote tech level to the queued target level (multi-level support)
+    const techLevels = (empire as any).tech_levels || {};
+    const targetLevel = Math.max(1, Number(item.level || 1));
+    const currentLevel = Number(techLevels[item.tech_key] || 0);
+    techLevels[item.tech_key] = Math.max(currentLevel, targetLevel);
+
+    // Update empire with new tech level
+    const { error: empireUpdateError } = await supabase
+      .from('empires')
+      .update({ tech_levels: techLevels })
+      .eq('id', empire.id);
+
+    if (empireUpdateError) {
+      console.error('Error updating empire tech levels:', empireUpdateError);
+      return;
     }
 
-    await empire.save();
-
-    item.status = 'completed';
-    await item.save();
+    // Mark queue item as completed
+    await supabase
+      .from('tech_queues')
+      .update({ status: 'completed' })
+      .eq('id', item.id);
   }
 
   // ===== REAL IMPLEMENTATIONS FROM ORIGINAL GAME LOOP =====
@@ -540,129 +624,16 @@ export class HybridGameLoopService {
    * Process technology queue completions
    */
   private async processTechQueue(): Promise<{ completed: number; cancelled: number; errors: number }> {
-    // Use Supabase service if using Supabase database
-    if (getDatabaseType() === 'supabase') {
-      return await SupabaseCompletionService.completeTechQueue();
-    }
-
-    // MongoDB path
-    let completed = 0;
-    let cancelled = 0;
-    let errors = 0;
-    try {
-      const now = new Date();
-
-      // Find all pending items that have completed
-      const dueItems = await TechQueue.find({
-        status: 'pending',
-        completesAt: { $lte: now },
-      });
-
-      for (const item of dueItems) {
-        try {
-          const empire = await Empire.findById(item.empireId);
-          if (!empire) {
-            // Mark as cancelled if empire is missing
-            item.status = 'cancelled';
-            // Defensive backfill: ensure identityKey exists for legacy docs missing it
-            {
-              const empireIdStr =
-                (item as any).empireId?.toString?.() || String((item as any).empireId || '');
-              const techKeyMissing = (item as any).techKey;
-              const levelMissing = Math.max(1, Number((item as any).level || 1));
-              if (!(item as any).identityKey && techKeyMissing) {
-                (item as any).identityKey = `${empireIdStr}:${techKeyMissing}:${levelMissing}`;
-              }
-            }
-            await item.save();
-            cancelled++;
-            console.warn(`[HybridLoop] tech cancel missingEmpire techKey=${(item as any).techKey} location=${(item as any).locationCoord}`);
-            continue;
-          }
-
-          // Promote tech level to the queued target level (multi-level support)
-          const mapVal = (empire as any).techLevels as Map<string, number> | undefined;
-          const targetLevel = Math.max(1, Number((item as any).level || 1));
-          if (mapVal) {
-            const current = Number(mapVal.get(item.techKey as any) || 0);
-            mapVal.set(item.techKey as any, Math.max(current, targetLevel));
-          } else {
-            (empire as any).techLevels = new Map<string, number>([[item.techKey as any, targetLevel]]);
-          }
-
-          await empire.save();
-
-          // Mark queue item as completed
-          item.status = 'completed';
-          // Defensive backfill: ensure identityKey exists for legacy docs
-          {
-            const empireIdStr = (empire._id as mongoose.Types.ObjectId).toString();
-            if (!(item as any).identityKey) {
-              (item as any).identityKey = `${empireIdStr}:${item.techKey}:${targetLevel}`;
-            }
-          }
-          await item.save();
-          completed++;
-
-          console.log(`[HybridLoop] tech completed key=${item.techKey} empire=${empire._id} location=${item.locationCoord} level=${(item as any).level || 1}`);
-        } catch (err) {
-          errors++;
-          console.error('Error completing tech queue item:', err);
-        }
-      }
-    } catch (error) {
-      console.error('Error processing tech queue:', error);
-    }
-    return { completed, cancelled, errors };
+    // Use Supabase service for tech queue processing
+    return await SupabaseCompletionService.completeTechQueue();
   }
 
   /**
    * Process unit queue completions
    */
   private async processUnitQueue(): Promise<{ completed: number; cancelled: number; errors: number }> {
-    // Use Supabase service if using Supabase database
-    if (getDatabaseType() === 'supabase') {
-      return await SupabaseCompletionService.completeUnitQueue();
-    }
-
-    // MongoDB path
-    let completed = 0;
-    let cancelled = 0;
-    let errors = 0;
-
-    try {
-      const now = new Date();
-
-      // Find all pending items that have completed (reduced logging for performance)
-      const dueItems = await UnitQueue.find({
-        status: 'pending',
-        completesAt: { $lte: now },
-      });
-
-      for (const item of dueItems) {
-        try {
-          const empire = await Empire.findById(item.empireId);
-          if (!empire) {
-            // Mark as cancelled if empire is missing
-            item.status = 'cancelled';
-            await item.save();
-            cancelled++;
-            console.warn(`[HybridLoop] unit cancel missingEmpire unitKey=${(item as any).unitKey} location=${(item as any).locationCoord}`);
-            continue;
-          }
-
-          // Use the existing completeUnitItem method
-          await this.completeUnitItem(item);
-          completed++;
-        } catch (err) {
-          errors++;
-          console.error('Error completing unit queue item:', err);
-        }
-      }
-    } catch (error) {
-      console.error('Error processing unit queue:', error);
-    }
-    return { completed, cancelled, errors };
+    // Use Supabase service for unit queue processing
+    return await SupabaseCompletionService.completeUnitQueue();
   }
 
   /**
@@ -691,79 +662,9 @@ export class HybridGameLoopService {
    * - For bases without an in-progress item, schedule the earliest pending waiting item using current citizen capacity
    */
   private async processDefenseQueue(): Promise<{ completed: number; activated: number; errors: number }> {
-    // Use Supabase service if using Supabase database
-    if (getDatabaseType() === 'supabase') {
-      const result = await SupabaseCompletionService.completeDefenseQueue();
-      return { completed: result.completed, activated: 0, errors: result.errors };
-    }
-
-    // MongoDB path
-    const { DefenseQueue } = await import('../models/DefenseQueue');
-    let completed = 0;
-    let activated = 0;
-    let errors = 0;
-    try {
-      const now = new Date();
-
-      // 1) Complete all due items
-      const due = await DefenseQueue.find({ status: 'pending', completesAt: { $lte: now } }).lean();
-      for (const it of due || []) {
-        try {
-          await DefenseQueue.updateOne({ _id: (it as any)._id }, { $set: { status: 'completed' } });
-          completed++;
-        } catch (e) {
-          errors++;
-          console.error('[HybridLoop] defense completion error', e);
-        }
-      }
-
-      // 2) Schedule waiting items per base that currently have no in-progress item
-      const waiting = await DefenseQueue.find({ status: 'pending', $or: [{ completesAt: { $exists: false } }, { completesAt: null }] })
-        .sort({ createdAt: 1 })
-        .lean();
-
-      // Group by base
-      const byBase = new Map<string, any[]>();
-      for (const it of waiting || []) {
-        const key = `${(it as any).empireId}:${(it as any).locationCoord}`;
-        if (!byBase.has(key)) byBase.set(key, []);
-        byBase.get(key)!.push(it);
-      }
-
-      for (const [key, items] of byBase.entries()) {
-        const [empireIdStr, baseCoord] = key.split(':');
-        // Skip if already in progress
-        const inProgress = await DefenseQueue.findOne({ empireId: new mongoose.Types.ObjectId(empireIdStr), locationCoord: baseCoord, status: 'pending', completesAt: { $gt: now } }).select('_id').lean();
-        if (inProgress) continue;
-
-        // Take earliest waiting
-        const next = items[0];
-        if (!next) continue;
-
-        try {
-          const caps = await CapacityService.getBaseCapacities(empireIdStr, baseCoord);
-          const perHour = Math.max(0, Number((caps as any)?.citizen?.value || 0));
-          if (!(perHour > 0)) continue;
-          const cost = (() => {
-            try {
-              const { getDefensesList } = require('@game/shared');
-              const spec = getDefensesList().find((d: any) => d.key === (next as any).defenseKey);
-              const c = Number(spec?.creditsCost || 0);
-              return c > 0 ? c : 100;
-            } catch { return 100; }
-          })();
-          const seconds = Math.max(60, Math.ceil((cost / perHour) * 3600));
-          await DefenseQueue.updateOne({ _id: (next as any)._id }, { $set: { startedAt: now, completesAt: new Date(now.getTime() + seconds * 1000) } });
-          activated++;
-        } catch (e) {
-          errors++;
-          console.error('[HybridLoop] defense activation error', e);
-        }
-      }
-    } catch (e) {
-      console.error('[HybridLoop] processDefenseQueue top-level error', e);
-    }
-    return { completed, activated, errors };
+    // Use Supabase service for defense queue processing
+    const result = await SupabaseCompletionService.completeDefenseQueue();
+    return { completed: result.completed, activated: 0, errors: result.errors };
   }
 
   /**
@@ -773,26 +674,40 @@ export class HybridGameLoopService {
     let completedCount = 0;
     try {
       const now = new Date();
-      
-      // Find research projects that should be completed
-      const completedProjects = await ResearchProject.find({
-        isCompleted: false,
-        $expr: {
-          $gte: ['$researchProgress', '$researchCost']
-        }
-      });
 
-      for (const project of completedProjects) {
+      // Find research projects that should be completed
+      const { data: completedProjects, error } = await supabase
+        .from('research_projects')
+        .select('*')
+        .eq('is_completed', false)
+        .filter('research_progress', 'gte', 'research_cost');
+
+      if (error) {
+        console.error('Error fetching completed research projects:', error);
+        return completedCount;
+      }
+
+      for (const project of completedProjects || []) {
         try {
-          project.isCompleted = true;
-          project.completedAt = now;
-          await project.save();
+          // Update project as completed
+          const { error: updateError } = await supabase
+            .from('research_projects')
+            .update({
+              is_completed: true,
+              completed_at: now.toISOString()
+            })
+            .eq('id', project.id);
+
+          if (updateError) {
+            console.error('Error updating research project:', updateError);
+            continue;
+          }
 
           // Apply research benefits to empire
           await this.applyResearchBenefits(project);
 
           completedCount++;
-          console.log(`[HybridLoop] research completed name="${project.name}" empire=${project.empireId}`);
+          console.log(`[HybridLoop] research completed name="${project.name}" empire=${project.empire_id}`);
         } catch (err) {
           console.error('Error finalizing research project:', err);
         }
@@ -808,8 +723,16 @@ export class HybridGameLoopService {
    */
   private async applyResearchBenefits(project: any): Promise<void> {
     try {
-      const empire = await Empire.findById(project.empireId);
-      if (!empire) return;
+      const { data: empire, error } = await supabase
+        .from('empires')
+        .select('*')
+        .eq('id', project.empire_id)
+        .maybeSingle();
+
+      if (error || !empire) {
+        console.error('Error fetching empire for research benefits:', error);
+        return;
+      }
 
       // Phase A: No direct empire.technology mutation.
       // Completed ResearchProjects contribute via EconomyService.getResearchCreditBonuses().
@@ -832,39 +755,62 @@ export class HybridGameLoopService {
     let skipped = 0;
     let errors = 0;
     try {
-      // Find pending items that are not yet scheduled (no completesAt) or not charged
-      const items = await TechQueue.find({
-        status: 'pending',
-        $or: [
-          { completesAt: { $exists: false } },
-          { completesAt: null },
-          { charged: false },
-          { charged: { $exists: false } }
-        ]
-      }).sort({ createdAt: 1 });
+      const now = new Date();
 
-      for (const item of items) {
+      // Find pending items that are not yet scheduled (no completesAt) or not charged
+      const { data: items, error } = await supabase
+        .from('tech_queues')
+        .select('*')
+        .eq('status', 'pending')
+        .or('completes_at.is.null,completes_at.eq.,charged.eq.false')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching pending tech items:', error);
+        errors++;
+        return { activated, skipped, errors };
+      }
+
+      for (const item of items || []) {
         try {
-          const empire = await Empire.findById(item.empireId);
-          if (!empire) {
-            item.status = 'cancelled';
+          const { data: empire, error: empireError } = await supabase
+            .from('empires')
+            .select('*')
+            .eq('id', item.empire_id)
+            .maybeSingle();
+
+          if (empireError || !empire) {
+            // Mark as cancelled if empire is missing
+            const { error: cancelError } = await supabase
+              .from('tech_queues')
+              .update({ status: 'cancelled' })
+              .eq('id', item.id);
+
+            if (cancelError) {
+              console.error('Error cancelling tech queue item:', cancelError);
+            }
+
             // Defensive backfill: ensure identityKey exists for legacy docs missing it
-            {
-              const empireIdStr =
-                (item as any).empireId?.toString?.() || String((item as any).empireId || '');
-              const techKeyMissing = (item as any).techKey;
-              const levelMissing = Math.max(1, Number((item as any).level || 1));
-              if (!(item as any).identityKey && techKeyMissing) {
-                (item as any).identityKey = `${empireIdStr}:${techKeyMissing}:${levelMissing}`;
+            const empireIdStr = String(item.empire_id || '');
+            const techKeyMissing = item.tech_key;
+            const levelMissing = Math.max(1, Number(item.level || 1));
+            if (!item.identity_key && techKeyMissing) {
+              const { error: updateError } = await supabase
+                .from('tech_queues')
+                .update({ identity_key: `${empireIdStr}:${techKeyMissing}:${levelMissing}` })
+                .eq('id', item.id);
+
+              if (updateError) {
+                console.error('Error updating identity_key:', updateError);
               }
             }
-            await item.save();
+
             skipped++;
             continue;
           }
 
-          const empireIdStr = (empire._id as mongoose.Types.ObjectId).toString();
-          const baseCoord = (item as any).locationCoord as string;
+          const empireIdStr = String(empire.id);
+          const baseCoord = item.location_coord as string;
 
           // Re-evaluate capacity at this base
           const { research } = await CapacityService.getBaseCapacities(empireIdStr, baseCoord);
@@ -875,13 +821,13 @@ export class HybridGameLoopService {
           }
 
           // Determine desired level and compute cost
-          const techKey = (item as any).techKey;
-          const desiredLevel = Math.max(1, Number((item as any).level || 1));
+          const techKey = item.tech_key;
+          const desiredLevel = Math.max(1, Number(item.level || 1));
           const spec = getTechSpec(techKey);
           const creditsCost = getTechCreditCostForLevel(spec, desiredLevel);
 
           // Require sufficient credits now; otherwise remain pending
-          if (empire.resources.credits < creditsCost) {
+          if (empire.credits < creditsCost) {
             skipped++;
             continue;
           }
@@ -889,18 +835,35 @@ export class HybridGameLoopService {
           // Schedule completesAt based on current capacity
           const hours = creditsCost / cap;
           const etaMinutes = Math.max(1, Math.ceil(hours * 60));
-          const now = new Date();
-          (item as any).completesAt = new Date(now.getTime() + etaMinutes * 60 * 1000);
-          (item as any).charged = true;
-          // Defensive backfill: ensure identityKey exists for legacy docs
-          if (!(item as any).identityKey) {
-            (item as any).identityKey = `${empireIdStr}:${techKey}:${desiredLevel}`;
+          const completesAt = new Date(now.getTime() + etaMinutes * 60 * 1000);
+
+          // Update queue item with scheduling info
+          const { error: updateError } = await supabase
+            .from('tech_queues')
+            .update({
+              completes_at: completesAt.toISOString(),
+              charged: true,
+              identity_key: item.identity_key || `${empireIdStr}:${techKey}:${desiredLevel}`
+            })
+            .eq('id', item.id);
+
+          if (updateError) {
+            console.error('Error updating tech queue item:', updateError);
+            errors++;
+            continue;
           }
-          await item.save();
 
           // Charge credits after successful scheduling
-          empire.resources.credits -= creditsCost;
-          await empire.save();
+          const { error: creditError } = await supabase
+            .from('empires')
+            .update({ credits: empire.credits - creditsCost })
+            .eq('id', empire.id);
+
+          if (creditError) {
+            console.error('Error deducting credits for tech:', creditError);
+            errors++;
+            continue;
+          }
 
           activated++;
           console.log(`[HybridLoop] tech activated key=${techKey} base=${baseCoord} level=${desiredLevel} etaMinutes=${etaMinutes}`);
@@ -920,48 +883,28 @@ export class HybridGameLoopService {
    * This is critical for MMO gameplay - fleets need to arrive promptly!
    */
   private async processFleetArrivals(): Promise<number> {
-    const dbType = getDatabaseType();
-    
     try {
       const currentTime = new Date();
-      
-      if (dbType === 'supabase') {
-        // Supabase path: Query arrivals from Supabase
-        const { supabase } = await import('../config/supabase');
-        const { data: arrivals, error } = await supabase
-          .from('fleet_movements')
-          .select('id')
-          .eq('status', 'travelling')
-          .lte('estimated_arrival_time', currentTime.toISOString());
 
-        if (error) {
-          console.error('Error fetching fleet arrivals from Supabase:', error);
-          return 0;
-        }
+      // Query arrivals from Supabase
+      const { data: arrivals, error } = await supabase
+        .from('fleet_movements')
+        .select('id')
+        .eq('status', 'travelling')
+        .lte('estimated_arrival_time', currentTime.toISOString());
 
-        // Process arrivals using SupabaseFleetMovementService
-        if (arrivals && arrivals.length > 0) {
-          await SupabaseFleetMovementService.processArrivals();
-          console.log(`[HybridLoop] fleet arrivals processed: ${arrivals.length} (Supabase)`);
-        }
-
-        return arrivals?.length || 0;
-      } else {
-        // MongoDB path
-        const { FleetMovement } = await import('../models/FleetMovement');
-        const arrivals = await FleetMovement.find({
-          status: 'travelling',
-          estimatedArrivalTime: { $lte: currentTime }
-        });
-
-        // Process arrivals using the existing FleetMovementService
-        if (arrivals.length > 0) {
-          await FleetMovementService.processArrivals();
-          console.log(`[HybridLoop] fleet arrivals processed: ${arrivals.length} (MongoDB)`);
-        }
-
-        return arrivals.length;
+      if (error) {
+        console.error('Error fetching fleet arrivals from Supabase:', error);
+        return 0;
       }
+
+      // Process arrivals using SupabaseFleetMovementService
+      if (arrivals && arrivals.length > 0) {
+        await SupabaseFleetMovementService.processArrivals();
+        console.log(`[HybridLoop] fleet arrivals processed: ${arrivals.length}`);
+      }
+
+      return arrivals?.length || 0;
     } catch (error) {
       console.error('Error processing fleet arrivals in hybrid loop:', error);
       return 0;

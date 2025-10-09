@@ -1,14 +1,25 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt, { SignOptions } from 'jsonwebtoken';
-import { User, UserDocument } from '../models/User';
 import { asyncHandler } from './errorHandler';
 import crypto from 'crypto';
 import { generateDeviceFingerprint, DeviceFingerprint, compareDeviceFingerprints, isSuspiciousFingerprint, sanitizeFingerprint } from '../utils/deviceFingerprint';
-import { getDatabaseType } from '../config/database';
 import { supabase } from '../config/supabase';
 
+// Supabase-compatible user interface that matches the expected structure
+export interface SupabaseUser {
+  _id: string;
+  id: string;
+  email: string;
+  username: string;
+  role: 'user' | 'admin';
+  gameProfile: {
+    startingCoordinate?: string | null;
+    empireId?: string | null;
+  };
+}
+
 export interface AuthRequest extends Request {
-  user?: UserDocument;
+  user?: SupabaseUser;
   deviceFingerprint?: DeviceFingerprint;
 }
 
@@ -138,36 +149,29 @@ export const authenticate = asyncHandler(async (req: AuthRequest, res: Response,
       });
     }
     
-    // Get user from configured database
-    let user: any = null;
-    if (getDatabaseType() === 'supabase') {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, email, username, empire_id, starting_coordinate')
-        .eq('id', decoded.userId)
-        .single();
+    // Get user from Supabase (fully migrated from MongoDB)
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, email, username, empire_id, starting_coordinate, role')
+      .eq('id', decoded.userId)
+      .single();
 
-      if (error || !data) {
-        return res.status(401).json({ success: false, error: 'Token is not valid' });
-      }
-
-      // Map Supabase row to legacy user shape expected downstream
-      user = {
-        _id: data.id,
-        id: data.id,
-        email: data.email,
-        username: data.username,
-        gameProfile: {
-          startingCoordinate: data.starting_coordinate || null,
-          empireId: data.empire_id || null,
-        },
-      };
-    } else {
-      user = await User.findById(decoded.userId).select('-passwordHash');
-      if (!user) {
-        return res.status(401).json({ success: false, error: 'Token is not valid' });
-      }
+    if (error || !data) {
+      return res.status(401).json({ success: false, error: 'Token is not valid' });
     }
+
+    // Map Supabase row to legacy user shape expected downstream
+    const user: SupabaseUser = {
+      _id: data.id,
+      id: data.id,
+      email: data.email,
+      username: data.username,
+      role: data.role,
+      gameProfile: {
+        startingCoordinate: data.starting_coordinate || null,
+        empireId: data.empire_id || null,
+      },
+    };
 
     req.user = user as any;
     req.deviceFingerprint = currentFingerprint;

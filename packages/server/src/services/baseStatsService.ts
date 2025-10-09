@@ -1,7 +1,4 @@
-import mongoose from 'mongoose';
-import { Building } from '../models/Building';
-import { Location } from '../models/Location';
-import { DefenseQueue } from '../models/DefenseQueue';
+import { supabase } from '../config/supabase';
 import {
   getBuildingSpec,
   type BuildingKey,
@@ -50,9 +47,15 @@ export interface BaseStatsDTO {
 export class BaseStatsService {
   static async getBaseStats(empireId: string, locationCoord: string): Promise<BaseStatsDTO> {
     // 1) Environment totals from Overhaul (area, etc.)
-const location = await Location.findOne({ coord: locationCoord })
-      .select('result properties.fertility')
-      .lean();
+    const { data: location, error: locationError } = await supabase
+      .from('locations')
+      .select('result')
+      .eq('coord', locationCoord)
+      .maybeSingle();
+
+    if (locationError) {
+      console.error('[BaseStatsService] Error fetching location:', locationError);
+    }
 
     const areaTotal = Math.max(0, Number((location as any)?.result?.area ?? 0));
     const fertility = Math.max(
@@ -69,12 +72,15 @@ const location = await Location.findOne({ coord: locationCoord })
     const gasResource = Math.max(0, Number((location as any)?.result?.yields?.gas ?? 0));
 
     // 2) Get all buildings for this empire at this location
-    const buildings = await Building.find({
-      empireId: new mongoose.Types.ObjectId(empireId),
-      locationCoord,
-    })
-      .select('level catalogKey isActive pendingUpgrade constructionStarted constructionCompleted')
-      .lean();
+    const { data: buildings, error: buildingsError } = await supabase
+      .from('buildings')
+      .select('level, catalog_key, is_active, pending_upgrade, construction_started, construction_completed')
+      .eq('empire_id', empireId)
+      .eq('location_coord', locationCoord);
+
+    if (buildingsError) {
+      console.error('[BaseStatsService] Error fetching buildings:', buildingsError);
+    }
 
     let areaUsed = 0;
     let areaReserved = 0;
@@ -88,10 +94,10 @@ const location = await Location.findOne({ coord: locationCoord })
     const constructionQueue: Array<{ key: string; level: number }> = [];
 
     for (const b of (buildings || [])) {
-      const isActive = (b as any).isActive === true;
-      const pendingUpgrade = (b as any).pendingUpgrade === true;
+      const isActive = (b as any).is_active === true;
+      const pendingUpgrade = (b as any).pending_upgrade === true;
       const level = Math.max(0, Number((b as any).level || 0));
-      const catalogKey = (b as any).catalogKey as BuildingKey | undefined;
+      const catalogKey = (b as any).catalog_key as BuildingKey | undefined;
 
       if (!catalogKey) {
         console.warn("[BaseStatsService] skip: missing catalogKey _id=%s", (b as any)._id?.toString?.());
@@ -103,7 +109,7 @@ const location = await Location.findOne({ coord: locationCoord })
       const popReq = Math.max(0, Number(spec.populationRequired ?? 0));
 
       const countsAsActive = (isActive || pendingUpgrade) && level > 0;
-      const isUnderConstruction = !isActive && (b as any).constructionCompleted; // queued step exists
+      const isUnderConstruction = !isActive && (b as any).construction_completed; // queued step exists
 
       if (countsAsActive) {
         // Count current active level even while upgrading (pendingUpgrade=true)
@@ -140,13 +146,16 @@ const location = await Location.findOne({ coord: locationCoord })
 
     // Incorporate completed defenses into energy (consumption/production)
     // Each completed defense queue item counts as one level of that defense at the base.
-    const completedDefenses = await DefenseQueue.find({
-      empireId: new mongoose.Types.ObjectId(empireId),
-      locationCoord,
-      status: 'completed',
-    })
-      .select('defenseKey')
-      .lean();
+    const { data: completedDefenses, error: completedDefensesError } = await supabase
+      .from('defense_queue')
+      .select('defense_key')
+      .eq('empire_id', empireId)
+      .eq('location_coord', locationCoord)
+      .eq('status', 'completed');
+
+    if (completedDefensesError) {
+      console.error('[BaseStatsService] Error fetching completed defenses:', completedDefensesError);
+    }
 
     const defenseSpecByKey = new Map<string, { energyDelta: number; name: string }>();
     for (const d of getDefensesList()) {
@@ -155,7 +164,7 @@ const location = await Location.findOne({ coord: locationCoord })
 
     const defenseCountByKey = new Map<string, number>();
     for (const it of (completedDefenses || [])) {
-      const k = String((it as any).defenseKey || '');
+      const k = String((it as any).defense_key || '');
       if (!k) continue;
       defenseCountByKey.set(k, (defenseCountByKey.get(k) || 0) + 1);
     }
@@ -191,17 +200,20 @@ const location = await Location.findOne({ coord: locationCoord })
     // Also reserve queued negative energy from scheduled defense items at this base
     try {
       const now = new Date();
-      const scheduledDefense = await DefenseQueue.find({
-        empireId: new mongoose.Types.ObjectId(empireId),
-        locationCoord,
-        status: 'pending',
-        completesAt: { $gt: now },
-      })
-        .select('defenseKey')
-        .lean();
+      const { data: scheduledDefense, error: scheduledDefenseError } = await supabase
+        .from('defense_queue')
+        .select('defense_key')
+        .eq('empire_id', empireId)
+        .eq('location_coord', locationCoord)
+        .eq('status', 'pending')
+        .gt('completes_at', now.toISOString());
+
+      if (scheduledDefenseError) {
+        console.error('[BaseStatsService] Error fetching scheduled defenses:', scheduledDefenseError);
+      }
 
       for (const it of (scheduledDefense || [])) {
-        const k = String((it as any).defenseKey || '');
+        const k = String((it as any).defense_key || '');
         if (!k) continue;
         const spec = defenseSpecByKey.get(k);
         const delta = Number(spec?.energyDelta || 0);
@@ -222,9 +234,16 @@ const location = await Location.findOne({ coord: locationCoord })
       const { Colony } = require('../models/Colony');
       const caps = await CapacityService.getBaseCapacities(empireId, locationCoord);
       citizensPerHour = Math.max(0, Number((caps as any)?.citizen?.value || 0));
-      const colony = await Colony.findOne({ empireId: new mongoose.Types.ObjectId(empireId), locationCoord })
+      const { data: colony, error: colonyError } = await supabase
+        .from('colonies')
         .select('citizens')
-        .lean();
+        .eq('empire_id', empireId)
+        .eq('location_coord', locationCoord)
+        .maybeSingle();
+
+      if (colonyError) {
+        console.error('[BaseStatsService] Error fetching colony:', colonyError);
+      }
       citizensCount = Math.max(0, Number((colony as any)?.citizens || 0));
     } catch {}
 

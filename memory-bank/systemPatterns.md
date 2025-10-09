@@ -174,6 +174,105 @@ graph TB
 
 ## Future Architecture Considerations
 
+### Route Migration Patterns (Phase 5)
+
+#### UUID Validation Strategy
+- **Pattern**: Standardized UUID format validation for Supabase primary keys
+- **Implementation**: Regex-based validation using standard UUID v4 format
+- **Code Pattern**:
+  ```typescript
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(messageId)) {
+    return res.status(400).json({
+      success: false,
+      code: 'INVALID_MESSAGE_ID',
+      message: 'Invalid message ID format'
+    });
+  }
+  ```
+- **Benefits**: Early validation prevents invalid database queries and improves security
+- **Consistency**: Applied across all routes that handle Supabase entity IDs
+
+#### Supabase Query Patterns
+
+##### Optimized Count Queries
+- **Pattern**: Use `head: true` for count-only queries to avoid data transfer
+- **Implementation**:
+  ```typescript
+  const { count, error } = await supabase
+    .from('messages')
+    .select('*', { count: 'exact', head: true })
+    .eq('to_user_id', uid);
+  ```
+- **Benefits**: Reduced bandwidth and faster response times for pagination
+
+##### Complex Authorization Queries
+- **Pattern**: Single query with multiple conditions for access control
+- **Implementation**:
+  ```typescript
+  const { data: message, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('id', messageId)
+    .or(`from_user_id.eq.${uid},to_user_id.eq.${uid}`)
+    .maybeSingle();
+  ```
+- **Benefits**: Atomic authorization check without multiple queries
+
+##### Pagination with Range Queries
+- **Pattern**: Use `range()` method for efficient pagination
+- **Implementation**:
+  ```typescript
+  const { data: messages, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('to_user_id', uid)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+  ```
+- **Benefits**: Database-level pagination for large datasets
+
+#### Authorization Security Patterns
+
+##### Dual-Role Access Control
+- **Pattern**: Verify user is either sender or recipient for message access
+- **Implementation**: OR conditions in queries ensure proper access control
+- **Security Benefit**: Prevents unauthorized access to private messages
+
+##### Operation-Specific Permissions
+- **Pattern**: Different authorization rules for different operations
+- **Examples**:
+  - Read/Mark as Read: User must be recipient
+  - Delete: User can be either sender or recipient
+  - Send: User must be authenticated sender
+- **Implementation**: Query filters enforce permissions at database level
+
+##### Input Validation Layering
+- **Pattern**: Multi-layer validation approach
+- **Layers**:
+  1. **Format Validation**: UUID format, field length, required fields
+  2. **Business Logic Validation**: User existence, message ownership
+  3. **Database Constraints**: Foreign key relationships, data integrity
+
+#### Error Handling Patterns
+
+##### Graceful Degradation
+- **Pattern**: Continue operation with partial failures when possible
+- **Implementation**: Count queries with individual error handling
+- **Example**: Return available counts even if some queries fail
+
+##### Structured Error Responses
+- **Pattern**: Consistent error response format with error codes
+- **Implementation**:
+  ```typescript
+  return res.status(400).json({
+    success: false,
+    code: 'INVALID_MESSAGE_ID',
+    message: 'Invalid message ID format'
+  });
+  ```
+- **Benefits**: Better client-side error handling and debugging
+
 ### Planned Enhancements
 - **Microservices Evolution**: Potential separation of game services into independent deployments
 - **Event Sourcing**: Historical game state reconstruction for advanced features
