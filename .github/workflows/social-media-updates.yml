@@ -56,25 +56,11 @@ jobs:
           CHANGE_TYPE="🔧 Core"
         fi
         
-        # Create tweet content
+        # Create tweet content based on event type
         if [ "${{ github.event_name }}" = "release" ]; then
-          TWEET_TEXT="🚀 New Attrition release ${{ github.event.release.tag_name }} is live!
-          
-${{ github.event.release.name }}
-
-Play now and experience the latest improvements! 🎮
-          
-#GameDev #MMO #IndieGame #Gaming"
+          TWEET_TEXT="🚀 New Attrition release ${{ github.event.release.tag_name }} is live! ${{ github.event.release.name }} - Play now and experience the latest improvements! 🎮 #GameDev #MMO #IndieGame #Gaming"
         else
-          TWEET_TEXT="$CHANGE_TYPE update pushed to Attrition! 
-          
-📝 $COMMIT_MESSAGE
-🔧 $FILES_COUNT files updated
-👨‍💻 by $COMMIT_AUTHOR
-          
-Development never stops! 💪
-          
-#GameDev #MMO #IndieGame #Coding"
+          TWEET_TEXT="$CHANGE_TYPE update pushed to Attrition! 📝 $COMMIT_MESSAGE 🔧 $FILES_COUNT files updated 👨‍💻 by $COMMIT_AUTHOR - Development never stops! 💪 #GameDev #MMO #IndieGame #Coding"
         fi
         
         echo "tweet_text<<EOF" >> $GITHUB_OUTPUT
