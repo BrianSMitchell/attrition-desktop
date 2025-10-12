@@ -6,6 +6,7 @@
  */
 
 const https = require('https');
+const crypto = require('crypto');
 
 class TwitterPoster {
   constructor() {
@@ -16,13 +17,74 @@ class TwitterPoster {
     this.accessTokenSecret = process.env.TWITTER_ACCESS_TOKEN_SECRET;
     this.bearerToken = process.env.TWITTER_BEARER_TOKEN;
     
-    if (!this.bearerToken) {
-      throw new Error('Missing Twitter API credentials. Please set TWITTER_BEARER_TOKEN environment variable.');
+    if (!this.apiKey || !this.apiKeySecret || !this.accessToken || !this.accessTokenSecret) {
+      throw new Error('Missing Twitter API credentials. Please set TWITTER_API_KEY, TWITTER_API_KEY_SECRET, TWITTER_ACCESS_TOKEN, and TWITTER_ACCESS_TOKEN_SECRET environment variables.');
     }
   }
 
   /**
-   * Posts a tweet using Twitter API v2
+   * Generate OAuth 1.0a signature for Twitter API
+   */
+  generateOAuthSignature(method, url, params) {
+    // Create parameter string
+    const sortedParams = Object.keys(params)
+      .sort()
+      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+      .join('&');
+
+    // Create signature base string
+    const signatureBaseString = [
+      method.toUpperCase(),
+      encodeURIComponent(url),
+      encodeURIComponent(sortedParams)
+    ].join('&');
+
+    // Create signing key
+    const signingKey = [
+      encodeURIComponent(this.apiKeySecret),
+      encodeURIComponent(this.accessTokenSecret)
+    ].join('&');
+
+    // Generate signature
+    const signature = crypto
+      .createHmac('sha1', signingKey)
+      .update(signatureBaseString)
+      .digest('base64');
+
+    return signature;
+  }
+
+  /**
+   * Generate OAuth 1.0a authorization header
+   */
+  generateOAuthHeader(method, url) {
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const nonce = crypto.randomBytes(16).toString('hex');
+
+    const oauthParams = {
+      oauth_consumer_key: this.apiKey,
+      oauth_token: this.accessToken,
+      oauth_signature_method: 'HMAC-SHA1',
+      oauth_timestamp: timestamp,
+      oauth_nonce: nonce,
+      oauth_version: '1.0'
+    };
+
+    // Generate signature
+    const signature = this.generateOAuthSignature(method, url, oauthParams);
+    oauthParams.oauth_signature = signature;
+
+    // Build authorization header
+    const authHeader = 'OAuth ' + Object.keys(oauthParams)
+      .sort()
+      .map(key => `${encodeURIComponent(key)}="${encodeURIComponent(oauthParams[key])}"`)
+      .join(', ');
+
+    return authHeader;
+  }
+
+  /**
+   * Posts a tweet using Twitter API v2 with OAuth 1.0a
    * @param {string} text - The tweet text
    * @returns {Promise<Object>} - Twitter API response
    */
@@ -37,12 +99,15 @@ class TwitterPoster {
       text: text
     });
 
+    const url = 'https://api.twitter.com/2/tweets';
+    const authHeader = this.generateOAuthHeader('POST', url);
+
     const options = {
       hostname: 'api.twitter.com',
       path: '/2/tweets',
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.bearerToken}`,
+        'Authorization': authHeader,
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(data)
       }
