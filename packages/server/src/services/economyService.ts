@@ -1,15 +1,12 @@
 import { supabase } from '../config/supabase';
 import { ERROR_MESSAGES } from '../constants/response-formats';
-import { DB_FIELDS } from '../../../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 import { STATUS_CODES } from '@shared/constants/magic-numbers';
 import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-
+import {
   getBuildingSpec,
   BuildingKey,
 } from '@game/shared';
-
-// Constants imports for eliminating hardcoded values
-import { ERROR_MESSAGES } from '../constants/response-formats';
 
 
 export interface EconomyBreakdown {
@@ -90,7 +87,7 @@ export class EconomyService {
 
     if (error) {
       console.error('[EconomyService] Error fetching buildings:', error);
-      return STATUS_CODES.SUCCESS;
+      return 0;
     }
 
     let totalEconomy = 0;
@@ -144,7 +141,7 @@ export class EconomyService {
     // - Query TradeRoute model for active routes
     // - Calculate income based on distance, setup cost, and route efficiency
     // - Apply any modifiers (plunder, etc.)
-    return STATUS_CODES.SUCCESS;
+    return 0;
   }
 
   /**
@@ -156,7 +153,7 @@ export class EconomyService {
     // - Check for occupied territories
     // - Apply 30% income transfer to occupier
     // - Apply unrest penalties (-10%/day, max 100% revolt)
-    return STATUS_CODES.ERROR.0;
+    return 1.0;
   }
 
   /**
@@ -168,7 +165,7 @@ export class EconomyService {
     // - Query DebrisField model for active fields
     // - Calculate salvage income based on recycler count and field size
     // - Process at hh:30 intervals
-    return STATUS_CODES.SUCCESS;
+    return 0;
   }
 
   /**
@@ -180,7 +177,7 @@ export class EconomyService {
     // - Query recent combat events
     // - Calculate loot from destroyed ships (20% of value)
     // - Calculate pillage from conquered bases
-    return STATUS_CODES.SUCCESS;
+    return 0;
   }
 
   /**
@@ -191,7 +188,7 @@ export class EconomyService {
     // TODO(Phase 3): Implement scrap system
     // - Query scrapped ships/structures
     // - Calculate scrap value (partial refund)
-    return STATUS_CODES.SUCCESS;
+    return 0;
   }
 
   /**
@@ -206,7 +203,7 @@ export class EconomyService {
 
     if (error) {
       console.error('[EconomyService] Error fetching research projects:', error);
-      return STATUS_CODES.SUCCESS;
+      return 0;
     }
 
     let creditBonus = 0;

@@ -4,17 +4,14 @@ import { validateLogin, validateRegister } from '@game/shared';
 import { ERROR_MESSAGES } from '../constants/response-formats';
 
 // Constants imports for eliminating hardcoded values
-import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
-import { ERROR_MESSAGES } from '../constants/response-formats';
-
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 import { supabase } from '../config/supabase';
 import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate, generateAccessToken, generateRefreshToken, AuthRequest, revokeToken, verifyTokenWithSecrets } from '../middleware/auth';
-import { ERROR_MESSAGES } from '../constants/response-formats';
 import { HTTP_STATUS } from '@shared/response-formats';
 import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
 import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-
+import {
   authRateLimit, 
   loginRateLimit, 
   registerRateLimit, 
@@ -28,7 +25,6 @@ import { sessionInvalidationService } from '../middleware/sessionInvalidation';
 import { ERROR_MESSAGES } from '../constants/response-formats';
 
 const router: Router = Router();
-import { ERROR_MESSAGES } from '../constants/response-formats';
 
 // Security event logging
 const logSecurityEvent = (event: string, details: any) => {

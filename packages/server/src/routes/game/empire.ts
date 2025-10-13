@@ -1,14 +1,10 @@
 import { Router, Response } from 'express';
 import { supabase } from '../../config/supabase';
-import { ERROR_MESSAGES } from '../constants/response-formats';
-
+import { ERROR_MESSAGES } from '../../constants/response-formats';
 
 // Constants imports for eliminating hardcoded values
 import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { HTTP_STATUS } from '@shared/response-formats';
-, ERROR_MESSAGES };
-
-import { supabase } from '../../config/supabase';
 import { asyncHandler } from '../../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../../middleware/auth';
 import { EmpireResolutionService } from '../../services/empire/EmpireResolutionService';

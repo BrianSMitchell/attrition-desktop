@@ -1,15 +1,11 @@
 import { Router, Response } from 'express';
 import { supabase } from '../../config/supabase';
-import { ERROR_MESSAGES } from '../constants/response-formats';
-
+import { ERROR_MESSAGES } from '../../constants/response-formats';
 
 // Constants imports for eliminating hardcoded values
 import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { HTTP_STATUS } from '@shared/response-formats';
 import { STATUS_CODES } from '@shared/constants/magic-numbers';
-, ERROR_MESSAGES };
-
-import { supabase } from '../../config/supabase';
 import { asyncHandler } from '../../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../../middleware/auth';
 import { getUnitSpec } from '@game/shared';
@@ -27,7 +23,7 @@ router.use(authenticate);
  */
 function calculateFleetSizeCredits(units: Array<{ unitKey?: string; unit_key?: string; count: number }>): number {
   if (!Array.isArray(units)) {
-    return STATUS_CODES.SUCCESS;
+    return 0;
   }
 
   let totalCredits = 0;
