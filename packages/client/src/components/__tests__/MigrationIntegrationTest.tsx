@@ -1,4 +1,7 @@
 /**
+
+import { HTTP_STATUS } from '@shared/response-formats';
+/**
  * Integration Test for Migrated Components
  * 
  * This test suite validates the functionality of migrated components
@@ -170,12 +173,12 @@ export const runMigrationTests = () => {
         expected: 'Server unreachable - check connection'
       },
       { 
-        error: { response: { status: 500 } }, 
+        error: { response: { status: HTTP_STATUS.INTERNAL_SERVER_ERROR } }, 
         networkStatus: { isOnline: true, isApiReachable: true },
         expected: 'Server error - please try again later'
       },
       { 
-        error: { response: { status: 400 } }, 
+        error: { response: { status: HTTP_STATUS.BAD_REQUEST } }, 
         networkStatus: { isOnline: true, isApiReachable: true },
         expected: 'An error occurred - please try again'
       }
@@ -304,15 +307,15 @@ export const runMigrationTests = () => {
 
 // Test component functionality without rendering
 export const testComponentLogic = () => {
-  console.group('🧪 Migration Integration Tests');
+  console.group('?? Migration Integration Tests');
   
   const results = runMigrationTests();
   
   results.forEach(result => {
     if (result.status === 'pass') {
-      console.log(`✅ ${result.name}: PASSED`);
+      console.log(`? ${result.name}: PASSED`);
     } else {
-      console.log(`❌ ${result.name}: FAILED`);
+      console.log(`? ${result.name}: FAILED`);
       if (result.error) {
         console.log(`   Error: ${result.error}`);
       }
@@ -322,12 +325,12 @@ export const testComponentLogic = () => {
   const passCount = results.filter(r => r.status === 'pass').length;
   const totalCount = results.length;
   
-  console.log(`\n📊 Results: ${passCount}/${totalCount} tests passed`);
+  console.log(`\n?? Results: ${passCount}/${totalCount} tests passed`);
   
   if (passCount === totalCount) {
-    console.log('🎉 All tests passed! Migration components are ready for production.');
+    console.log('?? All tests passed! Migration components are ready for production.');
   } else {
-    console.log('⚠️ Some tests failed. Please review the component implementations.');
+    console.log('?? Some tests failed. Please review the component implementations.');
   }
   
   console.groupEnd();

@@ -6,8 +6,12 @@ import { SyncManager } from '../SyncManager';
 import { ConnectionManager } from '../ConnectionManager';
 import { AsyncMutex } from '../AsyncMutex';
 import { CircuitBreaker } from '../CircuitBreaker';
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+
 
 // Mock dependencies
+import { HTTP_STATUS } from '@shared/response-formats';
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 vi.mock('../../tokenProvider', () => ({
   getToken: vi.fn(() => 'test-token'),
   setToken: vi.fn(),
@@ -51,7 +55,7 @@ beforeAll(() => {
   (global as any).fetch = vi.fn(() => 
     Promise.resolve({
       ok: true,
-      status: 200,
+      status: HTTP_STATUS.OK,
       json: () => Promise.resolve({ success: true }),
     })
   );
@@ -75,7 +79,7 @@ describe('Core Services Unit Tests', () => {
 
   describe('AsyncMutex', () => {
     it('should prevent concurrent execution', async () => {
-      const mutex = new AsyncMutex({ timeout: 1000 });
+      const mutex = new AsyncMutex({ timeout: TIMEOUTS.ONE_SECOND });
       const results: number[] = [];
       let counter = 0;
 
@@ -111,7 +115,7 @@ describe('Core Services Unit Tests', () => {
     });
 
     it('should handle errors in protected operations', async () => {
-      const mutex = new AsyncMutex({ timeout: 1000 });
+      const mutex = new AsyncMutex({ timeout: TIMEOUTS.ONE_SECOND });
 
       const failingTask = () => mutex.execute(async () => {
         throw new Error('Task failed');
@@ -212,7 +216,7 @@ describe('Core Services Unit Tests', () => {
     it('should check connectivity', async () => {
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
-        status: 200,
+        status: HTTP_STATUS.OK,
       } as Response);
 
       await networkManager.checkConnectivity();
@@ -223,13 +227,13 @@ describe('Core Services Unit Tests', () => {
     });
 
     it('should handle connectivity failures', async () => {
-      vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));
+      vi.mocked(fetch).mockRejectedValueOnce(new Error(ERROR_MESSAGES.NETWORK_ERROR));
 
       await networkManager.checkConnectivity();
       
       const state = networkManager.getState();
       expect(state.isApiReachable).toBe(false);
-      expect(state.error).toBe('Network error');
+      expect(state.error).toBe(ERROR_MESSAGES.NETWORK_ERROR);
     });
 
     it('should notify state changes', async () => {
@@ -293,7 +297,7 @@ describe('Core Services Unit Tests', () => {
     it('should handle failed login', async () => {
       (global as any).window.desktop.auth.login.mockResolvedValueOnce({
         success: false,
-        error: 'Invalid credentials'
+        error: ERROR_MESSAGES.INVALID_CREDENTIALS
       });
 
       const result = await authManager.login('test@example.com', 'wrong');
@@ -558,3 +562,5 @@ describe('Core Services Unit Tests', () => {
     });
   });
 });
+
+

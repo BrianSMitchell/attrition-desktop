@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Connection status component
  * Shows network and sync status indicators in the header
  */
@@ -7,6 +7,8 @@ import React from 'react';
 import { ConnectionIndicator } from '../../ui/indicators/ConnectionIndicator';
 import { SyncIndicator } from '../../ui/indicators/SyncIndicator';
 import { useEnhancedNetwork, useEnhancedSync } from '../../../stores/enhancedAppStore';
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+
 
 export const ConnectionStatus: React.FC = () => {
   const network = useEnhancedNetwork();
@@ -28,7 +30,7 @@ export const ConnectionStatus: React.FC = () => {
 
   const syncTitle =
     sync.status.state === 'error'
-      ? (sync.status.lastError || 'Sync error')
+      ? (sync.status.lastError || ERROR_MESSAGES.SYNC_ERROR)
       : sync.status.state === 'syncing'
       ? 'Flushing queued changes…'
       : 'Synced';
@@ -55,3 +57,5 @@ export const ConnectionStatus: React.FC = () => {
     </div>
   );
 };
+
+

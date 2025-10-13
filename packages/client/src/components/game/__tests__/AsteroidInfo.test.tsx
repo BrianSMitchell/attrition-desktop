@@ -4,6 +4,7 @@ import { AsteroidInfo } from '../AsteroidInfo';
 import { Location } from '../../../../../shared/src/types';
 
 // Mock DebrisIndicator component
+import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
 jest.mock('../DebrisIndicator', () => ({
   DebrisIndicator: () => <div data-testid="debris-indicator" />
 }));
@@ -21,7 +22,7 @@ describe('AsteroidInfo', () => {
       fertility: 0,
       resources: {
         metal: 100,
-        energy: 100,
+        energy: GAME_CONSTANTS.STARTING_ENERGY,
         research: 0
       }
     },

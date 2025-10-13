@@ -2,6 +2,7 @@ import { INetworkManager, NetworkState, ConnectionEventCallback, ServiceOptions 
 import { CircuitBreaker } from '../utils/CircuitBreaker';
 import { getCurrentApiConfig } from '../../utils/apiConfig';
 
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 /**
  * NetworkManager handles network connectivity monitoring without circular dependencies.
  * Uses circuit breaker pattern to prevent API hammering during outages.
@@ -89,7 +90,7 @@ export class NetworkManager implements INetworkManager {
   private async performConnectivityCheck(): Promise<void> {
     const startTime = Date.now();
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); // Reduced timeout
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUTS.THREE_SECONDS); // Reduced timeout
 
     try {
       const apiConfig = getCurrentApiConfig();

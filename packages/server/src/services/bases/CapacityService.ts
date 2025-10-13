@@ -1,14 +1,15 @@
 import { supabase } from '../../config/supabase';
 import type { BaseCapacitiesDTO, CapacityResult } from '@game/shared';
 
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 export class CapacityService {
   static async getBaseCapacities(empireId: string, coord: string): Promise<BaseCapacitiesDTO> {
     // Load active buildings for this base/empire
     const bRes = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('catalog_key, is_active, pending_upgrade, construction_completed, level')
-      .eq('empire_id', empireId)
-      .eq('location_coord', coord);
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, coord);
 
     const now = Date.now();
     const levels = new Map<string, number>();
@@ -26,7 +27,7 @@ export class CapacityService {
     // Metal yield from location
     let metalYield = 0;
     try {
-      const loc = await supabase.from('locations').select('result').eq('coord', coord).maybeSingle();
+      const loc = await supabase.from(DB_TABLES.LOCATIONS).select(DB_FIELDS.LOCATIONS.RESULT).eq('coord', coord).maybeSingle();
       metalYield = Math.max(0, Number((loc.data as any)?.result?.yields?.metal || 0));
     } catch {}
 
@@ -38,10 +39,10 @@ export class CapacityService {
     // Citizens bonus (if colony present)
     try {
       const col = await supabase
-        .from('colonies')
+        .from(DB_TABLES.COLONIES)
         .select('citizens')
-        .eq('empire_id', empireId)
-        .eq('location_coord', coord)
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, coord)
         .maybeSingle();
       const citizens = Math.max(0, Number((col.data as any)?.citizens || 0));
       // Citizen capacity per hour value mirrors legacy computeCitizen from CapacityService (sum of buildings elsewhere).

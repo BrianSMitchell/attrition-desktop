@@ -1,9 +1,13 @@
+import { DIRECTORY_PATHS } from '../../../shared/src/constants/file-paths';
+
 /**
  * Desktop API Configuration
  * 
  * Provides configuration for API connections in the desktop Electron app.
  * This is NOT a browser application - it runs embedded in Electron.
  */
+
+import { ENV_VALUES, VITE_CONFIG_KEYS, API_CONFIG_KEYS, URL_PATTERNS, HOST_VALUES } from '@shared/constants/configuration-keys';
 
 export interface ApiConfig {
   /** API base URL */
@@ -27,13 +31,13 @@ export interface ApiConfig {
  */
 function isProductionBuild(): boolean {
   // Force development mode via environment variable (highest priority)
-  const forceDevMode = import.meta.env.VITE_FORCE_DEV_MODE === 'true';
+  const forceDevMode = import.meta.env[VITE_CONFIG_KEYS.VITE_FORCE_DEV_MODE] === 'true';
   if (forceDevMode) {
     return false;
   }
   
   // Force production mode via environment variable (second priority)
-  const forceProductionMode = import.meta.env.VITE_FORCE_PRODUCTION_MODE === 'true';
+  const forceProductionMode = import.meta.env[VITE_CONFIG_KEYS.VITE_FORCE_PRODUCTION_MODE] === 'true';
   if (forceProductionMode) {
     return true;
   }
@@ -44,10 +48,10 @@ function isProductionBuild(): boolean {
     (typeof window !== 'undefined' && window.location?.href?.includes('localhost')) ||
     (typeof window !== 'undefined' && window.location?.href?.includes('127.0.0.1')) ||
     (typeof window !== 'undefined' && window.location?.href?.includes('packages/client')) ||
-    (typeof process !== 'undefined' && process.execPath?.includes('node_modules')) ||
-    (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') ||
-    import.meta.env.DEV === true ||
-    import.meta.env.MODE === 'development';
+    (typeof process !== 'undefined' && process.execPath?.includes(DIRECTORY_PATHS.NODE_MODULES)) ||
+    (typeof process !== 'undefined' && process.env?.NODE_ENV === ENV_VALUES.DEVELOPMENT) ||
+    import.meta.env[VITE_CONFIG_KEYS.VITE_META_DEV] === true ||
+    import.meta.env[VITE_CONFIG_KEYS.VITE_META_MODE] === ENV_VALUES.DEVELOPMENT;
   
   return !hasDesktopDevIndicators;
 }
@@ -57,10 +61,10 @@ function isProductionBuild(): boolean {
  * Get environment name from various sources
  */
 function getEnvironment(): string {
-  return import.meta.env.VITE_ENVIRONMENT || 
-         import.meta.env.MODE || 
+  return import.meta.env[VITE_CONFIG_KEYS.VITE_ENVIRONMENT] || 
+         import.meta.env[VITE_CONFIG_KEYS.VITE_META_MODE] || 
          (typeof process !== 'undefined' ? process.env?.NODE_ENV : undefined) || 
-         'development';
+         ENV_VALUES.DEVELOPMENT;
 }
 
 
@@ -73,15 +77,15 @@ function getApiBaseUrl(): string {
   // Desktop app API configuration
   let baseUrl: string;
   
-  if (import.meta.env.VITE_API_URL) {
-    baseUrl = import.meta.env.VITE_API_URL;
+  if (import.meta.env[VITE_CONFIG_KEYS.VITE_API_URL]) {
+    baseUrl = import.meta.env[VITE_CONFIG_KEYS.VITE_API_URL];
   } else if (isProduction) {
     // Production: Use HTTPS with configurable host
-    const productionHost = import.meta.env.VITE_PRODUCTION_HOST || 'attrition-game.onrender.com';
-    baseUrl = `https://${productionHost}/api`;
+    const productionHost = import.meta.env[VITE_CONFIG_KEYS.VITE_PRODUCTION_HOST] || 'attrition-game.onrender.com';
+    baseUrl = `${URL_PATTERNS.HTTPS_PROTOCOL}${productionHost}${URL_PATTERNS.API_PATH}`;
   } else {
     // Development: Local server
-    baseUrl = 'http://localhost:3001/api';
+    baseUrl = `${URL_PATTERNS.HTTP_PROTOCOL}${HOST_VALUES.LOCALHOST}:${HOST_VALUES.DEFAULT_API_PORT}${URL_PATTERNS.API_PATH}`;
   }
   
   return baseUrl;
@@ -96,8 +100,8 @@ function getSocketBaseUrl(apiUrl: string): string {
   
   // Ensure WebSocket URL protocol matches API URL protocol
   // This is critical for localhost development where we need ws:// not wss://
-  if (apiUrl.startsWith('http://') && !socketUrl.startsWith('http://')) {
-    return socketUrl.replace(/^https:/, 'http:');
+  if (apiUrl.startsWith(URL_PATTERNS.HTTP_PROTOCOL) && !socketUrl.startsWith(URL_PATTERNS.HTTP_PROTOCOL)) {
+    return socketUrl.replace(/^https:/, URL_PATTERNS.HTTP_PROTOCOL.slice(0, -3) + ':');
   }
   
   return socketUrl;
@@ -142,22 +146,22 @@ export function validateApiSecurity(config: ApiConfig): { isSecure: boolean; war
   let isSecure = true;
   
   // Check HTTPS usage in production
-  if (config.isProduction && !config.apiUrl.startsWith('https://')) {
+  if (config.isProduction && !config.apiUrl.startsWith(URL_PATTERNS.HTTPS_PROTOCOL)) {
     warnings.push('Using HTTP in production build - HTTPS recommended');
     isSecure = false;
   }
   
   // Check localhost usage in production
   if (config.isProduction && (
-    config.apiUrl.includes('localhost') || 
-    config.apiUrl.includes('127.0.0.1')
+    config.apiUrl.includes(URL_PATTERNS.LOCALHOST) || 
+    config.apiUrl.includes(URL_PATTERNS.LOCAL_IP)
   )) {
     warnings.push('Using localhost in production build - production server recommended');
     isSecure = false;
   }
   
   // Check WebSocket security
-  if (config.httpsEnforced && !config.socketUrl.startsWith('https://')) {
+  if (config.httpsEnforced && !config.socketUrl.startsWith(URL_PATTERNS.HTTPS_PROTOCOL)) {
     warnings.push('WebSocket URL should use HTTPS when HTTPS is enforced');
     isSecure = false;
   }
@@ -190,8 +194,8 @@ export function getCurrentApiConfig(): ApiConfig {
     if (!loggedConfigOnce) {
       loggedConfigOnce = true;
       try {
-        const forceDev = import.meta.env.VITE_FORCE_DEV_MODE === 'true';
-        const forceProd = import.meta.env.VITE_FORCE_PRODUCTION_MODE === 'true';
+        const forceDev = import.meta.env[VITE_CONFIG_KEYS.VITE_FORCE_DEV_MODE] === 'true';
+        const forceProd = import.meta.env[VITE_CONFIG_KEYS.VITE_FORCE_PRODUCTION_MODE] === 'true';
         console.log('[API] Config initialized', {
           environment: cachedConfig.environment,
           isProduction: cachedConfig.isProduction,

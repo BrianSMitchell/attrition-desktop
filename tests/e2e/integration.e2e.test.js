@@ -1,4 +1,7 @@
 const path = require('path');
+
+import { HTTP_STATUS } from '../packages/shared/src/response-formats';
+const path = require('path');
 const fs = require('fs');
 
 // Mock electron modules comprehensively
@@ -202,7 +205,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       
       expect(networkStatus.isOnline).toBe(false);
       expect(isFullyConnected).toBe(false);
-      console.log('[E2E] ✓ App correctly detected offline mode');
+      console.log('[E2E] ? App correctly detected offline mode');
 
       // 1.2 User attempts to perform action while offline
       // This would be handled by UI components that check network status
@@ -232,7 +235,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       
       expect(onlineNetworkStatus.isOnline).toBe(true);
       expect(onlineIsFullyConnected).toBe(true);
-      console.log('[E2E] ✓ App correctly detected online mode');
+      console.log('[E2E] ? App correctly detected online mode');
 
       // 2.2 User authenticates (simulating successful auth flow)
       const saveRefreshTokenHandler = ipcHandlers['tokens:saveRefresh'];
@@ -242,7 +245,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       expect(saveRefreshResult).toEqual({ ok: true });
       expect(mockKeytar.setPassword).toHaveBeenCalledWith(APP_ID, 'refresh', TEST_REFRESH_TOKEN);
       
-      console.log('[E2E] ✓ User authentication tokens stored securely');
+      console.log('[E2E] ? User authentication tokens stored securely');
 
       // Phase 3: Bootstrap and Data Synchronization
       console.log('[E2E] Phase 3: Bootstrap and data synchronization');
@@ -325,7 +328,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
         2
       );
       
-      console.log('[E2E] ✓ Bootstrap data successfully fetched and cached');
+      console.log('[E2E] ? Bootstrap data successfully fetched and cached');
 
       // Phase 4: User performs actions and events are queued
       console.log('[E2E] Phase 4: User performs actions and events are queued');
@@ -376,7 +379,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
         }
       );
       
-      console.log('[E2E] ✓ Structure build event successfully queued');
+      console.log('[E2E] ? Structure build event successfully queued');
 
       // Phase 5: Network disruption and offline queuing
       console.log('[E2E] Phase 5: Network disruption and offline queuing');
@@ -402,7 +405,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       
       expect(offlineNetworkStatus.isOnline).toBe(false);
       expect(offlineIsFullyConnected).toBe(false);
-      console.log('[E2E] ✓ App correctly detected offline mode during network disruption');
+      console.log('[E2E] ? App correctly detected offline mode during network disruption');
 
       // 5.2 User continues to queue actions while offline
       const researchEvent = {
@@ -433,7 +436,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       );
       
       expect(researchEnqueueResult).toEqual({ success: true, id: researchEventId });
-      console.log('[E2E] ✓ Research event successfully queued while offline');
+      console.log('[E2E] ? Research event successfully queued while offline');
 
       // Phase 6: Network restoration and event synchronization
       console.log('[E2E] Phase 6: Network restoration and event synchronization');
@@ -459,7 +462,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       
       expect(restoredNetworkStatus.isOnline).toBe(true);
       expect(restoredIsFullyConnected).toBe(true);
-      console.log('[E2E] ✓ Network successfully restored');
+      console.log('[E2E] ? Network successfully restored');
 
       // 6.2 Flush pending events to server
       const dequeueEventsHandler = ipcHandlers['db:events:dequeueForFlush'];
@@ -512,7 +515,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
         }
       }
       
-      console.log('[E2E] ✓ Pending events successfully flushed to server');
+      console.log('[E2E] ? Pending events successfully flushed to server');
 
       // Phase 7: Data consistency verification
       console.log('[E2E] Phase 7: Data consistency verification');
@@ -521,7 +524,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       const eventStats = eventQueueService.getEventStats();
       expect(eventStats).toBeDefined();
       expect(eventStats.totalPending).toBeGreaterThanOrEqual(0);
-      console.log('[E2E] ✓ Event statistics verified');
+      console.log('[E2E] ? Event statistics verified');
 
       // 7.2 Verify database health
       const healthHandler = ipcHandlers['db:health'];
@@ -545,7 +548,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
           fileSize: 1024
         })
       });
-      console.log('[E2E] ✓ Database health verified');
+      console.log('[E2E] ? Database health verified');
 
       // Phase 8: Graceful shutdown
       console.log('[E2E] Phase 8: Graceful shutdown');
@@ -553,9 +556,9 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       // 8.1 Simulate app shutdown
       const shutdownResult = await eventQueueService.shutdown();
       expect(shutdownResult).toBeUndefined(); // shutdown returns void
-      console.log('[E2E] ✓ Event queue service shutdown gracefully');
+      console.log('[E2E] ? Event queue service shutdown gracefully');
 
-      console.log('[E2E] ✅ Complete offline-first user journey test PASSED');
+      console.log('[E2E] ? Complete offline-first user journey test PASSED');
     }, 30000); // 30 second timeout
 
     test('should handle authentication token refresh flow', async () => {
@@ -596,7 +599,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
         'new-refresh-token'
       );
 
-      console.log('[E2E] ✅ Authentication token refresh flow test PASSED');
+      console.log('[E2E] ? Authentication token refresh flow test PASSED');
     });
 
     test('should handle bootstrap failure scenarios gracefully', async () => {
@@ -612,13 +615,13 @@ describe('Desktop App - End-to-End Integration Tests', () => {
         success: false,
         error: 'no_access_token'
       });
-      console.log('[E2E] ✓ Handled no access token scenario');
+      console.log('[E2E] ? Handled no access token scenario');
 
       // Test scenario 2: HTTP request failure
       mockKeytar.getPassword.mockResolvedValueOnce(TEST_ACCESS_TOKEN);
       global.fetch = jest.fn().mockResolvedValueOnce({
         ok: false,
-        status: 500,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
         text: jest.fn().mockResolvedValueOnce('Internal Server Error')
       });
       
@@ -626,10 +629,10 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       expect(httpFailureResult).toEqual({
         success: false,
         error: 'http_500',
-        status: 500,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
         details: 'Internal Server Error'
       });
-      console.log('[E2E] ✓ Handled HTTP request failure scenario');
+      console.log('[E2E] ? Handled HTTP request failure scenario');
 
       // Test scenario 3: Invalid JSON response
       mockKeytar.getPassword.mockResolvedValueOnce(TEST_ACCESS_TOKEN);
@@ -644,9 +647,9 @@ describe('Desktop App - End-to-End Integration Tests', () => {
         error: 'invalid_response',
         details: {}
       });
-      console.log('[E2E] ✓ Handled invalid JSON response scenario');
+      console.log('[E2E] ? Handled invalid JSON response scenario');
 
-      console.log('[E2E] ✅ Bootstrap failure scenarios test PASSED');
+      console.log('[E2E] ? Bootstrap failure scenarios test PASSED');
     });
 
     test('should handle event queue edge cases', async () => {
@@ -674,7 +677,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       const result2 = await enqueueEventHandler(null, 'structures', 'device-123', { action: 'build' }, eventOptions.dedupeKey);
       
       expect(result1.id).toBe(result2.id);
-      console.log('[E2E] ✓ Handled duplicate event prevention');
+      console.log('[E2E] ? Handled duplicate event prevention');
 
       // Test scenario 2: Event marking with errors
       const markEventFailedHandler = ipcHandlers['db:events:markFailed'];
@@ -682,7 +685,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       
       const markFailedResult = await markEventFailedHandler(null, 999, 'Test error');
       expect(markFailedResult).toEqual({ success: false, error: expect.any(String) });
-      console.log('[E2E] ✓ Handled event marking error scenario');
+      console.log('[E2E] ? Handled event marking error scenario');
 
       // Test scenario 3: Event cleanup
       const cleanupHandler = ipcHandlers['db:events:cleanup'];
@@ -690,9 +693,9 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       
       const cleanupResult = await cleanupHandler(null, 7);
       expect(cleanupResult).toEqual({ success: true, deletedRows: 5 });
-      console.log('[E2E] ✓ Handled event cleanup scenario');
+      console.log('[E2E] ? Handled event cleanup scenario');
 
-      console.log('[E2E] ✅ Event queue edge cases test PASSED');
+      console.log('[E2E] ? Event queue edge cases test PASSED');
     });
   });
 
@@ -729,7 +732,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       expect(results).toHaveLength(eventCount);
       expect(results.every(r => r.success)).toBe(true);
       
-      console.log(`[E2E] ✓ Queued ${eventCount} events in ${duration}ms (${(eventCount/duration*1000).toFixed(2)} events/sec)`);
+      console.log(`[E2E] ? Queued ${eventCount} events in ${duration}ms (${(eventCount/duration*1000).toFixed(2)} events/sec)`);
     }, 10000); // 10 second timeout
 
     test('should handle concurrent database operations', async () => {
@@ -761,7 +764,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       expect(results.slice(0, operationCount).every(r => r.success)).toBe(true);
       expect(results.slice(operationCount).every(r => r.success && r.value)).toBe(true);
       
-      console.log(`[E2E] ✓ Handled ${operationCount * 2} concurrent database operations`);
+      console.log(`[E2E] ? Handled ${operationCount * 2} concurrent database operations`);
     });
   });
 
@@ -790,7 +793,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       const successResult = await kvSetHandler(null, 'test-key', 'test-value');
       expect(successResult).toEqual({ success: true });
       
-      console.log('[E2E] ✅ Database connection failure recovery test PASSED');
+      console.log('[E2E] ? Database connection failure recovery test PASSED');
     });
 
     test('should handle network timeout scenarios gracefully', async () => {
@@ -816,7 +819,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
         details: expect.any(String)
       });
       
-      console.log('[E2E] ✅ Network timeout scenarios test PASSED');
+      console.log('[E2E] ? Network timeout scenarios test PASSED');
     });
   });
 
@@ -840,7 +843,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       const hasRefreshResult = await hasRefreshHandler();
       expect(hasRefreshResult).toEqual({ ok: true, has: true });
       
-      console.log('[E2E] ✅ Security and data integrity test PASSED');
+      console.log('[E2E] ? Security and data integrity test PASSED');
     });
 
     test('should handle SQL injection attempts safely', async () => {
@@ -859,7 +862,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       // Verify that malicious input was treated as literal strings
       expect(mockDesktopDb.setKeyValue).toHaveBeenCalledWith(maliciousKey, maliciousValue);
       
-      console.log('[E2E] ✅ SQL injection safety test PASSED');
+      console.log('[E2E] ? SQL injection safety test PASSED');
     });
   });
 
@@ -881,7 +884,7 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       expect(openResult).toBe(true);
       expect(mockShell.openExternal).toHaveBeenCalledWith(url);
       
-      console.log('[E2E] ✅ Renderer-to-main communication test PASSED');
+      console.log('[E2E] ? Renderer-to-main communication test PASSED');
     });
 
     test('should maintain consistent state between processes', async () => {
@@ -902,7 +905,8 @@ describe('Desktop App - End-to-End Integration Tests', () => {
       
       expect(getResult).toEqual({ success: true, value: testValue });
       
-      console.log('[E2E] ✅ State consistency test PASSED');
+      console.log('[E2E] ? State consistency test PASSED');
     });
   });
 });
+

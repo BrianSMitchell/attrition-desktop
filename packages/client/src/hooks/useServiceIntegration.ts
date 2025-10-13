@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { 
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
   useEnhancedAuth, 
   useEnhancedAuthActions,
   useEnhancedNetwork,
@@ -156,7 +157,7 @@ export const useServiceLifecycle = () => {
       // Add timeout to prevent hanging
       const initPromise = actions.initializeServicesInStore();
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Service initialization timeout after 30 seconds')), 30000)
+        setTimeout(() => reject(new Error('Service initialization timeout after 30 seconds')), TIMEOUTS.THIRTY_SECONDS)
       );
       
       console.log('⏳ Waiting for service initialization (30 second timeout)...');
@@ -199,7 +200,8 @@ export const useServiceToasts = () => {
   try {
     uiActions = useUIActions();
   } catch (error) {
-    // Provide fallback functions if store is not ready
+    // Silently provide fallback functions if store is not ready
+    // This prevents React errors during initialization
     uiActions = {
       addToast: () => '',
       removeToast: () => {},

@@ -1,3 +1,6 @@
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+import { HTTP_STATUS } from '../packages/shared/src/response-formats';
 const path = require('path');
 const fs = require('fs');
 
@@ -144,7 +147,7 @@ describe('Bootstrap Functionality', () => {
     test('should fail when HTTP request fails', async () => {
       global.fetch.mockResolvedValueOnce({
         ok: false,
-        status: 500,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
         text: jest.fn().mockResolvedValueOnce('Internal Server Error')
       });
       
@@ -152,7 +155,7 @@ describe('Bootstrap Functionality', () => {
       expect(result).toEqual({
         success: false,
         error: 'http_500',
-        status: 500,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
         details: 'Internal Server Error'
       });
     });
@@ -436,14 +439,14 @@ describe('Bootstrap Functionality', () => {
       
       // Mock catalog caching failure
       mockDesktopDb.setCatalog.mockImplementationOnce(() => {
-        throw new Error('Database error');
+        throw new Error(ERROR_MESSAGES.DATABASE_ERROR);
       });
       
       const result = await bootstrapHandler(null, accessToken);
       expect(result).toEqual({
         success: false,
         error: 'cache_catalog_buildings',
-        details: 'Database error'
+        details: ERROR_MESSAGES.DATABASE_ERROR
       });
     });
 
@@ -596,3 +599,6 @@ describe('Bootstrap Functionality', () => {
     });
   });
 });
+
+
+

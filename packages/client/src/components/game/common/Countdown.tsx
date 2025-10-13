@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 function formatHMS(msRemaining: number): string {
   const totalSec = Math.max(0, Math.ceil(msRemaining / 1000));
   const h = Math.floor(totalSec / 3600);
@@ -17,7 +18,7 @@ export const Countdown: React.FC<{ arrival?: string | Date | null; className?: s
 
   React.useEffect(() => {
     if (!target) return;
-    const id = window.setInterval(() => setTick((t) => (t + 1) % 1000000), 1000);
+    const id = window.setInterval(() => setTick((t) => (t + 1) % 1000000), TIMEOUTS.ONE_SECOND);
     return () => window.clearInterval(id);
   }, [target]);
 

@@ -1,6 +1,8 @@
-import React, { useCallback, useEffect } from 'react';
+﻿import React, { useCallback, useEffect } from 'react';
 import { useServiceAuth, useServiceToasts } from '../../hooks/useServiceIntegration';
 import { withAuthMigration } from '../ServiceMigrationWrapper';
+
+import { ERROR_MESSAGES } from '@shared/constants/response-formats';
 
 /**
  * Migrated Login component using service-integrated auth
@@ -20,7 +22,7 @@ const LoginComponent: React.FC<{
         addToast('success', `Welcome back, ${auth.user?.username || 'User'}!`);
         onLoginSuccess?.();
       } else {
-        const errorMessage = auth.error || 'Login failed';
+        const errorMessage = auth.error || ERROR_MESSAGES.LOGIN_FAILED;
         addToast('error', errorMessage);
         onLoginError?.(errorMessage);
       }
@@ -136,7 +138,7 @@ const LoginForm: React.FC<{
       {error && (
         <div className="error-message">
           <p>{error}</p>
-          <button type="button" onClick={onClearError}>×</button>
+          <button type="button" onClick={onClearError}>Ã—</button>
         </div>
       )}
 
@@ -279,3 +281,4 @@ export const useAuthTransitions = () => {
     hasActiveSession: auth.isAuthenticated && auth.serviceConnected,
   };
 };
+

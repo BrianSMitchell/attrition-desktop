@@ -178,5 +178,7 @@ supermemory-attrition/
 tools/python/
 tools/*.mjs
 
+# Note: examples/ directory is intentionally tracked for reference
+
 # Launcher executable (too large for git)
 packages/launcher/*.exe

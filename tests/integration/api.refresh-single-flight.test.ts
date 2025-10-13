@@ -3,6 +3,7 @@ import api, { refreshAccessToken } from "../api";
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 
 // Helper: build an AxiosError with 401 status
+import { HTTP_STATUS } from '../packages/shared/src/response-formats';
 function make401(cfg: any): any {
   const err = new axios.AxiosError(
     "Unauthorized",
@@ -10,7 +11,7 @@ function make401(cfg: any): any {
     cfg as any,
     undefined,
     {
-      status: 401,
+      status: HTTP_STATUS.UNAUTHORIZED,
       statusText: "Unauthorized",
       headers: {},
       config: cfg as any,
@@ -34,7 +35,7 @@ describe("single-flight 401 refresh and replay", () => {
     const adapter = async (c: any) => {
       if (c && c._retry401) {
         return {
-          status: 200,
+          status: HTTP_STATUS.OK,
           statusText: "OK",
           headers: {},
           config: c,
@@ -68,7 +69,7 @@ describe("single-flight 401 refresh and replay", () => {
       if (c && c._retry401) {
         // Should not get here because refresh fails
         return {
-          status: 200,
+          status: HTTP_STATUS.OK,
           statusText: "OK",
           headers: {},
           config: c,
@@ -89,8 +90,9 @@ describe("single-flight 401 refresh and replay", () => {
 
     expect(err).toBeTruthy();
     expect(err.code).toBe("UNAUTHORIZED");
-    expect(err.status).toBe(401);
+    expect(err.status).toBe(HTTP_STATUS.UNAUTHORIZED);
 
     spy.mockRestore();
   });
 });
+

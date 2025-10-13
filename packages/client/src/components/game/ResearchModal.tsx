@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Empire, ResearchProject } from '@game/shared';
 import { gameApi } from '../../stores/services/gameApi';
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
 
+
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { LAYOUT_CLASSES } from '../constants/css-constants';
 interface ResearchTemplate {
   type: 'military' | 'economic' | 'exploration';
   name: string;
@@ -163,7 +167,7 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
   // Start research project
   const handleStartResearch = async (template: ResearchTemplate) => {
     if (empire.resources.credits < template.researchCost) {
-      setError('Insufficient credits');
+      setError(ERROR_MESSAGES.INSUFFICIENT_CREDITS);
       return;
     }
 
@@ -197,11 +201,11 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
   // Get research type icon
   const getResearchIcon = (type: string) => {
     const icons: { [key: string]: string } = {
-      military: '⚔️',
-      economic: '💰',
-      exploration: '🚀'
+      military: '??',
+      economic: '??',
+      exploration: '??'
     };
-    return icons[type] || '🔬';
+    return icons[type] || '??';
   };
 
   // Get research type color
@@ -248,7 +252,7 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
     // Fetch fresh research data every 60 seconds for real-time updates
     const fetchId = setInterval(() => {
       fetchResearchProjects();
-    }, 60000);
+    }, TIMEOUTS.ONE_MINUTE);
     return () => clearInterval(fetchId);
   }, []);
 
@@ -264,7 +268,7 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
               : 'text-gray-300 hover:text-white hover:bg-gray-600'
           }`}
         >
-          🔬 Available
+          ?? Available
         </button>
         <button
           onClick={() => setActiveTab('active')}
@@ -274,7 +278,7 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
               : 'text-gray-300 hover:text-white hover:bg-gray-600'
           }`}
         >
-          ⏳ In Progress
+          ? In Progress
         </button>
         <button
           onClick={() => setActiveTab('completed')}
@@ -284,7 +288,7 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
               : 'text-gray-300 hover:text-white hover:bg-gray-600'
           }`}
         >
-          ✅ Completed
+          ? Completed
         </button>
       </div>
 
@@ -297,10 +301,10 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
 
       {/* Research Funding Display */}
       <div className="p-3 bg-gray-700 rounded-lg border border-gray-600">
-        <div className="flex items-center justify-between">
+        <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
           <span className="text-gray-300">Available Credits for Research:</span>
           <span className="text-yellow-400 font-mono text-lg">
-            💰 {empire.resources.credits.toLocaleString()}
+            ?? {empire.resources.credits.toLocaleString()}
           </span>
         </div>
         <div className="flex items-center justify-between mt-1">
@@ -343,7 +347,7 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
                           <span className={`text-xs px-2 py-1 rounded ${
                             canAfford ? 'bg-yellow-600 text-white' : 'bg-red-600 text-white'
                           }`}>
-                            💰 {template.researchCost.toLocaleString()}
+                            ?? {template.researchCost.toLocaleString()}
                           </span>
                         </div>
                         
@@ -448,7 +452,7 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
                 <div key={project._id} className="p-4 bg-green-900/20 rounded-lg border border-green-600">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-medium text-white flex items-center gap-2">
-                      ✅ {getResearchIcon(project.type)} {project.name}
+                      ? {getResearchIcon(project.type)} {project.name}
                     </h4>
                     <span className="text-xs text-green-400">
                       Completed {project.completedAt ? new Date(project.completedAt).toLocaleDateString() : 'Recently'}
@@ -458,7 +462,7 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
                   <p className="text-sm text-gray-400 mb-2">{project.description}</p>
                   
                   <div className="text-xs text-green-400">
-                    ✨ Research benefits are now active across your empire!
+                    ? Research benefits are now active across your empire!
                   </div>
                 </div>
               ))}
@@ -471,3 +475,6 @@ const ResearchModal: React.FC<ResearchModalProps> = ({ empire, onUpdate }) => {
 };
 
 export default ResearchModal;
+
+
+

@@ -3,6 +3,7 @@ import { socket } from '../../services/socket';
 import { Location } from '../../../../shared/src/types';
 
 // Mock socket service
+import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
 jest.mock('../../services/socket', () => ({
   socket: {
     emit: jest.fn(),
@@ -30,7 +31,7 @@ describe('gameStore', () => {
       fertility: 0,
       resources: {
         metal: 100,
-        energy: 100,
+        energy: GAME_CONSTANTS.STARTING_ENERGY,
         research: 0
       }
     },

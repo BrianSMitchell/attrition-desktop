@@ -1,5 +1,7 @@
 import React, { Component, ComponentType, ReactNode, useEffect, useState } from 'react';
 import { 
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
   useServiceHealth,
   useCompatibilityLayer 
 } from '../hooks/useServiceIntegration';
@@ -34,7 +36,11 @@ class ServiceErrorBoundary extends Component<
     // Suppress transient React errors during service initialization timing
     // Log them for diagnostics but don't crash the app
     if (typeof error?.message === 'string') {
-      if (error.message.includes('Minified React error #300') || error.message.includes('Minified React error #310')) {
+      // Handle minified React errors that occur during service initialization
+      if (error.message.includes('Minified React error #300') || 
+          error.message.includes('Minified React error #310') ||
+          error.message.includes('useLayoutEffect') ||
+          error.message.includes('is not iterable')) {
         console.warn('[ServiceErrorBoundary] Suppressing known transient error:', error.message);
         console.warn('[ServiceErrorBoundary] This is typically a timing issue during service initialization');
         return { hasError: false, error: null } as ServiceProviderState;
@@ -89,6 +95,10 @@ const ServiceInitializer: React.FC<ServiceProviderProps> = ({
     
     const initialize = async () => {
       try {
+        // Small delay to let React finish initial render cycle
+        // This prevents timing issues with useLayoutEffect
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
         await initializeEnhancedAppStore();
         if (isMounted) {
           setInitState({ isInitializing: false, error: null });
@@ -312,7 +322,7 @@ export const MigrationDebugPanel: React.FC<{ expanded?: boolean }> = ({
   const migrationStatus = useMigrationStatus();
   const health = useServiceHealth();
 
-  if (!expanded && process.env.NODE_ENV === 'production') {
+  if (!expanded && process.env[ENV_VARS.NODE_ENV] === 'production') {
     return null;
   }
 

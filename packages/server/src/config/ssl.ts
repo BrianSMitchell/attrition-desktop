@@ -1,9 +1,14 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 import path from 'path';
 import https from 'https';
 import crypto from 'crypto';
 import express, { Express } from 'express';
 import tls from 'tls';
+import { ENV_VARS } from '@shared/constants/env-vars';
+
+import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VALUES } from '../../../shared/src/constants/configuration-keys';
 
 /**
  * SSL Certificate Configuration Management
@@ -255,7 +260,7 @@ function validateCertificatePinning(
   }
   
   // Allow bypass in development if configured
-  if (config.bypassInDevelopment && process.env.NODE_ENV === 'development') {
+  if (config.bypassInDevelopment && process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.DEVELOPMENT) {
     console.log('🔐 Certificate pinning bypassed in development mode');
     return { isValid: true };
   }
@@ -445,7 +450,7 @@ export async function loadSSLConfig(source: CertificateSource): Promise<SSLConfi
     console.log('🔐 Loading SSL configuration...');
 
     // In development, SSL is optional unless explicitly required
-    if (process.env.NODE_ENV === 'development' && !process.env.FORCE_HTTPS) {
+    if (process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.DEVELOPMENT && !process.env[ENV_VARS.FORCE_HTTPS]) {
       console.log('⚠️  SSL disabled in development mode');
       return null;
     }
@@ -462,11 +467,11 @@ export async function loadSSLConfig(source: CertificateSource): Promise<SSLConfi
       // Enable cipher order preference (server chooses)
       honorCipherOrder: true,
       // Session management configuration
-      disableSessionResumption: process.env.TLS_DISABLE_SESSION_RESUMPTION === 'true',
-      sessionTimeout: parseInt(process.env.TLS_SESSION_TIMEOUT || '300', 10), // 5 minutes default
-      sessionCacheSize: parseInt(process.env.TLS_SESSION_CACHE_SIZE || '1024', 10),
+      disableSessionResumption: process.env[ENV_VARS.TLS_DISABLE_SESSION_RESUMPTION] === 'true',
+      sessionTimeout: parseInt(process.env[ENV_VARS.TLS_SESSION_TIMEOUT] || '300', 10), // 5 minutes default
+      sessionCacheSize: parseInt(process.env[ENV_VARS.TLS_SESSION_CACHE_SIZE] || '1024', 10),
       // OCSP stapling for enhanced certificate validation
-      ocspStapling: process.env.TLS_OCSP_STAPLING !== 'false' // Enabled by default
+      ocspStapling: process.env[ENV_VARS.TLS_OCSP_STAPLING] !== 'false' // Enabled by default
     };
 
     // Load private key
@@ -488,25 +493,25 @@ export async function loadSSLConfig(source: CertificateSource): Promise<SSLConfi
     }
 
     // Load passphrase (optional)
-    const passphrase = process.env.SSL_KEY_PASSPHRASE;
+    const passphrase = process.env[ENV_VARS.SSL_KEY_PASSPHRASE];
     if (passphrase) {
       config.passphrase = passphrase;
     }
 
     // Configure certificate pinning if enabled
-    if (process.env.TLS_CERT_PINNING_ENABLED === 'true') {
-      const pinnedCertificates = process.env.TLS_PINNED_CERTIFICATES?.split(',').map(pin => pin.trim()) || [];
-      const pinnedPublicKeys = process.env.TLS_PINNED_PUBLIC_KEYS?.split(',').map(pin => pin.trim()) || [];
+    if (process.env[ENV_VARS.TLS_CERT_PINNING_ENABLED] === 'true') {
+      const pinnedCertificates = process.env[ENV_VARS.TLS_PINNED_CERTIFICATES]?.split(',').map(pin => pin.trim()) || [];
+      const pinnedPublicKeys = process.env[ENV_VARS.TLS_PINNED_PUBLIC_KEYS]?.split(',').map(pin => pin.trim()) || [];
       
       if (pinnedCertificates.length > 0 || pinnedPublicKeys.length > 0) {
         config.certificatePinning = {
           enabled: true,
           pinnedCertificates,
           pinnedPublicKeys,
-          strictMode: process.env.TLS_CERT_PINNING_STRICT === 'true',
-          reportingUrl: process.env.TLS_CERT_PINNING_REPORT_URL,
-          maxAge: parseInt(process.env.TLS_CERT_PINNING_MAX_AGE || '2592000', 10), // 30 days default
-          includeSubdomains: process.env.TLS_CERT_PINNING_INCLUDE_SUBDOMAINS === 'true'
+          strictMode: process.env[ENV_VARS.TLS_CERT_PINNING_STRICT] === 'true',
+          reportingUrl: process.env[ENV_VARS.TLS_CERT_PINNING_REPORT_URL],
+          maxAge: parseInt(process.env[ENV_VARS.TLS_CERT_PINNING_MAX_AGE] || '2592000', 10), // 30 days default
+          includeSubdomains: process.env[ENV_VARS.TLS_CERT_PINNING_INCLUDE_SUBDOMAINS] === 'true'
         };
         
         console.log('🔒 Certificate pinning configured', {
@@ -545,7 +550,7 @@ export async function loadSSLConfig(source: CertificateSource): Promise<SSLConfi
     console.error('❌ Failed to load SSL configuration:', errorMessage);
     
     // In production, SSL errors are fatal
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION) {
       throw new Error(`SSL configuration required in production: ${errorMessage}`);
     }
     
@@ -621,7 +626,7 @@ async function validateCertificateFile(filePath: string): Promise<void> {
       const mode = stats.mode & parseInt('777', 8);
       if (mode & parseInt('044', 8)) {
         console.warn(`⚠️  Certificate file has permissive permissions: ${filePath} (${mode.toString(8)})`);
-        if (process.env.NODE_ENV === 'production') {
+        if (process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION) {
           throw new Error('Private key files should not be world-readable in production');
         }
       }
@@ -666,7 +671,7 @@ async function validateSSLConfig(config: SSLConfig): Promise<void> {
     }
 
     // Warn if certificate expires soon (within 30 days)
-    const daysUntilExpiry = Math.floor((validTo.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const daysUntilExpiry = Math.floor((validTo.getTime() - now.getTime()) / (GAME_CONSTANTS.MILLISECONDS_PER_SECOND * GAME_CONSTANTS.SECONDS_PER_MINUTE * 60 * 24));
     if (daysUntilExpiry < 30) {
       console.warn(`⚠️  SSL certificate expires in ${daysUntilExpiry} days (${validTo.toISOString()})`);
     } else {
@@ -799,9 +804,9 @@ export function createHttpsServer(app: express.Application, sslConfig: SSLConfig
 export async function getSSLConfigFromEnvironment(): Promise<SSLConfig | null> {
   const source: CertificateSource = {
     // File paths from environment variables
-    keyPath: process.env.SSL_KEY_PATH,
-    certPath: process.env.SSL_CERT_PATH,
-    caPath: process.env.SSL_CA_PATH,
+    keyPath: process.env[ENV_VARS.SSL_KEY_PATH],
+    certPath: process.env[ENV_VARS.SSL_CERT_PATH],
+    caPath: process.env[ENV_VARS.SSL_CA_PATH],
     
     // Direct certificate content from environment variables
     keyEnvVar: 'SSL_PRIVATE_KEY',

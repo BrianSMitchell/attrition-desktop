@@ -1,8 +1,10 @@
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 // Script to inspect fleets in database
 console.log('🚢 Inspecting fleets in Attrition database...\n');
 
 const mongoose = require('mongoose');
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://calmncollect:Elemnohpee11@cluster0.tglhx.mongodb.net/attrition?retryWrites=true&w=majority&appName=Cluster0";
+const MONGODB_URI = process.env[ENV_VARS.MONGODB_URI] || "mongodb+srv://calmncollect:Elemnohpee11@cluster0.tglhx.mongodb.net/attrition?retryWrites=true&w=majority&appName=Cluster0";
 
 async function inspectFleets() {
   try {

@@ -1,6 +1,7 @@
-import * as React from "react";
+﻿import * as React from "react";
 import { useUpdate } from "../../contexts/UpdateContext";
 import { useUIActions } from '../../stores/enhancedAppStore';
+import { LAYOUT_CLASSES } from '../constants/css-constants';
 
 /**
  * UpdateSettings Component
@@ -115,7 +116,7 @@ const UpdateSettings: React.FC = () => {
       </div>
 
       {/* Manual Check Button */}
-      <div className="flex items-center justify-between">
+      <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
         <div>
           <p className="text-sm font-medium text-gray-200">Manual Check</p>
           <p className="text-xs text-gray-400">Check for updates immediately</p>
@@ -141,7 +142,7 @@ const UpdateSettings: React.FC = () => {
       </div>
 
       {/* Auto-check Setting */}
-      <div className="flex items-center justify-between">
+      <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
         <div>
           <p className="text-sm font-medium text-gray-200">Automatic Updates</p>
           <p className="text-xs text-gray-400">
@@ -210,3 +211,4 @@ const UpdateSettings: React.FC = () => {
 };
 
 export default UpdateSettings;
+

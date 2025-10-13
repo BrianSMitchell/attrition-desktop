@@ -1,4 +1,9 @@
 import { supabase } from '../config/supabase';
+
+// Constants imports for eliminating hardcoded values
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+
+import { supabase } from '../config/supabase';
 import {
   getBuildingSpec,
   type BuildingKey,
@@ -40,7 +45,7 @@ export class BaseStatsService {
   static async getBaseStats(empireId: string, locationCoord: string): Promise<BaseStatsDTO> {
     // 1) Environment totals from Overhaul (area, etc.)
     const { data: location, error: locationError } = await supabase
-      .from('locations')
+      .from(DB_TABLES.LOCATIONS)
       .select('result, properties:legacy_properties')
       .eq('coord', locationCoord)
       .single();
@@ -65,10 +70,10 @@ export class BaseStatsService {
 
     // 2) Get all buildings for this empire at this location
     const { data: buildings, error: buildingsError } = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('level, catalog_key, is_active, construction_started, construction_completed')
-      .eq('empire_id', empireId)
-      .eq('location_coord', locationCoord);
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord);
 
     if (buildingsError) {
       throw new Error(`Failed to fetch buildings: ${buildingsError.message}`);

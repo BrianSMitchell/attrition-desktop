@@ -1,12 +1,14 @@
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { EconomyService } from '../src/services/economyService';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 
 dotenv.config();
 
 async function debugMetalRefineries() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI!);
+    await mongoose.connect(process.env[ENV_VARS.MONGODB_URI]!);
     console.log('=== DEBUGGING METAL REFINERIES ECONOMY ===');
     
     const empireId = '68c21deb375bbf773d02005e'; // razgak

@@ -2,10 +2,15 @@ import { defineConfig, splitVendorChunkPlugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { visualizer } from 'rollup-plugin-visualizer'
 import { fileURLToPath, URL } from 'node:url'
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { DIRECTORY_PATHS } from '../../../shared/src/constants/file-paths';
+
+
 
 // Desktop-only build configuration for Electron embedding
 export default defineConfig(({ mode }) => {
-  const isDevelopment = mode === 'development';
+  const isDevelopment = mode === ENV_VALUES.DEVELOPMENT;
   
   return {
   plugins: [
@@ -16,7 +21,7 @@ export default defineConfig(({ mode }) => {
   publicDir: '../../assets',
   base: './',
   build: {
-    outDir: 'dist',
+    outDir: DIRECTORY_PATHS.DIST,
     sourcemap: isDevelopment ? true : 'hidden', // Faster dev builds with sourcemaps
     target: 'chrome100', // Electron uses Chromium
     minify: isDevelopment ? false : 'terser', // Skip minification in dev
@@ -33,7 +38,7 @@ export default defineConfig(({ mode }) => {
       ],
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules')) {
+          if (id.includes(DIRECTORY_PATHS.NODE_MODULES)) {
             // Hand-tuned groups for heavy libs first
             // Router before react to avoid catching 'react-router' in react bucket
             if (id.includes('react-router-dom') || id.includes('react-router')) return 'vendor-router'
@@ -59,7 +64,7 @@ export default defineConfig(({ mode }) => {
             if (id.includes('/qs/') || id.includes('/punycode/') || id.includes('/url/') || id.includes('/object-assign/')) return 'vendor-legacy'
 
             // Generic split from innermost node_modules segment
-            const afterNm = id.split('node_modules')[1]
+            const afterNm = id.split(DIRECTORY_PATHS.NODE_MODULES)[1]
             if (afterNm) {
               let cleaned = afterNm.replace(/^[\\\/]*/, '')
               const segments = cleaned.split(/node_modules[\\\/]/).filter(Boolean)
@@ -83,11 +88,11 @@ export default defineConfig(({ mode }) => {
     // keep default chunkSizeWarningLimit (500k) so we can track improvements
   },
   define: {
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || mode || 'development'),
+    'process.env[ENV_VARS.NODE_ENV]': JSON.stringify(process.env[ENV_VARS.NODE_ENV] || mode || 'development'),
     'import.meta.env.DESKTOP_MODE': 'true',
-    'import.meta.env.VITE_FORCE_DEV_MODE': JSON.stringify(mode === 'development' ? 'true' : 'false'),
+    'import.meta.env.VITE_FORCE_DEV_MODE': JSON.stringify(mode === ENV_VALUES.DEVELOPMENT ? 'true' : 'false'),
     'import.meta.env.MODE': JSON.stringify(mode),
-    'import.meta.env.PROD': JSON.stringify(mode === 'production')
+    'import.meta.env.PROD': JSON.stringify(mode === ENV_VALUES.PRODUCTION)
   }
 }; // Close the return statement
 }); // Close the defineConfig

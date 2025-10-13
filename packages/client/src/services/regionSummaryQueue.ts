@@ -1,5 +1,6 @@
 import { UniverseRegionSystemsData } from './universeService';
 
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 type Task = {
   server: string;
   galaxy: number;
@@ -85,7 +86,7 @@ export class RegionSummaryQueue {
           // Success clears backoff
           this.backoffMs = 0;
           // Gentle pacing between requests
-          await this.sleep(150);
+          await this.sleep(TIMEOUTS.ULTRA_SHORT + 50);
         } catch (e: any) {
           const isRateLimit = e?.__rateLimit === true;
           const retryMs = typeof e?.__retryMs === 'number' ? e.__retryMs : 0;
@@ -106,7 +107,7 @@ export class RegionSummaryQueue {
             // Non-429 failure: mark as empty to avoid tight loops, and continue
             this.setRegionData(task.key, { systemsWithStars: [] });
             // Gentle pacing even on errors
-            await this.sleep(150);
+            await this.sleep(TIMEOUTS.ULTRA_SHORT + 50);
           }
         } finally {
           this.inFlight.delete(task.key);

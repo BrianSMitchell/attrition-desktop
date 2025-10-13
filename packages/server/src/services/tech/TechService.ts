@@ -1,13 +1,14 @@
 import { supabase } from '../../config/supabase';
 import { CapacityService } from '../bases/CapacityService';
-import { getTechnologyList, getTechSpec, canStartTechLevel, getTechCreditCostForLevel, type TechnologyKey } from '@game/shared';
+import { ERROR_MESSAGES } from '../../constants/response-formats';
 
+import { DB_FIELDS } from '../../../constants/database-fields';
 export class TechService {
   static async getTechLevels(empireId: string): Promise<Record<string, number>> {
     const { data } = await supabase
-      .from('tech_levels')
+      .from(DB_TABLES.TECH_LEVELS)
       .select('tech_key, level')
-      .eq('empire_id', empireId);
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId);
     const out: Record<string, number> = {};
     for (const row of data || []) {
       const key = String((row as any).tech_key || '');
@@ -20,11 +21,11 @@ export class TechService {
   static async getBaseLabTotal(empireId: string, coord: string): Promise<number> {
     // Sum levels of research_labs where active/effective
     const bRes = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('level, is_active, pending_upgrade, construction_completed, catalog_key')
-      .eq('empire_id', empireId)
-      .eq('location_coord', coord)
-      .eq('catalog_key', 'research_labs');
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, coord)
+      .eq(DB_FIELDS.BUILDINGS.CATALOG_KEY, 'research_labs');
     const now = Date.now();
     let total = 0;
     for (const b of bRes.data || []) {
@@ -40,7 +41,7 @@ export class TechService {
 
   static async getStatus(userId: string, empireId: string, baseCoord: string) {
     // credits
-    const eRes = await supabase.from('empires').select('credits').eq('id', empireId).maybeSingle();
+    const eRes = await supabase.from(DB_TABLES.EMPIRES).select(DB_FIELDS.EMPIRES.CREDITS).eq(DB_FIELDS.BUILDINGS.ID, empireId).maybeSingle();
     const credits = Math.max(0, Number((eRes.data as any)?.credits || 0));
 
     const [techLevels, baseLabTotal] = await Promise.all([
@@ -61,13 +62,13 @@ export class TechService {
 
   static async getQueue(empireId: string, baseCoord?: string) {
     let q = supabase
-      .from('tech_queue')
+      .from(DB_TABLES.TECH_QUEUE)
       .select('id, tech_key, level, started_at, completes_at, status, location_coord')
-      .eq('empire_id', empireId)
-      .eq('status', 'pending')
-      .order('completes_at', { ascending: true });
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'pending')
+      .order(DB_FIELDS.TECH_QUEUE.COMPLETES_AT, { ascending: true });
     if (baseCoord) {
-      q = q.eq('location_coord', baseCoord);
+      q = q.eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, baseCoord);
     }
     const { data } = await q;
     return data || [];
@@ -77,12 +78,12 @@ export class TechService {
     console.log('[SupabaseTechService.start]', { userId, empireId, baseCoord, techKey });
     
     // Ownership
-    const loc = await supabase.from('locations').select('owner_id').eq('coord', baseCoord).maybeSingle();
+    const loc = await supabase.from(DB_TABLES.LOCATIONS).select(DB_FIELDS.LOCATIONS.OWNER_ID).eq('coord', baseCoord).maybeSingle();
     console.log('[SupabaseTechService.start] Location check:', { found: !!loc.data, ownerId: loc.data?.owner_id });
     
     if (!loc.data) {
       console.log('[SupabaseTechService.start] Location not found');
-      return { success: false as const, code: 'NOT_FOUND', message: 'Location not found' };
+      return { success: false as const, code: ERROR_MESSAGES.NOT_FOUND, message: ERROR_MESSAGES.LOCATION_NOT_FOUND };
     }
     if (String(loc.data.owner_id || '') !== String(userId)) {
       console.log('[SupabaseTechService.start] Not owner:', { expected: userId, actual: loc.data.owner_id });
@@ -100,7 +101,7 @@ export class TechService {
     const desiredLevel = currentLevel + 1;
     console.log('[SupabaseTechService.start] Current/Desired level:', { currentLevel, desiredLevel });
     
-    const eRes = await supabase.from('empires').select('credits').eq('id', empireId).maybeSingle();
+    const eRes = await supabase.from(DB_TABLES.EMPIRES).select(DB_FIELDS.EMPIRES.CREDITS).eq(DB_FIELDS.BUILDINGS.ID, empireId).maybeSingle();
     const credits = Math.max(0, Number((eRes.data as any)?.credits || 0));
     console.log('[SupabaseTechService.start] Credits:', credits);
     
@@ -146,7 +147,7 @@ export class TechService {
       // Queue uncharged
       console.log('[SupabaseTechService.start] Insufficient credits, queuing research without charge');
       const insertRes = await supabase
-        .from('tech_queue')
+        .from(DB_TABLES.TECH_QUEUE)
         .insert({
           empire_id: empireId,
           location_coord: baseCoord,
@@ -177,7 +178,7 @@ export class TechService {
     // Insert queue charged and deduct credits
     console.log('[SupabaseTechService.start] Inserting tech_queue entry with ETA:', { completesAt, etaMinutes });
     const insertRes = await supabase
-      .from('tech_queue')
+      .from(DB_TABLES.TECH_QUEUE)
       .insert({
         empire_id: empireId,
         location_coord: baseCoord,
@@ -196,7 +197,7 @@ export class TechService {
     console.log('[SupabaseTechService.start] Successfully inserted tech_queue entry');
 
     console.log('[SupabaseTechService.start] Deducting credits:', { cost, newBalance: credits - cost });
-    const updateRes = await supabase.from('empires').update({ credits: credits - cost }).eq('id', empireId);
+    const updateRes = await supabase.from(DB_TABLES.EMPIRES).update({ credits: credits - cost }).eq(DB_FIELDS.BUILDINGS.ID, empireId);
     if (updateRes.error) {
       console.error('[SupabaseTechService.start] Failed to deduct credits:', updateRes.error);
       // Research was queued but credits not deducted - this is recoverable as the credit deduction
@@ -204,7 +205,7 @@ export class TechService {
     } else {
       // Log credit transaction (best effort)
       try {
-        const { CreditLedgerService } = await import('../creditLedgerService');
+        const { CreditLedgerService } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
         await CreditLedgerService.logTransaction({
           empireId,
           amount: -cost,
@@ -224,4 +225,16 @@ export class TechService {
       message: `${spec.name} research started. ETA ${etaMinutes} minute(s).`,
     };
   }
+
+  static async getRefundCredits(spec: any, level: number): Promise<number> {
+    // Calculate refund amount for cancelled research
+    // Typically would be a percentage of the full cost
+    const { getTechCreditCostForLevel } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
+    const fullCost = getTechCreditCostForLevel(spec, level);
+    // Return 80% refund for cancelled research
+    return Math.floor(fullCost * 0.8);
+  }
 }
+
+
+

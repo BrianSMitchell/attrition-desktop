@@ -3,6 +3,7 @@ import { FleetMovement, FleetRecallDTO } from '../../../services/fleetsService';
 import NetworkAwareButton from '../../ui/NetworkAwareButton';
 import { useUIActions } from '../../../stores/enhancedAppStore';
 
+import { TIMEOUTS, GAME_CONSTANTS, STATUS_CODES } from '@shared/constants/magic-numbers';
 interface FleetMovementStatusProps {
   movement: FleetMovement;
   fleetName: string;
@@ -39,12 +40,12 @@ const FleetMovementStatus: React.FC<FleetMovementStatusProps> = ({
       if (remainingMs <= 0) {
         setTimeUntilArrival(0);
       } else {
-        setTimeUntilArrival(remainingMs / (1000 * 60 * 60)); // Convert to hours
+        setTimeUntilArrival(remainingMs / (GAME_CONSTANTS.MILLISECONDS_PER_SECOND * GAME_CONSTANTS.SECONDS_PER_MINUTE * 60)); // Convert to hours
       }
     };
 
     calculateTimeRemaining();
-    const interval = setInterval(calculateTimeRemaining, 60000); // Update every minute
+    const interval = setInterval(calculateTimeRemaining, TIMEOUTS.ONE_MINUTE); // Update every minute
 
     return () => clearInterval(interval);
   }, [movement.estimatedArrivalTime, movement.status]);
@@ -136,7 +137,7 @@ const FleetMovementStatus: React.FC<FleetMovementStatusProps> = ({
   };
 
   const getProgressPercentage = (): number => {
-    if (movement.status !== 'travelling') return 0;
+    if (movement.status !== 'travelling') return STATUS_CODES.SUCCESS;
     
     const departureTime = new Date(movement.departureTime).getTime();
     const arrivalTime = new Date(movement.estimatedArrivalTime).getTime();

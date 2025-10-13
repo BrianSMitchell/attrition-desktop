@@ -1,4 +1,4 @@
-/**
+﻿/**
  * App header component
  * Contains app title, version, resources, messages, and user menu
  */
@@ -11,6 +11,7 @@ import { ResourceDisplay } from '../../ui/data-display/ResourceDisplay';
 import { useAuth } from '../../../stores/enhancedAppStore';
 import { useModalStore } from '../../../stores/modalStore';
 import { useMessageStore } from '../../../stores/messageStore';
+import { LAYOUT_CLASSES } from '../constants/css-constants';
 
 export const AppHeader: React.FC = () => {
   const auth = useAuth();
@@ -36,7 +37,7 @@ export const AppHeader: React.FC = () => {
 
   return (
     <nav className="game-nav">
-      <div className="flex items-center justify-between">
+      <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
         <div className="flex items-center space-x-4">
           <h1 className="text-xl font-bold text-blue-400">Attrition</h1>
           {appVersion && (
@@ -68,7 +69,7 @@ export const AppHeader: React.FC = () => {
                 <ResourceDisplay
                   name="credits"
                   value={auth.empire?.resources?.credits ?? 0}
-                  icon="💰"
+                  icon="ðŸ’°"
                   className="text-empire-gold"
                 />
               </button>
@@ -80,7 +81,7 @@ export const AppHeader: React.FC = () => {
             to="/messages"
             className="relative flex items-center px-3 py-1 text-sm bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors"
           >
-            <span className="mr-1">📧</span>
+            <span className="mr-1">ðŸ“§</span>
             Messages
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
@@ -96,3 +97,4 @@ export const AppHeader: React.FC = () => {
     </nav>
   );
 };
+

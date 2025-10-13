@@ -1,5 +1,7 @@
-import api, { ApiError } from "./api";
+﻿import api, { ApiError } from "./api";
 import { ApiResponse, BuildingKey, CapacityResult } from "@game/shared";
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+
 
 // Types for combined base stats + capacities
 export interface BaseStatsDTO {
@@ -74,7 +76,7 @@ export const basesService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<BasesStatsData>;
     }
   },
@@ -97,7 +99,7 @@ export const basesService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<BaseStructuresData>;
     }
   },
@@ -120,10 +122,12 @@ export const basesService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<BaseDefensesData>;
     }
   },
 };
 
 export default basesService;
+
+

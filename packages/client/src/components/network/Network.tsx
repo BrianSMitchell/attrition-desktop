@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useServiceNetwork, useServiceToasts } from '../../hooks/useServiceIntegration';
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
 
+
+import { STATUS_CODES } from '@shared/constants/magic-numbers';
 /**
  * Network status indicator component showing connection state
  */
@@ -12,11 +15,11 @@ const NetworkStatusIndicator: React.FC<{
   const network = useServiceNetwork();
   
   const getStatusIcon = () => {
-    if (!network.serviceConnected) return '⚠️';
-    if (!network.isOnline) return '🔴';
-    if (!network.isApiReachable) return '🟡';
-    if (network.isFullyConnected) return '🟢';
-    return '🟠';
+    if (!network.serviceConnected) return '??';
+    if (!network.isOnline) return '??';
+    if (!network.isApiReachable) return '??';
+    if (network.isFullyConnected) return '??';
+    return '??';
   };
 
   const getStatusText = () => {
@@ -115,7 +118,7 @@ const NetworkConnectivityChecker: React.FC<{
       await network.forceConnectivityCheck();
       addToast('info', 'Network connectivity refreshed');
     } catch (error) {
-      addToast('error', 'Failed to check network connectivity');
+      addToast('error', ERROR_MESSAGES.FAILED_TO_CHECK_NETWORK_CONNECTIVITY);
     } finally {
       setIsManuallyChecking(false);
     }
@@ -208,13 +211,13 @@ const ConnectionQualityIndicator: React.FC<{
   const network = useServiceNetwork();
 
   const getQualityLevel = () => {
-    if (!network.serviceConnected || !network.isOnline) return 0;
-    if (!network.isApiReachable) return 1;
+    if (!network.serviceConnected || !network.isOnline) return STATUS_CODES.SUCCESS;
+    if (!network.isApiReachable) return STATUS_CODES.ERROR;
     if (network.latencyMs === undefined) return 2;
     if (network.latencyMs < 100) return 4;
     if (network.latencyMs < 300) return 3;
     if (network.latencyMs < 1000) return 2;
-    return 1;
+    return STATUS_CODES.ERROR;
   };
 
   const getQualityText = (level: number) => {
@@ -283,7 +286,7 @@ export const useNetworkStateTransitions = () => {
 
     // Network went offline
     if (previousState.isOnline && !current.isOnline) {
-      addToast('error', 'Internet connection lost', { duration: 0 });
+      addToast('error', ERROR_MESSAGES.CONNECTION_LOST, { duration: 0 });
     }
 
     // API became reachable
@@ -320,3 +323,5 @@ export {
 
 // Default export
 export default NetworkStatusIndicator;
+
+

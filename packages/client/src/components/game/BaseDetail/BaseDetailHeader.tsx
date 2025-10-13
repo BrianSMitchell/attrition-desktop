@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Base detail header component
  * Shows title, back button, and base stats
  */
@@ -7,6 +7,7 @@ import React from 'react';
 import { useModalStore } from '../../../stores/modalStore';
 import { gameApi } from '../../../stores/services/gameApi';
 import { 
+import { LAYOUT_CLASSES } from '../constants/css-constants';
   getStructuresList as getBuildingsList, 
   getDefensesList,
   computeEnergyBalance,
@@ -296,13 +297,13 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
     <>
       {/* Header */}
       <div className="game-card">
-        <div className="flex items-center justify-between">
+        <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
           <div className="flex items-center space-x-4">
             <button
               onClick={onBack}
               className="text-blue-400 hover:text-blue-300 transition-colors"
             >
-              ← Back to Bases
+              â† Back to Bases
             </button>
             <h1 className="text-2xl font-bold text-empire-gold">
               {base.name} ({base.locationCoord})
@@ -322,7 +323,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                   {baseStats.area?.used?.toLocaleString()} / {baseStats.area?.total?.toLocaleString()}
                 </span>
               ) : (
-                '—'
+                'â€”'
               )
             }
             sub={
@@ -332,7 +333,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                   className="text-sm text-blue-400 hover:text-blue-300"
                   title="View detailed area usage"
                 >
-                  View breakdown ⟶
+                  View breakdown âŸ¶
                 </button>
               ) : undefined
             }
@@ -346,7 +347,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                   {(baseStats.energy?.balance ?? 0).toLocaleString()}
                 </span>
               ) : (
-                '—'
+                'â€”'
               )
             }
             sub={
@@ -356,7 +357,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                   className="text-sm text-blue-400 hover:text-blue-300"
                   title="View energy production and consumption"
                 >
-                  View breakdown ⟶
+                  View breakdown âŸ¶
                 </button>
               ) : undefined
             }
@@ -370,7 +371,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                   {baseStats.population?.used?.toLocaleString()} / {baseStats.population?.capacity?.toLocaleString()}
                 </span>
               ) : (
-                '—'
+                'â€”'
               )
             }
             sub={
@@ -380,7 +381,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                   className="text-sm text-blue-400 hover:text-blue-300"
                   title="View population usage details"
                 >
-                  View breakdown ⟶
+                  View breakdown âŸ¶
                 </button>
               ) : undefined
             }
@@ -394,7 +395,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                   {baseStats.citizens?.count?.toLocaleString?.() ?? '0'}
                 </span>
               ) : (
-                '—'
+                'â€”'
               )
             }
             sub={
@@ -410,7 +411,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                     className="text-sm text-blue-400 hover:text-blue-300"
                     title="View citizen capacity breakdown"
                   >
-                    View breakdown ⟶
+                    View breakdown âŸ¶
                   </button>
                 </div>
               ) : undefined

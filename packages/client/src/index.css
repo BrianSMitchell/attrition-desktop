@@ -16,6 +16,35 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+
+  /* Game Theme CSS Variables */
+  --game-primary-accent: #4a9;
+  --game-secondary-accent: #5ba;
+  --game-tertiary-accent: #398;
+  
+  /* Background Variables */
+  --game-dark-bg: rgba(0, 0, 0, 0.85);
+  --game-darker-bg: rgba(0, 0, 0, 0.2);
+  
+  /* Border Variables */
+  --game-subtle-border: rgba(255, 255, 255, 0.1);
+  
+  /* Text Variables */
+  --game-primary-text: #fff;
+  --game-secondary-text: #aaa;
+  --game-disabled-text: #666;
+  
+  /* Spacing Variables */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 18px;
+  
+  /* Radius Variables */
+  --radius-small: 4px;
+  --radius-medium: 8px;
+  --radius-large: 12px;
 }
 
 /* Full-viewport layout reset */

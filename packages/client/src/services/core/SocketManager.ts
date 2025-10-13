@@ -1,5 +1,9 @@
-import { io, Socket } from 'socket.io-client';
+﻿import { io, Socket } from 'socket.io-client';
 import { 
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+
   ISocketManager, 
   SocketState, 
   ServiceOptions, 
@@ -45,7 +49,7 @@ export class SocketManager implements ISocketManager {
     });
 
     this.connectionMutex = new AsyncMutex({
-      timeout: 10000,
+      timeout: TIMEOUTS.TEN_SECONDS,
       debug: this._options.enableLogging,
     });
     
@@ -268,7 +272,7 @@ export class SocketManager implements ISocketManager {
     };
 
     // Development-specific configuration
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.DEVELOPMENT) {
       socketOptions.transports = ['websocket']; // Explicit websocket only
       socketOptions.reconnection = true;
       socketOptions.reconnectionAttempts = 5;
@@ -298,7 +302,7 @@ export class SocketManager implements ISocketManager {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Socket connection timeout'));
-      }, 30000); // Increased timeout to 30 seconds
+      }, TIMEOUTS.THIRTY_SECONDS); // Increased timeout to 30 seconds
 
       const onConnect = () => {
         clearTimeout(timeout);
@@ -472,7 +476,7 @@ export class SocketManager implements ISocketManager {
       // Setup timeout
       const timeout = setTimeout(() => {
         reject(new Error('Ping timeout'));
-      }, 5000);
+      }, TIMEOUTS.FIVE_SECONDS);
       
       // Send ping
       this.socket!.emit('ping', () => {

@@ -1,8 +1,16 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { getDatabaseType } from '../config/database';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+// Constants imports for eliminating hardcoded values
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
 import { supabase } from '../config/supabase';
-import { parseCoord } from '@game/shared';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+import { DB_FIELDS } from '../../../constants/database-fields';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
 
 const onlineUserSocketCounts = new Map<string, number>();
 
@@ -20,17 +28,17 @@ export function setupSocketIO(io: Server): void {
         return next(new Error('Authentication error'));
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+      const decoded = jwt.verify(token, process.env[ENV_VARS.JWT_SECRET]!) as { userId: string };
 
       let user: any = null;
       if (getDatabaseType() === 'supabase') {
         const { data, error } = await supabase
-          .from('users')
+          .from(DB_TABLES.USERS)
           .select('id, email, username, empire_id, starting_coordinate')
-          .eq('id', decoded.userId)
+          .eq(DB_FIELDS.BUILDINGS.ID, decoded.userId)
           .single();
         if (error || !data) {
-          return next(new Error('User not found'));
+          return next(new Error(ERROR_MESSAGES.USER_NOT_FOUND));
         }
         user = {
           _id: data.id,
@@ -43,11 +51,7 @@ export function setupSocketIO(io: Server): void {
           },
         };
       } else {
-        // Mongodb handling has been removed as we're fully migrated to Supabase
-        return next(new Error('This operation is no longer supported'));
-        if (!user) {
-          return next(new Error('User not found'));
-        }
+        return next(new Error('Unsupported authentication method'));
       }
 
       socket.data.user = user;
@@ -59,7 +63,7 @@ export function setupSocketIO(io: Server): void {
 
   io.on('connection', (socket) => {
     const user = socket.data.user;
-    if (process.env.DEBUG_RESOURCES === 'true') {
+    if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
       console.log(`🔌 User ${user.username} connected via Socket.IO`);
     }
 
@@ -171,7 +175,7 @@ export function setupSocketIO(io: Server): void {
         });
       } catch {}
 
-      if (process.env.DEBUG_RESOURCES === 'true') {
+      if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
         console.log(`🔌 User ${user.username} disconnected: ${reason}`);
       }
     });
@@ -219,3 +223,5 @@ declare module 'socket.io' {
     broadcastQueueUpdate(empireId: string, baseCoord: string | null, event: string, data: any): void;
   }
 }
+
+

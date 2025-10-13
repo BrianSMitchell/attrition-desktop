@@ -1,7 +1,9 @@
-import * as React from "react";
+﻿import * as React from "react";
 import { useState, useEffect, useRef } from "react";
 import type { BuildingKey, StructureSpec } from "@game/shared";
 
+import { TIMEOUTS, GAME_CONSTANTS, STATUS_CODES } from '@shared/constants/magic-numbers';
+import { LAYOUT_CLASSES } from '../constants/css-constants';
 interface StructureConstructionProgressProps {
   /** Active construction data with level and cost info */
   activeConstruction: { 
@@ -58,7 +60,7 @@ const StructureConstructionProgress: React.FC<StructureConstructionProgressProps
     // Update every second
     progressTimerRef.current = window.setInterval(() => {
       setProgressTick((x) => x + 1);
-    }, 1000);
+    }, TIMEOUTS.ONE_SECOND);
 
     return () => {
       if (progressTimerRef.current) {
@@ -75,9 +77,9 @@ const StructureConstructionProgress: React.FC<StructureConstructionProgressProps
     
     if (diff < 1000) return "Completed";
     
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    const hours = Math.floor(diff / (GAME_CONSTANTS.MILLISECONDS_PER_SECOND * GAME_CONSTANTS.SECONDS_PER_MINUTE * 60));
+    const minutes = Math.floor((diff % (GAME_CONSTANTS.MILLISECONDS_PER_SECOND * GAME_CONSTANTS.SECONDS_PER_MINUTE * 60)) / (GAME_CONSTANTS.MILLISECONDS_PER_SECOND * GAME_CONSTANTS.SECONDS_PER_MINUTE));
+    const seconds = Math.floor((diff % (GAME_CONSTANTS.MILLISECONDS_PER_SECOND * GAME_CONSTANTS.SECONDS_PER_MINUTE)) / 1000);
     
     if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
     if (minutes > 0) return `${minutes}m ${seconds}s`;
@@ -85,7 +87,7 @@ const StructureConstructionProgress: React.FC<StructureConstructionProgressProps
   };
 
   const calculateProgress = (construction: StructureConstructionProgressProps['activeConstruction']): number => {
-    if (!construction) return 0;
+    if (!construction) return STATUS_CODES.SUCCESS;
     
     const now = Date.now();
     const end = new Date(construction.completionAt).getTime();
@@ -150,7 +152,7 @@ const StructureConstructionProgress: React.FC<StructureConstructionProgressProps
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
         <h4 className="text-sm font-semibold text-empire-gold">Structure Construction</h4>
         <div className="text-xs text-gray-400">
           Active construction
@@ -163,7 +165,7 @@ const StructureConstructionProgress: React.FC<StructureConstructionProgressProps
             <span className="font-medium">{structureName}</span>
             <span className="ml-2 text-gray-400">
               {activeConstruction.pendingUpgrade 
-                ? `(Level ${activeConstruction.currentLevel} → ${activeConstruction.targetLevel})`
+                ? `(Level ${activeConstruction.currentLevel} â†’ ${activeConstruction.targetLevel})`
                 : `(Level ${activeConstruction.targetLevel})`
               }
             </span>

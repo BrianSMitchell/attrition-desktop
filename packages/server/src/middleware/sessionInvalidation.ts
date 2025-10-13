@@ -4,6 +4,7 @@ import { Request, Response, NextFunction } from 'express';
 // import { securityMonitoring } from '../services/securityMonitoring';
 
 // Temporary type definition until the auth types file is created
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
@@ -326,6 +327,6 @@ export const sessionInvalidationMiddleware = async (
 // Clean up old data every hour
 setInterval(() => {
   sessionInvalidationService.cleanup();
-}, 3600000);
+}, TIMEOUTS.ONE_HOUR);
 
 export { sessionInvalidationService as default };

@@ -1,4 +1,4 @@
-import { computeEnergyBalance, canStartWithDelta, EnergyContextInput } from '../energyBudget';
+import { computeEnergyBalance, canStartWithDelta, EnergyContextInput } from '../../packages/shared/src/energyBudget';
 
 describe('energyBudget helper', () => {
   test('baseline only: produced=2, consumed=0, reserved=0, balance=2', () => {

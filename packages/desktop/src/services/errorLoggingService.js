@@ -1,7 +1,10 @@
-import { app } from 'electron';
+﻿import { app } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import desktopDb from '../db.js';
+import { ENV_VARS } from './packages/shared/src/constants/env-vars';
+import { ENV_VARS } from '@shared/constants/env-vars';
+
 
 // Error categories for classification
 export const ErrorCategory = {
@@ -294,12 +297,12 @@ class DesktopErrorLogger {
    */
   shouldQueueErrorForSync(entry) {
     // If explicitly enabled, queue all errors
-    if (process.env.ENABLE_ERROR_SYNC === 'true') {
+    if (process.env[ENV_VARS.ENABLE_ERROR_SYNC] === 'true') {
       return true;
     }
     
     // In production, only queue FATAL errors
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env[ENV_VARS.NODE_ENV] === 'production') {
       return entry.level === ErrorSeverity.FATAL;
     }
     

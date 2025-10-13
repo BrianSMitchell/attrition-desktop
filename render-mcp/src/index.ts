@@ -2,8 +2,13 @@ import { MCPProtocolHandler, MCPHttpTransport, MCPTool } from '@agentdb/mcp-prot
 import fetch, { Response } from 'node-fetch';
 import { config as dotenvConfig } from 'dotenv';
 import express from 'express';
+import { API_ENDPOINTS } from '../constants/api-endpoints';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+
 
 // Load environment variables
+import { HTTP_STATUS } from '../packages/shared/src/response-formats';
 dotenvConfig();
 
 const RENDER_API_URL = 'https://api.render.com/v1';
@@ -215,12 +220,12 @@ app.all('/mcp', async (req, res) => {
     res.send(response.body);
   } catch (error) {
     console.error('Error handling request:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_MESSAGES.INTERNAL_ERROR });
   }
 });
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get(API_ENDPOINTS.SYSTEM.HEALTH, (req, res) => {
   res.json({ status: 'ok', server: 'Render MCP Server' });
 });
 
@@ -235,3 +240,7 @@ app.listen(PORT, () => {
   console.log('2. List tools: POST /mcp with {"jsonrpc":"2.0","method":"tools/list","params":{},"id":"2"}');
   console.log('3. Call tool: POST /mcp with {"jsonrpc":"2.0","method":"tools/call","params":{"name":"deploy_info","arguments":{"service_id":"srv-xyz"}},"id":"3"}');
 });
+
+
+
+

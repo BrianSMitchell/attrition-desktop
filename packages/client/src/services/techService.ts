@@ -1,5 +1,7 @@
-import api, { ApiError } from "./api";
+﻿import api, { ApiError } from "./api";
 import { ApiResponse, TechnologyKey, TechnologySpec } from "@game/shared";
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+
 
 export interface TechStatusDTO {
   techLevels: Partial<Record<TechnologyKey, number>>;
@@ -35,7 +37,7 @@ export const techService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<{ catalog: TechnologySpec[] }>;
     }
   },
@@ -61,7 +63,7 @@ export const techService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<{ status: TechStatusDTO }>;
     }
   },
@@ -101,7 +103,7 @@ export const techService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<any>;
     }
   },
@@ -126,7 +128,7 @@ export const techService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<{ queue: any[] }>;
     }
   },
@@ -151,10 +153,12 @@ export const techService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<{ cancelledId: string; refundedCredits: number | null }>;
     }
   },
 };
 
 export default techService;
+
+

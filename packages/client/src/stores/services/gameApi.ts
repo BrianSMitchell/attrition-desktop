@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Game API service for the enhanced store system
  * Integrates with existing API infrastructure to provide game-specific data
  */
@@ -13,6 +13,10 @@ import structuresService from '../../services/structuresService';
 import fleetsService from '../../services/fleetsService';
 import unitsService from '../../services/unitsService';
 import { ApiResponse, TechnologySpec, TechnologyKey, DefenseSpec, StructureSpec, StructureKey as BuildingKey, DefenseKey, Empire } from '@game/shared';
+import { API_ENDPOINTS } from '../constants/api-endpoints';
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+
+
 
 // Re-export types for enhanced store
 export interface TechStatusData {
@@ -790,7 +794,7 @@ export const gameApi = {
       if (res.data.success) {
         return { success: true, data: res.data.data };
       }
-      return { success: false, error: res.data.message || 'Failed to load message summary' };
+      return { success: false, error: res.data.message || ERROR_MESSAGES.FAILED_TO_LOAD_MESSAGE_SUMMARY };
     } catch (err) {
       if (isApiErrorLike(err)) {
         return { success: false, error: err.message };
@@ -847,7 +851,7 @@ export const gameApi = {
   // Status API - for server status monitoring
   async getServerStatus(): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
-      const res = await api.get<ApiResponse<any>>('/status');
+      const res = await api.get<ApiResponse<any>>(API_ENDPOINTS.SYSTEM.STATUS);
       if (res.data.success) {
         return { success: true, data: res.data.data };
       }
@@ -860,3 +864,7 @@ export const gameApi = {
     }
   }
 };
+
+
+
+

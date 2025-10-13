@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+﻿import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useGame, useGameActions, useServiceState } from '../../stores/enhancedAppStore';
 import ModalManager from './ModalManager';
+import { LAYOUT_CLASSES } from '../constants/css-constants';
 
 
 const Dashboard: React.FC = () => {
@@ -20,7 +21,7 @@ const Dashboard: React.FC = () => {
     services.connections?.network && 
     services.connections?.socket;
   
-  console.log('🎮 Dashboard: Service state:', {
+  console.log('ðŸŽ® Dashboard: Service state:', {
     isReady: services?.isReady,
     connections: services?.connections,
     servicesReady
@@ -40,9 +41,9 @@ const Dashboard: React.FC = () => {
 
   // Load dashboard data on component mount - run only once
   useEffect(() => {
-    console.log('🎮 Dashboard: Attempting to load dashboard data...');
+    console.log('ðŸŽ® Dashboard: Attempting to load dashboard data...');
     gameActions.loadDashboard().catch(error => {
-      console.error('❌ Dashboard: Failed to load dashboard data:', error);
+      console.error('âŒ Dashboard: Failed to load dashboard data:', error);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -128,7 +129,7 @@ const Dashboard: React.FC = () => {
       {/* Welcome Header */}
       <div className="game-card">
         <h1 className="text-2xl font-bold mb-2">
-          Welcome to {dashboardData.serverInfo.name}, {dashboardData.user?.username}!
+          Welcome to {dashboardData.serverInfo?.name || 'Attrition'}, {dashboardData.user?.username}!
         </h1>
         <p className="text-gray-400">
           {dashboardData.empire
@@ -189,26 +190,31 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Territory Information */}
             <div className="game-card">
-              <h3 className="text-lg font-semibold text-green-400 mb-4">🌍 Territory & Home</h3>
+              <h3 className="text-lg font-semibold text-green-400 mb-4">ðŸŒ Territory & Home</h3>
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
                   <span className="text-gray-300">Home System:</span>
                   <span className="font-mono text-sm">{dashboardData.empire.homeSystem || 'Not set'}</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
                   <span className="text-gray-300">Territories:</span>
-                  <span className="font-mono text-sm">{dashboardData.empire.territories.length}</span>
+                  <span className="font-mono text-sm">{dashboardData.empire.territories?.length || 0}</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
                   <span className="text-gray-300">Controlled Systems:</span>
-                  <span className="font-mono text-sm">{dashboardData.empire.territories.slice(0, 3).join(', ')}{dashboardData.empire.territories.length > 3 ? '...' : ''}</span>
+                  <span className="font-mono text-sm">
+                    {dashboardData.empire.territories?.length > 0 
+                      ? `${dashboardData.empire.territories.slice(0, 3).join(', ')}${dashboardData.empire.territories.length > 3 ? '...' : ''}`
+                      : 'None'
+                    }
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* Technology Levels */}
             <div className="game-card">
-              <h3 className="text-lg font-semibold text-purple-400 mb-4">⚡ Technology</h3>
+              <h3 className="text-lg font-semibold text-purple-400 mb-4">âš¡ Technology</h3>
               <div className="space-y-2 max-h-32 overflow-y-auto">
                 {techEntries.length > 0 ? (
                   techEntries.map(([tech, level]) => (
@@ -226,7 +232,7 @@ const Dashboard: React.FC = () => {
 
           {/* Empire Statistics */}
           <div className="game-card">
-            <h3 className="text-lg font-semibold text-empire-gold mb-4">📊 Empire Statistics</h3>
+            <h3 className="text-lg font-semibold text-empire-gold mb-4">ðŸ“Š Empire Statistics</h3>
 
             <div className="text-sm divide-y divide-gray-700/60">
               <div className="flex items-center justify-between py-1.5">
@@ -235,11 +241,11 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="flex items-center justify-between py-1.5">
                 <span className="font-medium text-gray-300">Player</span>
-                <span className="font-mono">{dashboardData.user?.username ?? '—'}</span>
+                <span className="font-mono">{dashboardData.user?.username ?? 'â€”'}</span>
               </div>
               <div className="flex items-center justify-between py-1.5">
                 <span className="font-medium text-gray-300">Player ID</span>
-                <span className="font-mono">{dashboardData.user?._id ?? '—'}</span>
+                <span className="font-mono">{dashboardData.user?._id ?? 'â€”'}</span>
               </div>
               <div className="flex items-center justify-between py-1.5">
                 <span className="font-medium text-gray-300">Level</span>
@@ -276,25 +282,25 @@ const Dashboard: React.FC = () => {
         <h3 className="text-lg font-semibold mb-3 text-space-purple">Phase 3 Features - Now Available!</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
-            <h4 className="font-medium mb-2 text-green-400">🏗️ Building System</h4>
+            <h4 className="font-medium mb-2 text-green-400">ðŸ—ï¸ Building System</h4>
             <p className="text-gray-400">
               Construct mines, factories, research labs, and defense stations. Each building type provides unique benefits and can be upgraded.
             </p>
           </div>
           <div>
-            <h4 className="font-medium mb-2 text-blue-400">⚡ Resource Management</h4>
+            <h4 className="font-medium mb-2 text-blue-400">âš¡ Resource Management</h4>
             <p className="text-gray-400">
               Manage Credits, Metal, Energy, and Research points. Buildings automatically produce resources over time.
             </p>
           </div>
           <div>
-            <h4 className="font-medium mb-2 text-purple-400">� Research System</h4>
+            <h4 className="font-medium mb-2 text-purple-400">ï¿½ Research System</h4>
             <p className="text-gray-400">
               Advance your empire through Military, Economic, and Exploration technologies for powerful bonuses.
             </p>
           </div>
           <div>
-            <h4 className="font-medium mb-2 text-yellow-400">🌍 Territory Expansion</h4>
+            <h4 className="font-medium mb-2 text-yellow-400">ðŸŒ Territory Expansion</h4>
             <p className="text-gray-400">
               Colonize new worlds to expand your empire. Each territory can support multiple buildings and colonies.
             </p>
@@ -303,7 +309,7 @@ const Dashboard: React.FC = () => {
 
         <div className="mt-4 p-3 bg-blue-900/30 border border-blue-700 rounded-md">
           <p className="text-blue-200 text-sm">
-            <span className="font-medium">🎮 Real-time Gameplay:</span> Resources update automatically every minute. Buildings complete construction over time. Your empire grows even when you're offline!
+            <span className="font-medium">ðŸŽ® Real-time Gameplay:</span> Resources update automatically every minute. Buildings complete construction over time. Your empire grows even when you're offline!
           </p>
         </div>
       </div>
@@ -315,3 +321,4 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
+

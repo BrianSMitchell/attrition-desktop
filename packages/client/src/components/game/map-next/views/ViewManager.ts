@@ -2,6 +2,7 @@ import { SimpleViewport } from '../viewport/SimpleViewport';
 import { MapViewLevel, Vector2 } from '../types';
 
 // Simple helper function to check if debug mode is enabled
+import { STATUS_CODES } from '@shared/constants/magic-numbers';
 function isDebugEnabled(): boolean {
   // Simple check - return false to avoid complex import.meta issues
   return false;
@@ -64,7 +65,7 @@ export class ViewManager {
 
   public getDefaultScale(_level: MapViewLevel): number {
     // Static maps: always use scale 1
-    return 1;
+    return STATUS_CODES.ERROR;
   }
 
   public async transitionTo(

@@ -5,6 +5,7 @@ module.exports = {
     color: 'blue'
   },
 
+  rootDir: '../../',
   testEnvironment: 'node',
   testMatch: [
     '<rootDir>/tests/unit/**/*.test.ts',
@@ -12,15 +13,18 @@ module.exports = {
     '<rootDir>/tests/unit/**/*.test.js'
   ],
 
-  // Setup files
-  setupFilesAfterEnv: [
-    '<rootDir>/tests/utils/test-setup.d.ts'
-  ],
+  // Setup files - removed missing test-setup.d.ts
+  // setupFilesAfterEnv: [],
 
   // Transform configuration
   preset: 'ts-jest',
   transform: {
-    '^.+\\.(t|j)sx?$': 'ts-jest'
+    '^.+\\.(t|j)sx?$': ['ts-jest', {
+      tsconfig: {
+        lib: ['ES2017', 'DOM'],
+        target: 'ES2017'
+      }
+    }]
   },
 
   // Module resolution

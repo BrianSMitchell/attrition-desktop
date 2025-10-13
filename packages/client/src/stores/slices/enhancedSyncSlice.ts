@@ -2,6 +2,7 @@ import { StateCreator } from 'zustand';
 import { getServices } from '../../services/core';
 import { SyncState as ServiceSyncState } from '../../services/core/types';
 
+import { STATUS_CODES } from '@shared/constants/magic-numbers';
 export type SyncState = 'idle' | 'syncing' | 'error';
 
 export interface SyncStatus {
@@ -164,12 +165,12 @@ const createEnhancedSyncSlice: StateCreator<
       try {
         const services = getServices();
         if (!services.isReady()) {
-          return 0;
+          return STATUS_CODES.SUCCESS;
         }
 
         const syncManager = services.getSyncManager();
         if (!syncManager) {
-          return 0;
+          return STATUS_CODES.SUCCESS;
         }
 
         const count = await syncManager.getQueueCount();
@@ -177,7 +178,7 @@ const createEnhancedSyncSlice: StateCreator<
         return count;
       } catch (error) {
         console.error('❌ Sync: Get queue count failed:', error);
-        return 0;
+        return STATUS_CODES.SUCCESS;
       }
     },
 

@@ -1,6 +1,7 @@
 import { DebrisSystem } from '../DebrisSystem';
 import { Location, Empire } from '../../../../shared/src/types';
 
+import { TIMEOUTS, GAME_CONSTANTS } from '@shared/constants/magic-numbers';
 describe('DebrisSystem', () => {
   let debrisSystem: DebrisSystem;
   let locations: Map<string, Location>;
@@ -19,7 +20,7 @@ describe('DebrisSystem', () => {
         fertility: 0,
         resources: {
           metal: 100,
-          energy: 100,
+          energy: GAME_CONSTANTS.STARTING_ENERGY,
           research: 0
         }
       },
@@ -34,7 +35,7 @@ describe('DebrisSystem', () => {
       name: 'Test Empire',
       resources: {
         credits: 1000,
-        energy: 100
+        energy: GAME_CONSTANTS.STARTING_ENERGY
       },
       creditsRemainderMilli: 0,
       baseCount: 1,
@@ -89,7 +90,7 @@ describe('DebrisSystem', () => {
     const generationRate = location.debris!.generationRate;
 
     // Wait for 2 seconds of debris generation
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, TIMEOUTS.TWO_SECONDS));
 
     // Should have approximately 2 seconds worth of debris
     const expectedMinimum = initialAmount + (generationRate * 1.5); // Allow some wiggle room
@@ -104,7 +105,7 @@ describe('DebrisSystem', () => {
       name: 'Test Empire 2',
       resources: {
         credits: 1000,
-        energy: 100
+        energy: GAME_CONSTANTS.STARTING_ENERGY
       },
       creditsRemainderMilli: 0,
       baseCount: 1,

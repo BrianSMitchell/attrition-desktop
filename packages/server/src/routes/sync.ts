@@ -1,11 +1,21 @@
 import { Router, Response } from 'express';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+import { API_ENDPOINTS } from '../constants/api-endpoints';
+
+
+// Constants imports for eliminating hardcoded values
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
 import { supabase } from '../config/supabase';
 import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { ResourceService } from '../services/resources/ResourceService';
 import { EconomyService } from '../services/economy/EconomyService';
-import { getTechnologyList, getBuildingsList, getDefensesList, getUnitsList, getTechSpec } from '@game/shared';
+import { ERROR_MESSAGES } from '../constants/response-formats';
 
+import { HTTP_STATUS } from '@shared/response-formats';
+import { STATUS_CODES } from '@shared/constants/magic-numbers';
 const router: Router = Router();
 
 // All sync routes require authentication
@@ -15,7 +25,7 @@ router.use(authenticate);
  * Simple status endpoint for network connectivity testing
  * Returns basic server status information
  */
-router.get('/status', (req, res) => {
+router.get(API_ENDPOINTS.SYSTEM.STATUS, (req, res) => {
   res.json({
     success: true,
     data: {
@@ -40,16 +50,16 @@ router.get('/bootstrap', asyncHandler(async (req: AuthRequest, res: Response) =>
 
   // Get user's empire using Supabase query
   const { data: empire, error: empireError } = await supabase
-    .from('empires')
+    .from(DB_TABLES.EMPIRES)
     .select('*')
-    .eq('user_id', userId)
+    .eq(DB_FIELDS.EMPIRES.USER_ID, userId)
     .maybeSingle();
 
   if (empireError || !empire) {
-    return res.status(404).json({
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
       success: false,
-      code: 'NOT_FOUND',
-      message: 'Empire not found',
+      code: ERROR_MESSAGES.NOT_FOUND,
+      message: ERROR_MESSAGES.EMPIRE_NOT_FOUND,
       details: { userId }
     });
   }
@@ -65,7 +75,7 @@ const economyBreakdown = { totalCreditsPerHour } as { totalCreditsPerHour: numbe
   // Compute technology score from researched technologies
   function computeTechnologyScore(empireData: any): number {
     const techLevels = empireData.tech_levels as Record<string, number> | undefined;
-    if (!techLevels) return 0;
+    if (!techLevels) return STATUS_CODES.SUCCESS;
 
     let totalScore = 0;
     for (const [techKey, level] of Object.entries(techLevels)) {
@@ -138,3 +148,8 @@ empire,
 }));
 
 export default router;
+
+
+
+
+

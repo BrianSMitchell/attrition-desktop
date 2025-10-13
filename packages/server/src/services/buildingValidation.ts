@@ -1,5 +1,10 @@
 import { supabase } from '../config/supabase';
 
+// Constants imports for eliminating hardcoded values
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+
+import { supabase } from '../config/supabase';
+
 /**
  * Building validation helpers to ensure data consistency
  * and prevent stale pendingUpgrade flags
@@ -18,7 +23,7 @@ export class BuildingValidation {
 
     // Fetch buildings with pending upgrades from Supabase
     let query = supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('*')
       .eq('pending_upgrade', true);
 
@@ -41,7 +46,7 @@ export class BuildingValidation {
 
         // Fix the issue
         const { error: updateError } = await supabase
-          .from('buildings')
+          .from(DB_TABLES.BUILDINGS)
           .update({
             pending_upgrade: false,
             construction_started: null,
@@ -63,7 +68,7 @@ export class BuildingValidation {
 
         // Fix the issue
         const { error: updateError } = await supabase
-          .from('buildings')
+          .from(DB_TABLES.BUILDINGS)
           .update({
             pending_upgrade: false
           })
@@ -84,7 +89,7 @@ export class BuildingValidation {
    */
   static async ensureConstructionCompleted(buildingId: string): Promise<void> {
     const { data: building, error } = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('*')
       .eq('id', buildingId)
       .single();
@@ -94,7 +99,7 @@ export class BuildingValidation {
     // If construction is complete, ensure all flags are cleared
     if (building.constructionCompleted && new Date(building.constructionCompleted) < new Date()) {
       const { error: updateError } = await supabase
-        .from('buildings')
+        .from(DB_TABLES.BUILDINGS)
         .update({
           pending_upgrade: false,
           construction_started: null,
@@ -118,7 +123,7 @@ export class BuildingValidation {
   ): Promise<{ valid: boolean; reason?: string }> {
     // Check for any buildings with stale pendingUpgrade flags
     const { data: existing, error } = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('*')
       .eq('empire_id', empireId)
       .eq('location_coord', locationCoord)
@@ -135,7 +140,7 @@ export class BuildingValidation {
       if (existing.constructionCompleted && new Date(existing.constructionCompleted) < new Date()) {
         // Clean it up
         const { error: updateError } = await supabase
-          .from('buildings')
+          .from(DB_TABLES.BUILDINGS)
           .update({
             pending_upgrade: false,
             construction_started: null,

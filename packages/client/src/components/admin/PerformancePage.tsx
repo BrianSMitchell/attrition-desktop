@@ -1,4 +1,5 @@
-import * as React from 'react';
+﻿import * as React from 'react';
+import { CARD_CLASSES, LAYOUT_CLASSES } from '../constants/css-constants';
 
 const HOURS_OPTIONS = [1, 6, 24, 168]; // 1h, 6h, 24h, 7d
 
@@ -122,7 +123,7 @@ const PerformancePage: React.FC = () => {
   if (!isDesktop) {
     return (
       <div className="p-6">
-        <div className="bg-gray-800 border border-gray-700 rounded p-4">
+        <div className={CARD_CLASSES.BASIC}>
           <h2 className="text-xl font-semibold mb-2">Performance Monitoring</h2>
           <p className="text-gray-400">
             Desktop-only feature. Launch the Electron desktop app to view sync performance metrics.
@@ -136,8 +137,8 @@ const PerformancePage: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="bg-gray-800 border border-gray-700 rounded p-4">
-        <div className="flex items-center justify-between">
+      <div className={CARD_CLASSES.BASIC}>
+        <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
           <h2 className="text-xl font-semibold">Performance Monitoring</h2>
           <div className="flex items-center gap-3">
             <label className="text-sm text-gray-300">Window:</label>
@@ -185,11 +186,11 @@ const PerformancePage: React.FC = () => {
       {/* Stats overview */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gray-800 border border-gray-700 rounded p-4">
+          <div className={CARD_CLASSES.BASIC}>
             <div className="text-gray-400 text-sm">Success Rate</div>
             <div className="text-2xl font-bold">{(stats.successRate ?? 0).toFixed(1)}%</div>
           </div>
-          <div className="bg-gray-800 border border-gray-700 rounded p-4">
+          <div className={CARD_CLASSES.BASIC}>
             <div className="text-gray-400 text-sm">Avg / Median</div>
             <div className="text-2xl font-bold">
               {Math.round(stats.averageDurationMs ?? 0)}ms
@@ -198,7 +199,7 @@ const PerformancePage: React.FC = () => {
               </span>
             </div>
           </div>
-          <div className="bg-gray-800 border border-gray-700 rounded p-4">
+          <div className={CARD_CLASSES.BASIC}>
             <div className="text-gray-400 text-sm">P95 / P99</div>
             <div className="text-2xl font-bold">
               {Math.round(stats.p95DurationMs ?? 0)}ms
@@ -207,7 +208,7 @@ const PerformancePage: React.FC = () => {
               </span>
             </div>
           </div>
-          <div className="bg-gray-800 border border-gray-700 rounded p-4">
+          <div className={CARD_CLASSES.BASIC}>
             <div className="text-gray-400 text-sm">Throughput</div>
             <div className="text-2xl font-bold">
               {(stats.throughput?.operationsPerMinute ?? 0).toFixed(1)} ops/min
@@ -216,7 +217,7 @@ const PerformancePage: React.FC = () => {
               {(stats.throughput?.bytesPerSecond ?? 0).toFixed(0)} B/s
             </div>
           </div>
-          <div className="bg-gray-800 border border-gray-700 rounded p-4">
+          <div className={CARD_CLASSES.BASIC}>
             <div className="text-gray-400 text-sm">Total Operations</div>
             <div className="text-2xl font-bold">{stats.totalOperations ?? 0}</div>
           </div>
@@ -225,7 +226,7 @@ const PerformancePage: React.FC = () => {
 
       {/* Operation breakdown (minimal) */}
       {opsByType.length > 0 && (
-        <div className="bg-gray-800 border border-gray-700 rounded p-4">
+        <div className={CARD_CLASSES.BASIC}>
           <h3 className="text-lg font-semibold mb-3">Operations Breakdown</h3>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -258,7 +259,7 @@ const PerformancePage: React.FC = () => {
 
       {/* Error distribution */}
       {stats?.errorDistribution && Object.keys(stats.errorDistribution).length > 0 && (
-        <div className="bg-gray-800 border border-gray-700 rounded p-4">
+        <div className={CARD_CLASSES.BASIC}>
           <h3 className="text-lg font-semibold mb-3">Error Distribution</h3>
           <ul className="list-disc ml-6 text-sm text-gray-300">
             {Object.entries(stats.errorDistribution as Record<string, number>).map(([err, count]) => (
@@ -331,7 +332,7 @@ const ThresholdsPanel: React.FC<{
   };
 
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded p-4">
+    <div className={CARD_CLASSES.BASIC}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold">Thresholds & Breaches</h3>
         <div className="text-sm text-gray-300">
@@ -426,7 +427,7 @@ const ThresholdsPanel: React.FC<{
           className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
           disabled={saving}
         >
-          {saving ? 'Saving…' : 'Save Thresholds'}
+          {saving ? 'Savingâ€¦' : 'Save Thresholds'}
         </button>
         <button
           onClick={onReload}
@@ -440,3 +441,4 @@ const ThresholdsPanel: React.FC<{
 };
 
 export default PerformancePage;
+

@@ -1,5 +1,9 @@
 import errorLogger from './errorLoggingService.js';
 import { createPinnedHttpsAgent } from './certificatePinning.js';
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ENV_VARS } from './packages/shared/src/constants/env-vars';
+
+
 
 /**
  * Secure HTTP client with SSL validation, timeout, robust parsing, and normalized error mapping.
@@ -35,11 +39,11 @@ export async function httpRequest({ url, method = 'GET', headers = {}, body, tim
   } catch {}
 
   // SSL validation configuration
-  const shouldValidateSsl = validateSsl !== undefined ? validateSsl : (process.env.NODE_ENV === 'production');
+  const shouldValidateSsl = validateSsl !== undefined ? validateSsl : (process.env[ENV_VARS.NODE_ENV] === 'production');
   
   // Add security headers for HTTPS requests in production
   const secureHeaders = { ...headers };
-  if (isHttps && process.env.NODE_ENV === 'production') {
+  if (isHttps && process.env[ENV_VARS.NODE_ENV] === 'production') {
     secureHeaders['User-Agent'] = secureHeaders['User-Agent'] || 'AttritionDesktop/1.0.0';
     secureHeaders['Accept'] = secureHeaders['Accept'] || 'application/json';
     // Add CSRF protection header for state-changing requests
@@ -50,7 +54,7 @@ export async function httpRequest({ url, method = 'GET', headers = {}, body, tim
   
   // Create HTTPS agent with certificate pinning for production
   let agent;
-  if (isHttps && process.env.NODE_ENV === 'production') {
+  if (isHttps && process.env[ENV_VARS.NODE_ENV] === 'production') {
     try {
       const hostname = new URL(url).hostname;
       agent = createPinnedHttpsAgent(hostname);
@@ -120,7 +124,7 @@ export async function httpRequest({ url, method = 'GET', headers = {}, body, tim
     
     // Enhanced error categorization for HTTPS/SSL issues
     let code = 'NETWORK_UNAVAILABLE';
-    let message = 'Network error';
+    let message = ERROR_MESSAGES.NETWORK_ERROR;
     
     if (aborted) {
       code = 'TIMEOUT';
@@ -154,3 +158,5 @@ export async function httpRequest({ url, method = 'GET', headers = {}, body, tim
     clearTimeout(timer);
   }
 }
+
+

@@ -1,3 +1,5 @@
+﻿import { API_ENDPOINTS } from '../constants/api-endpoints';
+
 /**
  * Simple Citizens Per Hour Test - API Based
  * 
@@ -65,7 +67,7 @@ async function testServerHealth() {
   console.log('🔍 Checking server health...');
   
   try {
-    const response = await makeRequest('GET', '/health');
+    const response = await makeRequest('GET', API_ENDPOINTS.SYSTEM.HEALTH);
     if (response.status === 200) {
       console.log('✅ Server is running');
       return true;
@@ -85,7 +87,7 @@ async function testWithoutAuth() {
   
   // Try to get some information about the game state
   try {
-    const response = await makeRequest('GET', '/api/game/dashboard');
+    const response = await makeRequest('GET', API_ENDPOINTS.GAME.DASHBOARD);
     
     if (response.status === 401) {
       console.log('⚠️  API requires authentication. To do a full test:');
@@ -156,3 +158,4 @@ async function main() {
 if (require.main === module) {
   main().catch(console.error);
 }
+

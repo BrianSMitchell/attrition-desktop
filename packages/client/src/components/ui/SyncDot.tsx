@@ -1,4 +1,6 @@
-import * as React from "react";
+﻿import * as React from "react";
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+
 
 type SyncState = "idle" | "syncing" | "error";
 
@@ -20,7 +22,7 @@ const SyncDot: React.FC<Props> = ({
   className,
 }) => {
   const label =
-    state === "syncing" ? "Syncing…" : state === "error" ? "Sync error" : "Synced";
+    state === "syncing" ? "Syncing…" : state === "error" ? ERROR_MESSAGES.SYNC_ERROR : "Synced";
 
   const dotSizeClass = size === "md" ? "w-3 h-3" : "w-2 h-2";
 
@@ -32,7 +34,7 @@ const SyncDot: React.FC<Props> = ({
   const labelColorClass =
     state === "error" ? "text-red-400" : "text-blue-400";
 
-  const aria = state === "syncing" ? "Syncing" : state === "error" ? "Sync error" : "Synced";
+  const aria = state === "syncing" ? "Syncing" : state === "error" ? ERROR_MESSAGES.SYNC_ERROR : "Synced";
 
   return (
     <span
@@ -55,3 +57,5 @@ const SyncDot: React.FC<Props> = ({
 };
 
 export default SyncDot;
+
+

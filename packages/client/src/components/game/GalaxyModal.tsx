@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Empire, getColonizationCost } from '@game/shared';
 import { useNavigate } from 'react-router-dom';
 import { useModalStore } from '../../stores/modalStore';
 import { useEnhancedAppStore } from '../../stores/enhancedAppStore';
+import { LAYOUT_CLASSES } from '../constants/css-constants';
 
 // Enhanced store compatible types
 interface UniverseLocationData {
@@ -200,7 +201,7 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
 
   // Get location type icon
   const getLocationIcon = (type: string) => {
-    return type === 'planet' ? '🌍' : '☄️';
+    return type === 'planet' ? 'ðŸŒ' : 'â˜„ï¸';
   };
 
   // Get fertility color
@@ -243,7 +244,7 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
               : 'text-gray-300 hover:text-white hover:bg-gray-600'
           }`}
         >
-          🗺️ Universe Map
+          ðŸ—ºï¸ Universe Map
         </button>
         <button
           onClick={() => setActiveTab('territories')}
@@ -253,7 +254,7 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
               : 'text-gray-300 hover:text-white hover:bg-gray-600'
           }`}
         >
-          🏛️ My Territories
+          ðŸ›ï¸ My Territories
         </button>
         <button
           onClick={() => setActiveTab('explore')}
@@ -263,7 +264,7 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
               : 'text-gray-300 hover:text-white hover:bg-gray-600'
           }`}
         >
-          🔍 Explore
+          ðŸ” Explore
         </button>
         <button
           onClick={() => setActiveTab('colonize')}
@@ -273,7 +274,7 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
               : 'text-gray-300 hover:text-white hover:bg-gray-600'
           }`}
         >
-          🚀 Colonize
+          ðŸš€ Colonize
         </button>
       </div>
 
@@ -291,7 +292,7 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
           <h3 className="text-lg font-semibold text-white">Empire Territories</h3>
           
           <div className="p-3 bg-gray-700 rounded-lg border border-gray-600">
-            <div className="flex items-center justify-between">
+            <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
               <span className="text-gray-300">Total Territories:</span>
               <span className="text-blue-400 font-mono text-lg">
                 {territories.length}
@@ -318,13 +319,13 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
                     <div>
                       <span className="text-gray-400">Fertility:</span>
                       <div className={`font-mono ${getFertilityColor(territory.result?.fertility || 0)}`}>
-                        {territory.result?.fertility || '—'}/10
+                        {territory.result?.fertility || 'â€”'}/10
                       </div>
                     </div>
                     <div>
                       <span className="text-gray-400">Solar Energy:</span>
                       <div className={`font-mono ${getResourceColor(territory.result?.solarEnergy || 0)}`}>
-                        {territory.result?.solarEnergy || '—'}/10
+                        {territory.result?.solarEnergy || 'â€”'}/10
                       </div>
                     </div>
                   </div>
@@ -368,13 +369,13 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
                 onClick={() => setCoordinateInput(generateRandomCoordinate())}
                 className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm"
               >
-                🎲 Random Location
+                ðŸŽ² Random Location
               </button>
               <button
                 onClick={() => setCoordinateInput(empire.homeSystem || '')}
                 className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
               >
-                🏠 Home System
+                ðŸ  Home System
               </button>
             </div>
             
@@ -391,7 +392,7 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
                     <p>
                       <span className="text-gray-400">Fertility:</span> 
                       <span className="ml-1 text-gray-200">
-                        {locationData.result?.fertility ?? '—'}
+                        {locationData.result?.fertility ?? 'â€”'}
                       </span>
                     </p>
                     <p>
@@ -404,13 +405,13 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
                   <div>
                     <p className="text-gray-400 mb-1">Overhaul:</p>
                     <p className="text-gray-200">
-                      Terrain: {locationData.terrain?.type ?? '—'}
+                      Terrain: {locationData.terrain?.type ?? 'â€”'}
                     </p>
                     <p className="text-gray-200">
-                      Orbit Pos: {locationData.orbitPosition ?? '—'}
+                      Orbit Pos: {locationData.orbitPosition ?? 'â€”'}
                     </p>
                     <p className="text-gray-200">
-                      Solar Energy: {locationData.result?.solarEnergy ?? '—'}
+                      Solar Energy: {locationData.result?.solarEnergy ?? 'â€”'}
                     </p>
                     {locationData.result?.yields && (
                       <p className="text-gray-200">
@@ -428,7 +429,7 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
                 
                 {locationData.context && (
                   <div className="text-xs text-gray-400 border-t border-gray-600 pt-3">
-                    Galaxy {locationData.context.galaxy} • Region {locationData.context.region} • System {locationData.context.system} • Body {locationData.context.body}
+                    Galaxy {locationData.context.galaxy} â€¢ Region {locationData.context.region} â€¢ System {locationData.context.system} â€¢ Body {locationData.context.body}
                   </div>
                 )}
 
@@ -440,7 +441,7 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
                     }}
                     className="w-full mt-3 py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors"
                   >
-                    🚀 Colonize This Location
+                    ðŸš€ Colonize This Location
                   </button>
                 )}
               </div>
@@ -458,17 +459,17 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
             <h4 className="font-medium text-white mb-3">Colonization Cost</h4>
             <div className="text-center">
               <div className={empire.resources.credits >= colonizationCostCredits ? 'text-yellow-400' : 'text-red-400'}>
-                💰 {colonizationCostCredits.toLocaleString()}
+                ðŸ’° {colonizationCostCredits.toLocaleString()}
               </div>
               <div className="text-xs text-gray-400">Credits</div>
               <div className="text-xs text-gray-500 mt-2">
-                Base #{(empire.baseCount || 0) + 1} • {empire.hasDeletedBase ? '25% Discount Applied' : 'No Discount'}
+                Base #{(empire.baseCount || 0) + 1} â€¢ {empire.hasDeletedBase ? '25% Discount Applied' : 'No Discount'}
               </div>
             </div>
             
             {!canAffordColonization() && (
               <div className="mt-3 p-2 bg-red-900/50 border border-red-700 rounded text-red-200 text-sm">
-                ⚠️ Insufficient resources for colonization
+                âš ï¸ Insufficient resources for colonization
               </div>
             )}
           </div>
@@ -515,7 +516,7 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
                     <div>
                       <p className="text-gray-400 mb-1">Overhaul:</p>
                       <p className="text-gray-200">
-                        Fertility: {locationData.result?.fertility ?? '—'}
+                        Fertility: {locationData.result?.fertility ?? 'â€”'}
                       </p>
                       {locationData.result?.yields && (
                         <p className="text-gray-200">
@@ -549,7 +550,7 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
                           : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                       }`}
                     >
-                      {loading ? 'Establishing Colony...' : '🚀 Establish Colony'}
+                      {loading ? 'Establishing Colony...' : 'ðŸš€ Establish Colony'}
                     </button>
                   </div>
                 )}
@@ -569,3 +570,4 @@ const GalaxyModal: React.FC<GalaxyModalProps> = ({ empire, onUpdate }) => {
 };
 
 export default GalaxyModal;
+

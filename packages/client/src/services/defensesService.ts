@@ -1,5 +1,7 @@
-import api from './api';
+﻿import api from './api';
 import { ApiResponse, DefenseKey, DefenseSpec } from '@game/shared';
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+
 
 // DTOs
 export interface DefensesStatusDTO {
@@ -26,7 +28,7 @@ export const defensesService = {
   },
 
   // Start a defense at a base. Always return a normalized ApiResponse on business errors
-  // so callers can show the actual reason instead of a generic "Network error".
+  // so callers can show the actual reason instead of a generic ERROR_MESSAGES.NETWORK_ERROR.
   async start(locationCoord: string, defenseKey: DefenseKey): Promise<ApiResponse<any>> {
     try {
       const res = await api.post<ApiResponse<any>>('/game/defenses/start', { locationCoord, defenseKey });
@@ -61,3 +63,5 @@ export const defensesService = {
 };
 
 export default defensesService;
+
+

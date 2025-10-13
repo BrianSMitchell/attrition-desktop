@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
+﻿import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -7,8 +7,14 @@ import desktopDb from './db.js';
 import errorLogger from './services/errorLoggingService.js';
 import performanceMonitoringService from './services/performanceMonitoringService.js';
 import { httpRequest } from './services/httpClient.js';
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ENV_VARS } from '@shared/constants/env-vars';
+
 // Security services removed - too restrictive for small game
 import { UpdateService } from './services/updateService.js';
+
+import { HTTP_STATUS } from './response-formats';
+import { FILE_PATHS, DIRECTORY_PATHS } from './packages/shared/src/constants/file-paths';
 
 /**
  * Resolve current directory for this ESM module without shadowing CommonJS globals.
@@ -55,9 +61,9 @@ async function resolveSharedParser() {
       // Dev fallback (repo layout)
       path.resolve(DIRNAME, '../../shared/dist/esm/index.js'),
       // Packaged candidates (various electron-builder layouts)
-      path.join(process.resourcesPath, 'app', 'packages', 'shared', 'dist', 'esm', 'index.js'),
-      path.join(process.resourcesPath, 'app.asar', 'packages', 'shared', 'dist', 'esm', 'index.js'),
-      path.join(process.resourcesPath, 'packages', 'shared', 'dist', 'esm', 'index.js')
+      path.join(process.resourcesPath, 'app', 'packages', 'shared', DIRECTORY_PATHS.DIST, 'esm', FILE_PATHS.INDEX_JS),
+      path.join(process.resourcesPath, 'app.asar', 'packages', 'shared', DIRECTORY_PATHS.DIST, 'esm', FILE_PATHS.INDEX_JS),
+      path.join(process.resourcesPath, 'packages', 'shared', DIRECTORY_PATHS.DIST, 'esm', FILE_PATHS.INDEX_JS)
     ];
 
     for (const p of candidates) {
@@ -90,7 +96,7 @@ function checkLauncherLaunch() {
   const hasLauncherFlag = process.argv.includes('--launched-by-launcher');
   
   // Check for launcher-specific environment variable
-  const hasLauncherEnv = process.env.ATTRITION_LAUNCHED_BY_LAUNCHER === 'true';
+  const hasLauncherEnv = process.env[ENV_VARS.ATTRITION_LAUNCHED_BY_LAUNCHER] === 'true';
   
   // In development mode, allow direct launch
   if (isDev) {
@@ -124,13 +130,13 @@ async function showLauncherWarning() {
  */
 function getApiBaseUrl() {
   // Check for explicit environment variable first
-  if (process.env.API_BASE_URL) {
-    return process.env.API_BASE_URL;
+  if (process.env[ENV_VARS.API_BASE_URL]) {
+    return process.env[ENV_VARS.API_BASE_URL];
   }
   
   // In packaged production builds, default to HTTPS
   if (!isDev) {
-    const productionHost = process.env.PRODUCTION_API_HOST || 'attrition-game.onrender.com';
+    const productionHost = process.env[ENV_VARS.PRODUCTION_API_HOST] || 'attrition-game.onrender.com';
     return `https://${productionHost}/api`;
   }
   
@@ -358,7 +364,7 @@ ipcMain.handle('auth:refresh', async (event) => {
           } catch (e) {
             errorLogger.error('Failed to clear refresh token after 401', e);
           }
-          return { ok: false, status: 401, error: 'invalid_refresh_token' };
+          return { ok: false, status: HTTP_STATUS.UNAUTHORIZED, error: 'invalid_refresh_token' };
         }
         errorLogger.warn('Auth refresh HTTP failure', { status: result.status, code: result.error?.code, attempt });
         return { ok: false, status: result.status };
@@ -436,7 +442,7 @@ ipcMain.handle('auth:login', async (event, { email, password }) => {
         return json;
       }
       const code = (result.error?.code || (result.status ? `HTTP_${result.status}` : 'NETWORK_UNAVAILABLE'));
-      const message = (json && (json.message || json.error)) || (result.status ? `HTTP ${result.status}` : 'Network error');
+      const message = (json && (json.message || json.error)) || (result.status ? `HTTP ${result.status}` : ERROR_MESSAGES.NETWORK_ERROR);
       return {
         success: false,
         code,
@@ -496,7 +502,7 @@ ipcMain.handle('auth:register', async (event, { email, username, password }) => 
         return json;
       }
       const code = (result.error?.code || (result.status ? `HTTP_${result.status}` : 'NETWORK_UNAVAILABLE'));
-      const message = (json && (json.message || json.error)) || (result.status ? `HTTP ${result.status}` : 'Network error');
+      const message = (json && (json.message || json.error)) || (result.status ? `HTTP ${result.status}` : ERROR_MESSAGES.NETWORK_ERROR);
       return {
         success: false,
         code,
@@ -509,7 +515,7 @@ ipcMain.handle('auth:register', async (event, { email, username, password }) => 
     return json || { success: false, code: 'INVALID_RESPONSE', message: 'Invalid response', error: 'INVALID_RESPONSE' };
   } catch (error) {
     errorLogger.error('Auth register exception', error);
-    return { success: false, error: 'Network error', message: 'Could not connect to server' };
+    return { success: false, error: ERROR_MESSAGES.NETWORK_ERROR, message: 'Could not connect to server' };
   }
 });
 
@@ -546,7 +552,7 @@ ipcMain.handle('auth:register-secure', secureIpcHandler('auth:register', async (
         return json;
       }
       const code = (result.error?.code || (result.status ? `HTTP_${result.status}` : 'NETWORK_UNAVAILABLE'));
-      const message = (json && (json.message || json.error)) || (result.status ? `HTTP ${result.status}` : 'Network error');
+      const message = (json && (json.message || json.error)) || (result.status ? `HTTP ${result.status}` : ERROR_MESSAGES.NETWORK_ERROR);
       return {
         success: false,
         code,
@@ -1083,7 +1089,7 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
     if (!result.ok) {
       const errorText = result.text || (result.json ? JSON.stringify(result.json) : 'Unknown error');
       const code = (result.error?.code || (result.status ? `HTTP_${result.status}` : 'NETWORK_UNAVAILABLE'));
-      const message = (result.json && (result.json.message || result.json.error)) || (result.status ? `HTTP ${result.status}` : 'Network error');
+      const message = (result.json && (result.json.message || result.json.error)) || (result.status ? `HTTP ${result.status}` : ERROR_MESSAGES.NETWORK_ERROR);
       errorLogger.error('Bootstrap fetch failed', { 
         status: result.status, 
         code,
@@ -1521,16 +1527,16 @@ function resolveClientIndex() {
   // electron-builder/forge where assets are placed under resources/app or app.asar.
   const candidates = [
     // electron-builder typical: resources/app/<copied client>
-    path.join(process.resourcesPath, 'app', 'client', 'index.html'),
-    path.join(process.resourcesPath, 'app', 'packages', 'client', 'dist', 'index.html'),
+    path.join(process.resourcesPath, 'app', 'client', FILE_PATHS.INDEX_HTML),
+    path.join(process.resourcesPath, 'app', 'packages', 'client', DIRECTORY_PATHS.DIST, FILE_PATHS.INDEX_HTML),
 
     // Asar-packed variants
-    path.join(process.resourcesPath, 'app.asar', 'client', 'index.html'),
-    path.join(process.resourcesPath, 'app.asar', 'packages', 'client', 'dist', 'index.html'),
+    path.join(process.resourcesPath, 'app.asar', 'client', FILE_PATHS.INDEX_HTML),
+    path.join(process.resourcesPath, 'app.asar', 'packages', 'client', DIRECTORY_PATHS.DIST, FILE_PATHS.INDEX_HTML),
 
     // Loose resources (if copied without app/app.asar)
-    path.join(process.resourcesPath, 'client', 'index.html'),
-    path.join(process.resourcesPath, 'packages', 'client', 'dist', 'index.html'),
+    path.join(process.resourcesPath, 'client', FILE_PATHS.INDEX_HTML),
+    path.join(process.resourcesPath, 'packages', 'client', DIRECTORY_PATHS.DIST, FILE_PATHS.INDEX_HTML),
   ];
 
   for (const p of candidates) {
@@ -1937,3 +1943,6 @@ process.on('unhandledRejection', (reason, promise) => {
   errorLogger.error('Unhandled Promise Rejection in main process', reason);
   app.quit();
 });
+
+
+

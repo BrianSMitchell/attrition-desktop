@@ -1,6 +1,7 @@
 import request from 'supertest';
 import express from 'express';
 import securityHeadersStack, { 
+import { HTTP_STATUS } from '../packages/shared/src/response-formats';
   createSecurityHeadersMiddleware, 
   csrfProtectionMiddleware 
 } from '../middleware/securityHeaders';
@@ -31,7 +32,7 @@ describe('Security Headers Implementation', () => {
 
       const response = await request(app)
         .get('/test')
-        .expect(200);
+        .expect(HTTP_STATUS.OK);
 
       // Test critical security headers
       expect(response.headers['strict-transport-security']).toContain('max-age=31536000');
@@ -57,7 +58,7 @@ describe('Security Headers Implementation', () => {
 
       const response = await request(app)
         .get('/test')
-        .expect(200);
+        .expect(HTTP_STATUS.OK);
 
       const csp = response.headers['content-security-policy'];
       expect(csp).toContain('http://localhost:*');
@@ -73,7 +74,7 @@ describe('Security Headers Implementation', () => {
 
       const response = await request(app)
         .get('/test')
-        .expect(200);
+        .expect(HTTP_STATUS.OK);
 
       // In development, CSP should be report-only
       expect(response.headers['content-security-policy-report-only']).toBeDefined();
@@ -87,7 +88,7 @@ describe('Security Headers Implementation', () => {
 
       const response = await request(app)
         .get('/test')
-        .expect(200);
+        .expect(HTTP_STATUS.OK);
 
       // Check if Permissions-Policy is present (may not be supported in all Helmet versions)
       if (response.headers['permissions-policy']) {
@@ -116,7 +117,7 @@ describe('Security Headers Implementation', () => {
 
       const response = await request(app)
         .post('/test-cookie')
-        .expect(200);
+        .expect(HTTP_STATUS.OK);
 
       const setCookieHeader = response.headers['set-cookie'];
       expect(setCookieHeader[0]).toContain('HttpOnly');
@@ -139,7 +140,7 @@ describe('Security Headers Implementation', () => {
         .post('/test-origin')
         .set('Origin', 'https://malicious-site.com')
         .send({ data: 'test' })
-        .expect(403);
+        .expect(HTTP_STATUS.FORBIDDEN);
 
       expect(response.body.success).toBe(false);
       expect(response.body.error).toBe('Forbidden: Invalid origin');
@@ -158,7 +159,7 @@ describe('Security Headers Implementation', () => {
         .post('/test-origin')
         .set('Origin', 'http://localhost:5173')
         .send({ data: 'test' })
-        .expect(200);
+        .expect(HTTP_STATUS.OK);
 
       expect(response.body.success).toBe(true);
     });
@@ -174,7 +175,7 @@ describe('Security Headers Implementation', () => {
       const response = await request(app)
         .get('/test-origin')
         .set('Origin', 'https://any-site.com')
-        .expect(200);
+        .expect(HTTP_STATUS.OK);
 
       expect(response.body.success).toBe(true);
 
@@ -322,7 +323,7 @@ describe('Security Headers Implementation', () => {
 
       const response = await request(app)
         .get('/test')
-        .expect(200);
+        .expect(HTTP_STATUS.OK);
 
       expect(response.headers['cross-origin-embedder-policy']).toBe('require-corp');
       expect(response.headers['cross-origin-opener-policy']).toBe('same-origin');
@@ -351,7 +352,7 @@ describe('Security Headers Implementation', () => {
       // Test GET request
       const getResponse = await request(app)
         .get('/api/test')
-        .expect(200);
+        .expect(HTTP_STATUS.OK);
 
       const report = validateSecurityHeaders(getResponse.headers);
       expect(report.score).toBeGreaterThanOrEqual(80); // Should have good security score
@@ -360,7 +361,7 @@ describe('Security Headers Implementation', () => {
       const postResponse = await request(app)
         .post('/api/test')
         .send({ data: 'test' })
-        .expect(200);
+        .expect(HTTP_STATUS.OK);
 
       expect(postResponse.headers['set-cookie']).toBeDefined();
     });
@@ -381,7 +382,7 @@ describe('Security Headers Implementation', () => {
 
       await request(app)
         .get('/test')
-        .expect(200);
+        .expect(HTTP_STATUS.OK);
 
       // Should not warn for compliant headers in development
       const securityWarnings = warnings.filter(w => 
@@ -406,7 +407,7 @@ describe('Security Headers Implementation', () => {
 
       const response = await request(app)
         .get('/test')
-        .expect(200);
+        .expect(HTTP_STATUS.OK);
 
       // Production should enforce CSP, not just report
       expect(response.headers['content-security-policy']).toBeDefined();
@@ -425,7 +426,7 @@ describe('Security Headers Implementation', () => {
 
       const response = await request(app)
         .get('/test')
-        .expect(200);
+        .expect(HTTP_STATUS.OK);
 
       // Check if Expect-CT header includes report URI
       const expectCtHeader = response.headers['expect-ct'];
@@ -437,3 +438,4 @@ describe('Security Headers Implementation', () => {
     });
   });
 });
+

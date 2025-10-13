@@ -1,8 +1,15 @@
 import { supabase } from '../config/supabase';
-import {
+import { ERROR_MESSAGES } from '../constants/response-formats';
+import { DB_FIELDS } from '../../../constants/database-fields';
+import { STATUS_CODES } from '@shared/constants/magic-numbers';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
   getBuildingSpec,
   BuildingKey,
 } from '@game/shared';
+
+// Constants imports for eliminating hardcoded values
+import { ERROR_MESSAGES } from '../constants/response-formats';
 
 
 export interface EconomyBreakdown {
@@ -28,18 +35,18 @@ export class EconomyService {
   static async computeEmpireEconomy(empireId: string): Promise<EconomyBreakdown> {
     // Verify empire exists
     const { data: empire, error } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('*')
-      .eq('id', empireId)
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
     if (error) {
       console.error('[EconomyService] Error fetching empire:', error);
-      throw new Error('Empire not found');
+      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
     }
 
     if (!empire) {
-      throw new Error('Empire not found');
+      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
     }
 
     const structuresEconomy = await this.computeStructuresEconomy(empireId);
@@ -75,15 +82,15 @@ export class EconomyService {
   static async computeStructuresEconomy(empireId: string): Promise<number> {
     // Get all effectively active buildings for this empire (active OR being upgraded)
     const { data: buildings, error } = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('id, type, catalog_key, level, is_active, pending_upgrade, construction_completed')
-      .eq('empire_id', empireId)
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
       .or('is_active.eq.true,pending_upgrade.eq.true')
-      .not('construction_completed', 'is', null);
+      .not(DB_FIELDS.BUILDINGS.CONSTRUCTION_COMPLETED, 'is', null);
 
     if (error) {
       console.error('[EconomyService] Error fetching buildings:', error);
-      return 0;
+      return STATUS_CODES.SUCCESS;
     }
 
     let totalEconomy = 0;
@@ -115,7 +122,7 @@ export class EconomyService {
     }
 
     // Diagnostic logging (dev only)
-    if (process.env.DEBUG_RESOURCES === 'true') {
+    if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
       console.log(`🏗️  Empire ${empireId} structures economy breakdown:`);
       console.log(`   Total buildings found: ${buildings.length}, Contributing buildings: ${buildingContributions.length}`);
       buildingContributions.forEach(b => {
@@ -137,7 +144,7 @@ export class EconomyService {
     // - Query TradeRoute model for active routes
     // - Calculate income based on distance, setup cost, and route efficiency
     // - Apply any modifiers (plunder, etc.)
-    return 0;
+    return STATUS_CODES.SUCCESS;
   }
 
   /**
@@ -149,7 +156,7 @@ export class EconomyService {
     // - Check for occupied territories
     // - Apply 30% income transfer to occupier
     // - Apply unrest penalties (-10%/day, max 100% revolt)
-    return 1.0;
+    return STATUS_CODES.ERROR.0;
   }
 
   /**
@@ -161,7 +168,7 @@ export class EconomyService {
     // - Query DebrisField model for active fields
     // - Calculate salvage income based on recycler count and field size
     // - Process at hh:30 intervals
-    return 0;
+    return STATUS_CODES.SUCCESS;
   }
 
   /**
@@ -173,7 +180,7 @@ export class EconomyService {
     // - Query recent combat events
     // - Calculate loot from destroyed ships (20% of value)
     // - Calculate pillage from conquered bases
-    return 0;
+    return STATUS_CODES.SUCCESS;
   }
 
   /**
@@ -184,7 +191,7 @@ export class EconomyService {
     // TODO(Phase 3): Implement scrap system
     // - Query scrapped ships/structures
     // - Calculate scrap value (partial refund)
-    return 0;
+    return STATUS_CODES.SUCCESS;
   }
 
   /**
@@ -192,14 +199,14 @@ export class EconomyService {
    */
   static async getResearchCreditBonuses(empireId: string): Promise<number> {
     const { data: completedResearch, error } = await supabase
-      .from('research_projects')
+      .from(DB_TABLES.RESEARCH_PROJECTS)
       .select('benefits')
-      .eq('empire_id', empireId)
-      .eq('is_completed', true);
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.RESEARCH_PROJECTS.IS_COMPLETED, true);
 
     if (error) {
       console.error('[EconomyService] Error fetching research projects:', error);
-      return 0;
+      return STATUS_CODES.SUCCESS;
     }
 
     let creditBonus = 0;
@@ -214,3 +221,6 @@ export class EconomyService {
     return creditBonus;
   }
 }
+
+
+

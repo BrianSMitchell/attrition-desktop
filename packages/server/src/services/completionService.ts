@@ -1,6 +1,9 @@
 import { supabase } from '../config/supabase';
 import { getTechSpec } from '@game/shared';
 
+// Constants imports for eliminating hardcoded values
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+
 export interface CompletionStats {
   completed: number;
   cancelled: number;
@@ -21,11 +24,11 @@ export class SupabaseCompletionService {
 
       // Find all pending items that have completed
       const { data: dueItems, error } = await supabase
-        .from('tech_queue')
+        .from(DB_TABLES.TECH_QUEUE)
         .select('id, empire_id, tech_key, level, location_coord')
-        .eq('status', 'pending')
-        .not('completes_at', 'is', null)
-        .lte('completes_at', now);
+        .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'pending')
+        .not(DB_FIELDS.TECH_QUEUE.COMPLETES_AT, 'is', null)
+        .lte(DB_FIELDS.TECH_QUEUE.COMPLETES_AT, now);
 
       if (error) {
         console.error('[SupabaseCompletion] Error fetching due tech items:', error);
@@ -40,17 +43,17 @@ export class SupabaseCompletionService {
 
           // Check if empire exists
           const { data: empire, error: empireError } = await supabase
-            .from('empires')
-            .select('id')
-            .eq('id', empireId)
+            .from(DB_TABLES.EMPIRES)
+            .select(DB_FIELDS.BUILDINGS.ID)
+            .eq(DB_FIELDS.BUILDINGS.ID, empireId)
             .maybeSingle();
 
           if (empireError || !empire) {
             // Mark as cancelled if empire is missing
             await supabase
-              .from('tech_queue')
+              .from(DB_TABLES.TECH_QUEUE)
               .update({ status: 'cancelled' })
-              .eq('id', item.id);
+              .eq(DB_FIELDS.BUILDINGS.ID, item.id);
             cancelled++;
             console.warn(`[SupabaseCompletion] Tech cancelled - missing empire: techKey=${techKey}`);
             continue;
@@ -58,7 +61,7 @@ export class SupabaseCompletionService {
 
           // Upsert tech level (insert or update to max level)
           const { error: upsertError } = await supabase
-            .from('tech_levels')
+            .from(DB_TABLES.TECH_LEVELS)
             .upsert({
               empire_id: empireId,
               tech_key: techKey,
@@ -71,27 +74,27 @@ export class SupabaseCompletionService {
           if (upsertError) {
             // Try updating existing record
             const { data: existing } = await supabase
-              .from('tech_levels')
-              .select('level')
-              .eq('empire_id', empireId)
-              .eq('tech_key', techKey)
+              .from(DB_TABLES.TECH_LEVELS)
+              .select(DB_FIELDS.BUILDINGS.LEVEL)
+              .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+              .eq(DB_FIELDS.TECH_QUEUE.TECH_KEY, techKey)
               .maybeSingle();
 
             const currentLevel = existing ? Number(existing.level || 0) : 0;
             const newLevel = Math.max(currentLevel, targetLevel);
 
             await supabase
-              .from('tech_levels')
+              .from(DB_TABLES.TECH_LEVELS)
               .update({ level: newLevel })
-              .eq('empire_id', empireId)
-              .eq('tech_key', techKey);
+              .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+              .eq(DB_FIELDS.TECH_QUEUE.TECH_KEY, techKey);
           }
 
           // Mark queue item as completed
           await supabase
-            .from('tech_queue')
+            .from(DB_TABLES.TECH_QUEUE)
             .update({ status: 'completed' })
-            .eq('id', item.id);
+            .eq(DB_FIELDS.BUILDINGS.ID, item.id);
 
           completed++;
           console.log(`[SupabaseCompletion] Tech completed: key=${techKey} empire=${empireId} location=${item.location_coord} level=${targetLevel}`);
@@ -120,11 +123,11 @@ export class SupabaseCompletionService {
 
       // Find all pending items that have completed
       const { data: dueItems, error } = await supabase
-        .from('unit_queue')
+        .from(DB_TABLES.UNIT_QUEUE)
         .select('id, empire_id, unit_key, location_coord')
-        .eq('status', 'pending')
-        .not('completes_at', 'is', null)
-        .lte('completes_at', now);
+        .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'pending')
+        .not(DB_FIELDS.TECH_QUEUE.COMPLETES_AT, 'is', null)
+        .lte(DB_FIELDS.TECH_QUEUE.COMPLETES_AT, now);
 
       if (error) {
         console.error('[SupabaseCompletion] Error fetching due unit items:', error);
@@ -139,17 +142,17 @@ export class SupabaseCompletionService {
 
           // Check if empire exists
           const { data: empire, error: empireError } = await supabase
-            .from('empires')
+            .from(DB_TABLES.EMPIRES)
             .select('id, next_fleet_number')
-            .eq('id', empireId)
+            .eq(DB_FIELDS.BUILDINGS.ID, empireId)
             .maybeSingle();
 
           if (empireError || !empire) {
             // Mark as cancelled if empire is missing
             await supabase
-              .from('unit_queue')
+              .from(DB_TABLES.UNIT_QUEUE)
               .update({ status: 'cancelled' })
-              .eq('id', item.id);
+              .eq(DB_FIELDS.BUILDINGS.ID, item.id);
             cancelled++;
             console.warn(`[SupabaseCompletion] Unit cancelled - missing empire: unitKey=${unitKey}`);
             continue;
@@ -157,17 +160,17 @@ export class SupabaseCompletionService {
 
           // Mark unit production as completed
           await supabase
-            .from('unit_queue')
+            .from(DB_TABLES.UNIT_QUEUE)
             .update({ status: 'completed' })
-            .eq('id', item.id);
+            .eq(DB_FIELDS.BUILDINGS.ID, item.id);
 
           // Find or create fleet at this base
           const { data: existingFleets } = await supabase
-            .from('fleets')
+            .from(DB_TABLES.FLEETS)
             .select('id, name, units, size_credits')
-            .eq('empire_id', empireId)
-            .eq('location_coord', baseCoord)
-            .order('created_at', { ascending: false })
+            .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+            .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, baseCoord)
+            .order(DB_FIELDS.BUILDINGS.CREATED_AT, { ascending: false })
             .limit(1);
 
           let fleetId: string;
@@ -186,7 +189,7 @@ export class SupabaseCompletionService {
             const name = `Fleet ${nextNum}`;
 
             const { data: newFleet, error: fleetError } = await supabase
-              .from('fleets')
+              .from(DB_TABLES.FLEETS)
               .insert({
                 empire_id: empireId,
                 location_coord: baseCoord,
@@ -194,7 +197,7 @@ export class SupabaseCompletionService {
                 units: [],
                 size_credits: 0
               })
-              .select('id')
+              .select(DB_FIELDS.BUILDINGS.ID)
               .single();
 
             if (fleetError || !newFleet) {
@@ -207,9 +210,9 @@ export class SupabaseCompletionService {
 
             // Increment empire's next fleet number
             await supabase
-              .from('empires')
+              .from(DB_TABLES.EMPIRES)
               .update({ next_fleet_number: nextNum + 1 })
-              .eq('id', empireId);
+              .eq(DB_FIELDS.BUILDINGS.ID, empireId);
           }
 
           // Add unit to fleet
@@ -228,12 +231,12 @@ export class SupabaseCompletionService {
 
           // Update fleet
           await supabase
-            .from('fleets')
+            .from(DB_TABLES.FLEETS)
             .update({
               units,
               size_credits: sizeCredits
             })
-            .eq('id', fleetId);
+            .eq(DB_FIELDS.BUILDINGS.ID, fleetId);
 
           completed++;
           console.log(`[SupabaseCompletion] Unit completed: unitKey=${unitKey} empire=${empireId} base=${baseCoord}`);
@@ -261,11 +264,11 @@ export class SupabaseCompletionService {
 
       // Find all pending items that have completed
       const { data: dueItems, error } = await supabase
-        .from('defense_queue')
-        .select('id')
-        .eq('status', 'pending')
-        .not('completes_at', 'is', null)
-        .lte('completes_at', now);
+        .from(DB_TABLES.DEFENSE_QUEUE)
+        .select(DB_FIELDS.BUILDINGS.ID)
+        .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'pending')
+        .not(DB_FIELDS.TECH_QUEUE.COMPLETES_AT, 'is', null)
+        .lte(DB_FIELDS.TECH_QUEUE.COMPLETES_AT, now);
 
       if (error) {
         console.error('[SupabaseCompletion] Error fetching due defense items:', error);
@@ -275,9 +278,9 @@ export class SupabaseCompletionService {
       for (const item of dueItems || []) {
         try {
           await supabase
-            .from('defense_queue')
+            .from(DB_TABLES.DEFENSE_QUEUE)
             .update({ status: 'completed' })
-            .eq('id', item.id);
+            .eq(DB_FIELDS.BUILDINGS.ID, item.id);
           completed++;
         } catch (err) {
           errors++;

@@ -1,6 +1,10 @@
 import { supabase } from '../config/supabase';
 import { CapacityService } from './bases/CapacityService';
 
+// Constants imports for eliminating hardcoded values
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 /**
  * BaseCitizenService - Production-ready citizen accrual service for Supabase.
  * Uses batch operations and optimized queries to prevent production timeouts.
@@ -15,9 +19,9 @@ export class BaseCitizenService {
     try {
       // Get all colonies for the empire with a single optimized query
       const { data: colonies, error: coloniesError } = await supabase
-        .from('colonies')
+        .from(DB_TABLES.COLONIES)
         .select('id, location_coord, citizens, last_citizen_update, citizen_remainder_milli, created_at')
-        .eq('empire_id', empireId);
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId);
 
       if (coloniesError) {
         console.error('[BaseCitizenService] Failed to fetch colonies:', coloniesError);
@@ -89,11 +93,11 @@ export class BaseCitizenService {
       if (!(perHour > 0)) {
         // Still advance lastCitizenUpdate to avoid infinite accumulation
         await supabase
-          .from('colonies')
+          .from(DB_TABLES.COLONIES)
           .update({
             last_citizen_update: new Date(lastBoundary.getTime() + periodsElapsed * periodMs).toISOString()
           })
-          .eq('id', colony.id);
+          .eq(DB_FIELDS.BUILDINGS.ID, colony.id);
 
         return false;
       }
@@ -116,14 +120,14 @@ export class BaseCitizenService {
 
       // Use atomic update with optimistic locking
       const { error: updateError } = await supabase
-        .from('colonies')
+        .from(DB_TABLES.COLONIES)
         .update({
           citizens: newCount,
           citizen_remainder_milli: newRemainder,
           last_citizen_update: nextUpdate.toISOString(),
           updated_at: new Date().toISOString()
         })
-        .eq('id', colony.id);
+        .eq(DB_FIELDS.BUILDINGS.ID, colony.id);
 
       if (updateError) {
         console.error(`[BaseCitizenService] Failed to update colony ${colony.id}:`, updateError);
@@ -155,9 +159,9 @@ export class BaseCitizenService {
   }> {
     try {
       const { data: colonies, error } = await supabase
-        .from('colonies')
+        .from(DB_TABLES.COLONIES)
         .select('citizens, location_coord')
-        .eq('empire_id', empireId);
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId);
 
       if (error) {
         console.error('[BaseCitizenService] Failed to get citizen stats:', error);
@@ -199,10 +203,10 @@ export class BaseCitizenService {
   static async forceUpdateColony(empireId: string, locationCoord: string): Promise<boolean> {
     try {
       const { data: colony, error } = await supabase
-        .from('colonies')
+        .from(DB_TABLES.COLONIES)
         .select('id, location_coord, citizens, last_citizen_update, citizen_remainder_milli, created_at')
-        .eq('empire_id', empireId)
-        .eq('location_coord', locationCoord)
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
         .single();
 
       if (error || !colony) {
@@ -218,3 +222,4 @@ export class BaseCitizenService {
     }
   }
 }
+

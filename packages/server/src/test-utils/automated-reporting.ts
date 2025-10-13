@@ -1,3 +1,5 @@
+import { DIRECTORY_PATHS } from '../../../shared/src/constants/file-paths';
+
 /**
  * Automated Testing Reporting System
  * 
@@ -64,7 +66,7 @@ export interface ReportData {
   };
   topIssues: {
     flakyTests: string[];
-    slowTests: Array<{ name: string; duration: number }>;
+    slowTests: Array<{ name: string; avgDuration: number }>;
     coverageGaps: string[];
     performanceRegressions: string[];
   };
@@ -424,7 +426,7 @@ export class AutomatedReportingSystem {
     <div class="section">
         <h2 class="section-title">🐌 Slow Tests (${data.topIssues.slowTests.length})</h2>
         <ul class="issue-list">
-            ${data.topIssues.slowTests.map(test => `<li class="issue-item">${test.name} - ${(test.duration / 1000).toFixed(1)}s</li>`).join('')}
+${data.topIssues.slowTests.map(test => `<li class=\"issue-item\">${test.name} - ${(test.avgDuration / 1000).toFixed(1)}s</li>`).join('')}
         </ul>
     </div>
     ` : ''}
@@ -498,7 +500,7 @@ export class AutomatedReportingSystem {
             short: true
           },
           {
-            title: 'Coverage',
+            title: DIRECTORY_PATHS.COVERAGE,
             value: `${data.summary.coverageScore}% ${this.getTrendEmoji(data.trends.coverageTrend)}`,
             short: true
           },

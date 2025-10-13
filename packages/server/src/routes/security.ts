@@ -1,9 +1,11 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { authRateLimit } from '../middleware/rateLimiting';
 import { securityMonitor, SecurityEventType } from '../utils/securityMonitor';
-import jwt from 'jsonwebtoken';
+import { HTTP_STATUS } from '../constants/response-formats';
+import { API_ENDPOINTS } from '../constants/api-endpoints';
+
 
 const router: Router = Router();
 
@@ -120,7 +122,7 @@ router.delete('/sessions/:sessionId', asyncHandler(async (req: AuthRequest, res:
   const sessionId = req.params.sessionId;
   
   if (!sessionId) {
-    return res.status(400).json({
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
       error: 'Session ID is required'
     });
@@ -131,7 +133,7 @@ router.delete('/sessions/:sessionId', asyncHandler(async (req: AuthRequest, res:
   const session = userSessions.find((s: any) => s.sessionId === sessionId && s.isActive);
   
   if (!session) {
-    return res.status(404).json({
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
       success: false,
       error: 'Session not found or already inactive'
     });
@@ -158,7 +160,7 @@ router.delete('/sessions', asyncHandler(async (req: AuthRequest, res: Response) 
   const currentToken = req.headers.authorization?.split(' ')[1];
   
   if (!currentToken) {
-    return res.status(400).json({
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
       error: 'Current token not found'
     });
@@ -193,7 +195,7 @@ router.delete('/sessions', asyncHandler(async (req: AuthRequest, res: Response) 
 /**
  * Security health check endpoint
  */
-router.get('/health', asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get(API_ENDPOINTS.SYSTEM.HEALTH, asyncHandler(async (req: AuthRequest, res: Response) => {
   const stats = securityMonitor.getStatistics(60 * 60 * 1000); // Last hour
   const activeAlerts = securityMonitor.getActiveAlerts();
   
@@ -229,7 +231,7 @@ router.post('/events', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { type, details } = req.body;
   
   if (!type || !Object.values(SecurityEventType).includes(type)) {
-    return res.status(400).json({
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
       error: 'Valid event type is required',
       validTypes: Object.values(SecurityEventType)
@@ -257,3 +259,6 @@ router.post('/events', asyncHandler(async (req: AuthRequest, res: Response) => {
 }));
 
 export default router;
+
+
+

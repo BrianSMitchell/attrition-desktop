@@ -1,3 +1,5 @@
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 /**
  * Simple Citizens Per Hour Test
  * 
@@ -19,7 +21,7 @@ const { Building } = require('./src/models/Building');
 
 async function connectToDatabase() {
   try {
-    const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/space-empire-mmo';
+    const uri = process.env[ENV_VARS.MONGODB_URI] || 'mongodb://localhost:27017/space-empire-mmo';
     await mongoose.connect(uri);
     console.log('✅ Connected to MongoDB');
   } catch (error) {

@@ -1,4 +1,7 @@
 /**
+
+import { DB_FIELDS } from '../packages/server/src/constants/database-fields';
+/**
  * IPC Security Priority 2 Test Suite
  * Tests the Priority 2 security enhancements implemented for Phase 5 Task 1.2.2
  * 
@@ -14,6 +17,8 @@ import { describe, test, expect, beforeAll, afterAll, beforeEach, jest } from '@
 import { app, ipcMain } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -145,7 +150,7 @@ describe('IPC Security Priority 2 Tests', () => {
     test('should open circuit breaker after failures', async () => {
       // Mock the httpRequest to always fail
       const originalHttpRequest = global.httpRequest;
-      global.httpRequest = jest.fn().mockRejectedValue(new Error('Network error'));
+      global.httpRequest = jest.fn().mockRejectedValue(new Error(ERROR_MESSAGES.NETWORK_ERROR));
       
       const handler = mockIpcHandlers['auth:refresh'];
       const mockEvent = { processId: 'test-process-5' };
@@ -209,7 +214,7 @@ describe('IPC Security Priority 2 Tests', () => {
       );
       
       expect(loginEvents.length).toBeGreaterThan(0);
-      expect(loginEvents[0]).toHaveProperty('id');
+      expect(loginEvents[0]).toHaveProperty(DB_FIELDS.BUILDINGS.ID);
       expect(loginEvents[0].id).toMatch(/^ipc_\d+_[a-z0-9]+$/);
       expect(loginEvents[0]).toHaveProperty('timestamp');
       expect(loginEvents[0].details).toHaveProperty('correlationId');
@@ -491,3 +496,5 @@ function generateSecurityViolations(count, identifier = 'test') {
   }
   return violations;
 }
+
+

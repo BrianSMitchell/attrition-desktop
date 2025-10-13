@@ -1,7 +1,13 @@
-import https from 'https';
+﻿import https from 'https';
 import http from 'http';
 import { Request, Response } from 'express';
-import { isReverseProxySSL } from './runtimeEnv';
+import { HTTP_STATUS } from '../constants/response-formats';
+import { API_ENDPOINTS } from '../constants/api-endpoints';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+
+
+import { TIMEOUTS, GAME_CONSTANTS } from '@shared/constants/magic-numbers';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
 
 /**
  * HTTPS Health Check and Validation Utilities
@@ -51,7 +57,7 @@ export async function performHttpsHealthCheck(
   const timestamp = new Date().toISOString();
   const errorDetails: string[] = [];
   
-  console.log(`🔍 Performing HTTPS health checks for ${hostname}:${httpsPort}`);
+  console.log(`?? Performing HTTPS health checks for ${hostname}:${httpsPort}`);
 
   const result: HttpsHealthCheckResult = {
     healthy: false,
@@ -106,11 +112,11 @@ export async function performHttpsHealthCheck(
       result.checks.errorDetails = errorDetails;
     }
 
-    console.log(`✅ HTTPS health check completed - Healthy: ${result.healthy}`);
+    console.log(`? HTTPS health check completed - Healthy: ${result.healthy}`);
     return result;
 
   } catch (error) {
-    console.error('❌ HTTPS health check failed:', error);
+    console.error('? HTTPS health check failed:', error);
     errorDetails.push(`Health check failed: ${error instanceof Error ? error.message : 'unknown error'}`);
     
     result.checks.errorDetails = errorDetails;
@@ -130,9 +136,9 @@ async function checkHttpsEndpoint(hostname: string, port: number) {
     const req = https.request({
       hostname,
       port,
-      path: '/health',
+      path: API_ENDPOINTS.SYSTEM.HEALTH,
       method: 'GET',
-      timeout: 5000,
+      timeout: TIMEOUTS.FIVE_SECONDS,
       rejectUnauthorized: true // Enable certificate validation
     }, (res) => {
       let certificate;
@@ -144,7 +150,7 @@ async function checkHttpsEndpoint(hostname: string, port: number) {
           if (cert && cert.subject) {
             const now = new Date();
             const validTo = new Date(cert.valid_to);
-            const daysUntilExpiry = Math.floor((validTo.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            const daysUntilExpiry = Math.floor((validTo.getTime() - now.getTime()) / (GAME_CONSTANTS.MILLISECONDS_PER_SECOND * GAME_CONSTANTS.SECONDS_PER_MINUTE * 60 * 24));
             
             certificate = {
               subject: cert.subject.CN || cert.subject.O || 'Unknown',
@@ -155,7 +161,7 @@ async function checkHttpsEndpoint(hostname: string, port: number) {
             };
           }
         } catch (error) {
-          console.warn('⚠️  Could not extract certificate information:', error);
+          console.warn('??  Could not extract certificate information:', error);
         }
       }
 
@@ -167,7 +173,7 @@ async function checkHttpsEndpoint(hostname: string, port: number) {
     });
 
     req.on('error', (error) => {
-      console.warn(`⚠️  HTTPS endpoint check failed:`, error.message);
+      console.warn(`??  HTTPS endpoint check failed:`, error.message);
       resolve({
         listening: false,
         certificateValid: false
@@ -197,9 +203,9 @@ async function checkHttpRedirect(hostname: string, httpPort: number, httpsPort: 
     const req = http.request({
       hostname,
       port: httpPort,
-      path: '/health',
+      path: API_ENDPOINTS.SYSTEM.HEALTH,
       method: 'GET',
-      timeout: 5000
+      timeout: TIMEOUTS.FIVE_SECONDS
     }, (res) => {
       // Check for redirect status codes (301, 302, 307, 308)
       const isRedirect = [301, 302, 307, 308].includes(res.statusCode || 0);
@@ -252,9 +258,9 @@ async function checkSecurityHeaders(hostname: string, port: number) {
     const req = https.request({
       hostname,
       port,
-      path: '/health',
+      path: API_ENDPOINTS.SYSTEM.HEALTH,
       method: 'HEAD', // Use HEAD to get headers without body
-      timeout: 5000,
+      timeout: TIMEOUTS.FIVE_SECONDS,
       rejectUnauthorized: false // Don't fail on certificate issues for header check
     }, (res) => {
       const requiredHeaders = [
@@ -279,7 +285,7 @@ async function checkSecurityHeaders(hostname: string, port: number) {
     });
 
     req.on('error', (error) => {
-      console.warn('⚠️  Security headers check failed:', error.message);
+      console.warn('??  Security headers check failed:', error.message);
       resolve({
         hasRequiredHeaders: false,
         missingHeaders: ['Unable to check headers due to connection error']
@@ -307,7 +313,7 @@ export function httpsHealthCheckHandler(req: Request, res: Response) {
   const reverseProxySSL = isReverseProxySSL();
   if (reverseProxySSL) {
     const timestamp = new Date().toISOString();
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       data: {
         healthy: true,
@@ -326,13 +332,13 @@ export function httpsHealthCheckHandler(req: Request, res: Response) {
     });
   }
 
-  const httpsPort = parseInt(process.env.HTTPS_PORT || '443', 10);
-  const httpPort = parseInt(process.env.PORT || '80', 10);
+  const httpsPort = parseInt(process.env[ENV_VARS.HTTPS_PORT] || '443', 10);
+  const httpPort = parseInt(process.env[ENV_VARS.PORT] || '80', 10);
   const hostname = req.get('host')?.split(':')[0] || 'localhost';
 
   performHttpsHealthCheck(httpsPort, httpPort, hostname)
     .then((result) => {
-      const statusCode = result.healthy ? 200 : 503;
+      const statusCode = result.healthy ? HTTP_STATUS.OK : 503;
       res.status(statusCode).json({
         success: result.healthy,
         data: result,
@@ -340,8 +346,8 @@ export function httpsHealthCheckHandler(req: Request, res: Response) {
       });
     })
     .catch((error) => {
-      console.error('âŒ HTTPS health check endpoint error:', error);
-      res.status(500).json({
+      console.error('� HTTPS health check endpoint error:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         error: 'HTTPS health check failed',
         details: error instanceof Error ? error.message : 'Unknown error'
@@ -367,7 +373,7 @@ export class HttpsHealthMonitor {
   ) {}
 
   start(intervalMinutes: number = 60) {
-    console.log(`🔍 Starting HTTPS health monitoring (every ${intervalMinutes} minutes)`);
+    console.log(`?? Starting HTTPS health monitoring (every ${intervalMinutes} minutes)`);
     
     // Initial check
     this.performCheck();
@@ -382,7 +388,7 @@ export class HttpsHealthMonitor {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      console.log('🛑 HTTPS health monitoring stopped');
+      console.log('?? HTTPS health monitoring stopped');
     }
   }
 
@@ -395,10 +401,10 @@ export class HttpsHealthMonitor {
       this.lastResult = await performHttpsHealthCheck(this.httpsPort, this.httpPort, this.hostname);
       
       if (!this.lastResult.healthy) {
-        console.error('😨 HTTPS health check failed:', this.lastResult.checks.errorDetails);
+        console.error('?? HTTPS health check failed:', this.lastResult.checks.errorDetails);
         
         // In production, emit critical alert for HTTPS failures
-        if (process.env.NODE_ENV === 'production') {
+        if (process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION) {
           this.emitCriticalAlert('HTTPS health check failed', this.lastResult.checks.errorDetails);
         }
       }
@@ -408,29 +414,29 @@ export class HttpsHealthMonitor {
         const daysUntilExpiry = this.lastResult.certificate.daysUntilExpiry;
         
         if (daysUntilExpiry <= 7) {
-          console.error(`😨 CRITICAL: SSL certificate expires in ${daysUntilExpiry} days!`);
+          console.error(`?? CRITICAL: SSL certificate expires in ${daysUntilExpiry} days!`);
           this.emitCriticalAlert('SSL certificate expiring soon', [`Certificate expires in ${daysUntilExpiry} days`]);
         } else if (daysUntilExpiry <= 30) {
-          console.warn(`⚠️  WARNING: SSL certificate expires in ${daysUntilExpiry} days`);
+          console.warn(`??  WARNING: SSL certificate expires in ${daysUntilExpiry} days`);
         } else if (daysUntilExpiry <= 90) {
-          console.log(`📅 INFO: SSL certificate expires in ${daysUntilExpiry} days`);
+          console.log(`?? INFO: SSL certificate expires in ${daysUntilExpiry} days`);
         }
         
         // Log certificate details on first check
         if (this.lastResult.certificate.daysUntilExpiry > 0) {
-          console.log(`🔐 Certificate: ${this.lastResult.certificate.subject} (Expires: ${this.lastResult.certificate.validTo})`);
+          console.log(`?? Certificate: ${this.lastResult.certificate.subject} (Expires: ${this.lastResult.certificate.validTo})`);
         }
       }
       
       // Log successful health check (reduced frequency)
       if (this.lastResult.healthy && Math.random() < 0.1) { // Log ~10% of successful checks
-        console.log(`✅ HTTPS health check passed - All systems secure`);
+        console.log(`? HTTPS health check passed - All systems secure`);
       }
       
     } catch (error) {
-      console.error('❌ HTTPS health monitoring error:', error);
+      console.error('? HTTPS health monitoring error:', error);
       
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION) {
         this.emitCriticalAlert('HTTPS monitoring failure', [error instanceof Error ? error.message : 'Unknown error']);
       }
     }
@@ -449,7 +455,7 @@ export class HttpsHealthMonitor {
     };
     
     // Log structured alert data for external log aggregation
-    console.error('🚨 HTTPS CRITICAL ALERT:', JSON.stringify(alertData));
+    console.error('?? HTTPS CRITICAL ALERT:', JSON.stringify(alertData));
     
     // Could be extended to integrate with external monitoring services:
     // - Send to Slack/Discord webhook
@@ -464,3 +470,8 @@ export default {
   httpsHealthCheckHandler,
   HttpsHealthMonitor
 };
+
+
+
+
+

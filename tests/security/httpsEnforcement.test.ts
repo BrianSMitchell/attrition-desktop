@@ -2,7 +2,11 @@ import request from 'supertest';
 import express from 'express';
 import { httpsRedirectMiddleware, createHttpsRedirectMiddleware } from '../middleware/httpsRedirect';
 import { performHttpsHealthCheck, HttpsHealthMonitor } from '../utils/httpsHealthCheck';
+import { API_ENDPOINTS } from '../constants/api-endpoints';
 
+
+import { HTTP_STATUS } from '../packages/shared/src/response-formats';
+import { DB_FIELDS } from '../packages/server/src/constants/database-fields';
 describe('HTTPS Enforcement Implementation', () => {
   let app: express.Application;
   
@@ -54,17 +58,17 @@ describe('HTTPS Enforcement Implementation', () => {
 
       it('should not allow HTTP access to exempt paths in production', async () => {
         const middleware = createHttpsRedirectMiddleware({
-          exemptPaths: ['/health']
+          exemptPaths: [API_ENDPOINTS.SYSTEM.HEALTH]
         });
         
         app.use(middleware);
-        app.get('/health', (req, res) => {
+        app.get(API_ENDPOINTS.SYSTEM.HEALTH, (req, res) => {
           res.json({ status: 'OK' });
         });
 
         // Even exempt paths should redirect in production
         const response = await request(app)
-          .get('/health')
+          .get(API_ENDPOINTS.SYSTEM.HEALTH)
           .expect(301);
 
         expect(response.headers.location).toMatch(/^https:/);
@@ -106,7 +110,7 @@ describe('HTTPS Enforcement Implementation', () => {
           .expect(301);
 
         expect(consoleSpy).toHaveBeenCalledWith(
-          expect.stringContaining('PRODUCTION HTTP→HTTPS redirect:'),
+          expect.stringContaining('PRODUCTION HTTP?HTTPS redirect:'),
           expect.objectContaining({
             severity: 'WARNING',
             message: 'Insecure HTTP request redirected to HTTPS in production'
@@ -134,24 +138,24 @@ describe('HTTPS Enforcement Implementation', () => {
 
         const response = await request(app)
           .get('/test')
-          .expect(200);
+          .expect(HTTP_STATUS.OK);
 
         expect(response.body).toEqual({ success: true });
       });
 
       it('should allow HTTP access to exempt paths in development', async () => {
         const middleware = createHttpsRedirectMiddleware({
-          exemptPaths: ['/health']
+          exemptPaths: [API_ENDPOINTS.SYSTEM.HEALTH]
         });
         
         app.use(middleware);
-        app.get('/health', (req, res) => {
+        app.get(API_ENDPOINTS.SYSTEM.HEALTH, (req, res) => {
           res.json({ status: 'OK' });
         });
 
         const response = await request(app)
-          .get('/health')
-          .expect(200);
+          .get(API_ENDPOINTS.SYSTEM.HEALTH)
+          .expect(HTTP_STATUS.OK);
 
         expect(response.body).toEqual({ status: 'OK' });
       });
@@ -184,7 +188,7 @@ describe('HTTPS Enforcement Implementation', () => {
         const response = await request(app)
           .get('/test')
           .set('X-Forwarded-Proto', 'https')
-          .expect(200);
+          .expect(HTTP_STATUS.OK);
 
         expect(response.body.secure).toBe(false); // req.secure would need actual HTTPS
       });
@@ -203,7 +207,7 @@ describe('HTTPS Enforcement Implementation', () => {
         const response = await request(app)
           .get('/test')
           .set('X-Forwarded-Proto', 'https')
-          .expect(200);
+          .expect(HTTP_STATUS.OK);
 
         expect(response.body).toEqual({ success: true });
       });
@@ -271,7 +275,7 @@ describe('HTTPS Enforcement Implementation', () => {
           
           // Verify monitoring stopped
           setTimeout(() => {
-            expect(consoleSpy).toHaveBeenCalledWith('🛑 HTTPS health monitoring stopped');
+            expect(consoleSpy).toHaveBeenCalledWith('?? HTTPS health monitoring stopped');
             consoleSpy.mockRestore();
             done();
           }, 100);
@@ -308,17 +312,17 @@ describe('HTTPS Enforcement Implementation', () => {
 
     it('should enforce strict security in production environment', async () => {
       const middleware = createHttpsRedirectMiddleware({
-        exemptPaths: ['/health', '/status']
+        exemptPaths: [API_ENDPOINTS.SYSTEM.HEALTH, API_ENDPOINTS.SYSTEM.STATUS]
       });
       
       app.use(middleware);
-      app.get('/health', (req, res) => {
+      app.get(API_ENDPOINTS.SYSTEM.HEALTH, (req, res) => {
         res.json({ status: 'OK' });
       });
 
       // Even exempt paths should redirect in production
       const response = await request(app)
-        .get('/health')
+        .get(API_ENDPOINTS.SYSTEM.HEALTH)
         .expect(301);
 
       expect(response.headers.location).toMatch(/^https:/);
@@ -426,7 +430,7 @@ describe('HTTPS Enforcement Implementation', () => {
 
       // Certificate info should be present or properly structured when missing
       if (result.certificate) {
-        expect(result.certificate).toHaveProperty('subject');
+        expect(result.certificate).toHaveProperty(DB_FIELDS.MESSAGES.SUBJECT);
         expect(result.certificate).toHaveProperty('issuer');
         expect(result.certificate).toHaveProperty('validFrom');
         expect(result.certificate).toHaveProperty('validTo');
@@ -470,3 +474,6 @@ describe('HTTPS Enforcement Implementation', () => {
     });
   });
 });
+
+
+

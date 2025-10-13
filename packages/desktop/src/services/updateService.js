@@ -1,5 +1,9 @@
 import { app, dialog, BrowserWindow } from 'electron';
 import log from 'electron-log';
+import { ENV_VARS } from './packages/shared/src/constants/env-vars';
+import { DIRECTORY_PATHS } from './packages/shared/src/constants/file-paths';
+
+
 
 /**
  * Check if we're running in development mode
@@ -8,14 +12,14 @@ import log from 'electron-log';
 function isDevelopmentMode() {
   // Check if we have clear development indicators
   const hasDevIndicators = 
-    (typeof process !== 'undefined' && process.execPath?.includes('node_modules')) ||
+    (typeof process !== 'undefined' && process.execPath?.includes(DIRECTORY_PATHS.NODE_MODULES)) ||
     !app.isPackaged;
   
   log.info('isDevelopmentMode check', {
     hasDevIndicators,
     isPackaged: app.isPackaged,
     execPath: process.execPath,
-    nodeEnv: process.env.NODE_ENV
+    nodeEnv: process.env[ENV_VARS.NODE_ENV]
   });
   
   return hasDevIndicators;

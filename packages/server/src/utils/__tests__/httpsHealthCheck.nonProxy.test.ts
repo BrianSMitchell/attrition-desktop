@@ -1,5 +1,9 @@
-import express from 'express';
+﻿import express from 'express';
 import request from 'supertest';
+import { ENV_VARS } from '@shared/constants/env-vars';
+
+import { HTTP_STATUS } from '@shared/response-formats';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
 
 /**
  * Validates that in non-proxy mode, the handler calls performHttpsHealthCheck.
@@ -9,10 +13,10 @@ describe('/api/https-health non-proxy mode calls performHttpsHealthCheck', () =>
 
   beforeEach(() => {
     process.env = { ...OLD_ENV };
-    delete process.env.USE_REVERSE_PROXY_SSL;
+    delete process.env[ENV_VARS.USE_REVERSE_PROXY_SSL];
     delete process.env.RENDER;
-    process.env.HTTPS_PORT = '443';
-    process.env.PORT = '3001';
+    process.env[ENV_VARS.HTTPS_PORT] = '443';
+    process.env[ENV_VARS.PORT] = '3001';
     jest.resetModules();
     jest.clearAllMocks();
   });
@@ -51,9 +55,10 @@ describe('/api/https-health non-proxy mode calls performHttpsHealthCheck', () =>
 
       return request(app).get('/api/https-health').then((res) => {
         expect(mod.performHttpsHealthCheck).toHaveBeenCalled();
-        expect(res.status).toBe(200);
+        expect(res.status).toBe(HTTP_STATUS.OK);
         expect(res.body).toHaveProperty('success', true);
       });
     });
   });
 });
+

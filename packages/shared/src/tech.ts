@@ -1,7 +1,8 @@
 // Technology catalog and helpers for Phase A (level 1 unlocks with credits and lab gating)
 
+import { DB_FIELDS } from '../../server/src/constants/database-fields';
 export type TechnologyKey =
-  | 'energy'
+  | DB_FIELDS.EMPIRES.ENERGY
   | 'computer'
   | 'armour'
   | 'laser'
@@ -40,8 +41,8 @@ export interface TechnologySpec {
 // Catalog derived from the provided screenshot. Values are for Level 1 unlocks.
 export const technologyCatalog: Record<TechnologyKey, TechnologySpec> = {
   energy: {
-    key: 'energy',
-    name: 'Energy',
+    key: DB_FIELDS.EMPIRES.ENERGY,
+    name: DB_FIELDS.EMPIRES.ENERGY,
     description: 'Increases all bases energy output by 5%.',
     creditsCost: 2,
     requiredLabs: 1,
@@ -69,7 +70,7 @@ export const technologyCatalog: Record<TechnologyKey, TechnologySpec> = {
     description: 'Increases laser weapons power by 5%.',
     creditsCost: 4,
     requiredLabs: 2,
-    prerequisites: [{ key: 'energy', level: 2 }],
+    prerequisites: [{ key: DB_FIELDS.EMPIRES.ENERGY, level: 2 }],
   },
   missiles: {
     key: 'missiles',
@@ -85,7 +86,7 @@ export const technologyCatalog: Record<TechnologyKey, TechnologySpec> = {
     description: 'Increases stellar units speed by 5%.',
     creditsCost: 16,
     requiredLabs: 5,
-    prerequisites: [{ key: 'energy', level: 6 }],
+    prerequisites: [{ key: DB_FIELDS.EMPIRES.ENERGY, level: 6 }],
   },
   plasma: {
     key: 'plasma',
@@ -94,7 +95,7 @@ export const technologyCatalog: Record<TechnologyKey, TechnologySpec> = {
     creditsCost: 32,
     requiredLabs: 6,
     prerequisites: [
-      { key: 'energy', level: 6 },
+      { key: DB_FIELDS.EMPIRES.ENERGY, level: 6 },
       { key: 'laser', level: 4 },
     ],
   },
@@ -105,7 +106,7 @@ export const technologyCatalog: Record<TechnologyKey, TechnologySpec> = {
     creditsCost: 64,
     requiredLabs: 8,
     prerequisites: [
-      { key: 'energy', level: 8 },
+      { key: DB_FIELDS.EMPIRES.ENERGY, level: 8 },
       { key: 'stellar_drive', level: 4 },
     ],
   },
@@ -115,7 +116,7 @@ export const technologyCatalog: Record<TechnologyKey, TechnologySpec> = {
     description: 'Increases units and defenses shield by 5%.',
     creditsCost: 128,
     requiredLabs: 10,
-    prerequisites: [{ key: 'energy', level: 10 }],
+    prerequisites: [{ key: DB_FIELDS.EMPIRES.ENERGY, level: 10 }],
   },
   ion: {
     key: 'ion',
@@ -124,7 +125,7 @@ export const technologyCatalog: Record<TechnologyKey, TechnologySpec> = {
     creditsCost: 256,
     requiredLabs: 12,
     prerequisites: [
-      { key: 'energy', level: 12 },
+      { key: DB_FIELDS.EMPIRES.ENERGY, level: 12 },
       { key: 'laser', level: 10 },
     ],
   },
@@ -135,7 +136,7 @@ export const technologyCatalog: Record<TechnologyKey, TechnologySpec> = {
       'Decreases the time your own fleets can be detected before they arrive.',
     creditsCost: 512,
     requiredLabs: 14,
-    prerequisites: [{ key: 'energy', level: 14 }],
+    prerequisites: [{ key: DB_FIELDS.EMPIRES.ENERGY, level: 14 }],
   },
   photon: {
     key: 'photon',
@@ -144,7 +145,7 @@ export const technologyCatalog: Record<TechnologyKey, TechnologySpec> = {
     creditsCost: 1024,
     requiredLabs: 16,
     prerequisites: [
-      { key: 'energy', level: 16 },
+      { key: DB_FIELDS.EMPIRES.ENERGY, level: 16 },
       { key: 'plasma', level: 8 },
     ],
   },
@@ -163,7 +164,7 @@ export const technologyCatalog: Record<TechnologyKey, TechnologySpec> = {
     creditsCost: 4096,
     requiredLabs: 20,
     prerequisites: [
-      { key: 'energy', level: 20 },
+      { key: DB_FIELDS.EMPIRES.ENERGY, level: 20 },
       { key: 'laser', level: 18 },
     ],
   },
@@ -182,7 +183,7 @@ export const technologyCatalog: Record<TechnologyKey, TechnologySpec> = {
     creditsCost: 32768,
     requiredLabs: 24,
     prerequisites: [
-      { key: 'energy', level: 24 },
+      { key: DB_FIELDS.EMPIRES.ENERGY, level: 24 },
       { key: 'computer', level: 24 },
     ],
   },
@@ -194,7 +195,7 @@ export const technologyCatalog: Record<TechnologyKey, TechnologySpec> = {
     creditsCost: 100000,
     requiredLabs: 26,
     prerequisites: [
-      { key: 'energy', level: 26 },
+      { key: DB_FIELDS.EMPIRES.ENERGY, level: 26 },
       { key: 'computer', level: 26 },
     ],
   },

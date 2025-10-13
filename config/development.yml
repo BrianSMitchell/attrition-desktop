@@ -8,11 +8,7 @@ server:
   cors_origin: "http://localhost:3000"
   
 # Database Configuration
-database:
-  uri: "mongodb://localhost:27017/attrition-dev"
-  options:
-    useNewUrlParser: true
-    useUnifiedTopology: true
+# Now using Supabase - configuration handled in environment variables
   
 # JWT Configuration
 jwt:

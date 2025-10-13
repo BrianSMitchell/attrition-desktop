@@ -69,9 +69,11 @@
     "launcher:dev": "pnpm --filter @game/launcher dev",
     "launcher:build": "pnpm --filter @game/launcher build",
     "launcher:dist": "pnpm --filter @game/launcher dist",
-    "build:all": "node scripts/build-with-cleanup.js all"
+    "build:all": "node scripts/build-with-cleanup.js all",
+    "setup:github-token": "node scripts/setup-github-token.js"
   },
   "devDependencies": {
+    "@attrition/eslint-plugin-code-smell-detector": "file:packages\\server\\src\\plugins\\eslint-plugin-attrition",
     "@types/jest": "^29.5.12",
     "@types/seedrandom": "^3.0.8",
     "concurrently": "^8.2.2",
@@ -90,7 +92,10 @@
   "dependencies": {
     "@pixi/unsafe-eval": "7.4.3",
     "glob": "^11.0.3",
-    "seedrandom": "^3.0.5"
+    "minimist": "^1.2.8",
+    "openai": "^6.3.0",
+    "seedrandom": "^3.0.5",
+    "simple-git": "^3.28.0"
   },
   "pnpm": {
     "allowedBuiltDependencies": [

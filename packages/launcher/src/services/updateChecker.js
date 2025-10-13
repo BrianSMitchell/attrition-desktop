@@ -6,6 +6,8 @@ const { spawn } = require('node:child_process');
 const { app } = require('electron');
 const log = require('electron-log');
 const semver = require('semver');
+import { FILE_PATHS } from './packages/shared/src/constants/file-paths';
+
 
 /**
  * UpdateChecker service for handling game updates
@@ -46,7 +48,7 @@ class UpdateChecker {
         return app.getVersion();
       } else {
         // In development, read from the desktop package.json
-        const desktopPackageJson = path.resolve(process.cwd(), 'packages', 'desktop', 'package.json');
+        const desktopPackageJson = path.resolve(process.cwd(), 'packages', 'desktop', FILE_PATHS.PACKAGE_JSON);
         if (fs.existsSync(desktopPackageJson)) {
           const pkg = JSON.parse(fs.readFileSync(desktopPackageJson, 'utf8'));
           return pkg.version;

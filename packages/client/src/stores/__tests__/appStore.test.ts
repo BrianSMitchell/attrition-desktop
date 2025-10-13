@@ -1,6 +1,7 @@
 import { useAppStore } from '../appStore';
 
 // Mock window and navigator for tests
+import { HTTP_STATUS } from '@shared/response-formats';
 Object.defineProperty(window, 'navigator', {
   value: {
     onLine: true,
@@ -9,7 +10,7 @@ Object.defineProperty(window, 'navigator', {
 });
 
 Object.defineProperty(window, 'fetch', {
-  value: jest.fn(() => Promise.resolve({ ok: true, status: 200 })),
+  value: jest.fn(() => Promise.resolve({ ok: true, status: HTTP_STATUS.OK })),
   writable: true,
 });
 
@@ -219,3 +220,4 @@ describe('AppStore Integration', () => {
     expect(store.ui.toasts).toHaveLength(1);
   });
 });
+

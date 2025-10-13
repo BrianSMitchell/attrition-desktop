@@ -1,3 +1,6 @@
+﻿import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+
 /**
  * TLS Session Management Utilities
  * 
@@ -9,7 +12,7 @@
  */
 
 import crypto from 'crypto';
-import { EventEmitter } from 'events';
+import { HTTP_STATUS } from '../constants/response-formats';
 
 /**
  * TLS session information
@@ -332,7 +335,7 @@ export const defaultTLSSessionConfig: TLSSessionStoreConfig = {
   maxSessions: 1000,
   sessionTimeout: 300, // 5 minutes
   cleanupInterval: 60, // 1 minute
-  secureOnly: process.env.NODE_ENV === 'production',
+  secureOnly: process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION,
   enableMetrics: process.env.TLS_SESSION_METRICS === 'true'
 };
 
@@ -379,7 +382,7 @@ export function createTLSSessionMiddleware(sessionManager: TLSSessionManager) {
       const validation = sessionManager.validateSession(sessionId, clientIP);
       if (!validation.isValid) {
         console.warn(`⚠️  Invalid TLS session rejected: ${validation.reason}`);
-        return res.status(403).json({ 
+        return res.status(HTTP_STATUS.FORBIDDEN).json({ 
           error: 'Invalid TLS session',
           reason: validation.reason 
         });
@@ -409,3 +412,5 @@ export default {
   createTLSSessionMiddleware,
   defaultTLSSessionConfig
 };
+
+

@@ -5,6 +5,7 @@ import { MessageRouter } from '../realtime/MessageRouter';
 import { ConnectionHealthMonitor } from '../realtime/ConnectionHealthMonitor';
 import { DesktopBridge } from '../platform/DesktopBridge';
 
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 describe('Phase 4: Real-Time Features Optimization', () => {
   let syncEngine: SyncEngine;
   let messageRouter: MessageRouter;
@@ -78,7 +79,7 @@ describe('Phase 4: Real-Time Features Optimization', () => {
       await syncEngine.queueAction('retry_test', { data: 'test' });
       
       // Wait for processing and retries
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, TIMEOUTS.TWO_SECONDS));
       
       expect(attemptCount).toBeGreaterThan(1);
       

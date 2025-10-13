@@ -1,3 +1,5 @@
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 /*
  Apply the unique index on (empireId, locationCoord, catalogKey) with a partial filter.
  Safe to run multiple times.
@@ -9,7 +11,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, './.env') });
 
-const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/attrition';
+const MONGO_URI = process.env[ENV_VARS.MONGODB_URI] || process.env.MONGO_URI || 'mongodb://localhost:27017/attrition';
 
 async function main() {
   console.log('Connecting to MongoDB...');

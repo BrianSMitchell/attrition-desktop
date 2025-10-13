@@ -1,3 +1,6 @@
+﻿import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+
 /**
  * Legacy networkService API - now acts as a compatibility layer that delegates to NetworkManager.
  * This maintains existing API contracts while using the new architecture.
@@ -24,7 +27,7 @@ let networkManager: NetworkManager | null = null;
 // Get or create NetworkManager instance
 const getNetworkManager = (): NetworkManager => {
   if (!networkManager) {
-    networkManager = new NetworkManager({ enableLogging: process.env.NODE_ENV === 'development' });
+    networkManager = new NetworkManager({ enableLogging: process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.DEVELOPMENT });
   }
   return networkManager;
 };

@@ -1,0 +1,89 @@
+name: Quality Enforcement Pipeline
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main ]
+
+jobs:
+  quality-check:
+    runs-on: ubuntu-latest
+    name: ESLint Quality Check
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: |
+          package-lock.json
+          packages/server/package-lock.json
+          packages/client/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        npm ci
+        cd packages/server && npm ci
+
+    - name: Run ESLint with Attrition Plugin
+      run: |
+        echo "🔍 Running ESLint with Attrition Code Quality Plugin..."
+        cd packages/server
+        npx eslint . --ext .js,.ts --config .eslintrc.js --format compact
+      continue-on-error: false
+
+    - name: Generate Quality Report
+      if: failure()
+      run: |
+        echo "❌ QUALITY VIOLATIONS DETECTED!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Common Issues Found:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Excessive logging**: Use structured logging instead of console.log" >> $GITHUB_STEP_SUMMARY
+        echo "- **ID consistency**: Use UUID format instead of ObjectId or string prefixes" >> $GITHUB_STEP_SUMMARY
+        echo "- **Complex functions**: Break down functions exceeding complexity limits" >> $GITHUB_STEP_SUMMARY
+        echo "- **Legacy database patterns**: Use service layer instead of direct queries" >> $GITHUB_STEP_SUMMARY
+        echo "- **Missing service extraction**: Extract business logic to service classes" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Quick Fixes:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Run \`npm run lint:fix\` to auto-fix many issues" >> $GITHUB_STEP_SUMMARY
+        echo "2. Review error messages for specific guidance" >> $GITHUB_STEP_SUMMARY
+        echo "3. Use the VS Code ESLint extension for real-time feedback" >> $GITHUB_STEP_SUMMARY
+
+    - name: Block merge on quality violations
+      if: failure()
+      run: |
+        echo "🚫 BLOCKING MERGE DUE TO QUALITY VIOLATIONS"
+        echo ""
+        echo "The following quality issues must be resolved before merge:"
+        echo "• Code contains excessive console.log statements"
+        echo "• Functions exceed maximum complexity limits"
+        echo "• Inconsistent ID patterns detected"
+        echo "• Legacy database operations found"
+        echo "• Missing service layer abstractions"
+        echo ""
+        echo "Please fix these issues and resubmit your pull request."
+        exit 1
+
+  notify-on-success:
+    needs: quality-check
+    runs-on: ubuntu-latest
+    if: success()
+    name: Notify Quality Check Passed
+
+    steps:
+    - name: Quality Check Passed Notification
+      run: |
+        echo "✅ QUALITY CHECK PASSED!"
+        echo "All code meets Attrition quality standards:"
+        echo "• ✅ No excessive logging detected"
+        echo "• ✅ Function complexity within limits"
+        echo "• ✅ Consistent ID patterns used"
+        echo "• ✅ Modern database patterns implemented"
+        echo "• ✅ Proper service layer abstractions"
+        echo ""
+        echo "🎉 Ready for merge!"

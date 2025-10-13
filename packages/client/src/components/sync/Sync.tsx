@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useServiceSync, useServiceToasts } from '../../hooks/useServiceIntegration';
 
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 /**
  * Sync status indicator showing current sync state and queue count
  */
@@ -246,7 +247,7 @@ const SyncProgressIndicator: React.FC<{
 
     const interval = setInterval(() => {
       setElapsedTime(Date.now() - startTime);
-    }, 1000);
+    }, TIMEOUTS.ONE_SECOND);
 
     return () => clearInterval(interval);
   }, [sync.state, startTime]);

@@ -5,6 +5,7 @@ import { Location } from '../../../../../shared/src/types';
 import { useGameStore } from '../../../stores/gameStore';
 
 // Mock canvas operations
+import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
 const mockGetContext = jest.fn();
 HTMLCanvasElement.prototype.getContext = mockGetContext;
 
@@ -35,7 +36,7 @@ describe('DebrisIndicator', () => {
       fertility: 0,
       resources: {
         metal: 100,
-        energy: 100,
+        energy: GAME_CONSTANTS.STARTING_ENERGY,
         research: 0
       }
     },

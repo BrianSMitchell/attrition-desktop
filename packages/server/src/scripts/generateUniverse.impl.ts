@@ -3,6 +3,7 @@ import path from 'path';
 import { config as dotenvConfig } from 'dotenv';
 import seedrandom from 'seedrandom';
 import { supabase } from '../config/supabase';
+import { DB_TABLES } from '../constants/database-fields';
 // Removed legacy database type check - we're fully on Supabase now
 import {
   formatCoord,
@@ -29,7 +30,7 @@ const UNIVERSE_CONFIG = {
 
 async function universeExistsForServer(server: string): Promise<boolean> {
   const { count, error } = await supabase
-    .from('locations')
+    .from(DB_TABLES.LOCATIONS)
     .select('*', { count: 'exact', head: true })
     .like('coord', `${server}%`);
   if (error) {
@@ -180,7 +181,7 @@ export async function generateUniverse() {
     for (let i = 0; i < rows.length; i += batchSize) {
       const batch = rows.slice(i, i + batchSize);
       const { error } = await supabase
-        .from('locations')
+        .from(DB_TABLES.LOCATIONS)
         .upsert(batch, { onConflict: 'coord' });
       if (error) {
         throw new Error(`Upsert failed at batch starting ${i}: ${error.message}`);

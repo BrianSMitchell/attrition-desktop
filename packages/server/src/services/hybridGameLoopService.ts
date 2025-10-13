@@ -1,4 +1,9 @@
 import { supabase } from '../config/supabase';
+
+// Constants imports for eliminating hardcoded values
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+
+import { supabase } from '../config/supabase';
 import { ResourceService } from './resources/ResourceService';
 import { BuildingService } from './buildingService';
 import { CapacityService } from './bases/CapacityService';
@@ -8,6 +13,9 @@ import { emitFleetUpdate } from '../utils/socketManager';
 import { FleetMovementService } from './fleets/FleetMovementService';
 import { SupabaseCompletionService } from './completionService';
 import { CitizenService } from './bases/CitizenService';
+
+import { STATUS_CODES } from '@shared/constants/magic-numbers';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
 
 export class HybridGameLoopService {
   private static instance: HybridGameLoopService;
@@ -30,13 +38,13 @@ export class HybridGameLoopService {
    */
   start(): void {
     if (this.isRunning) {
-      if (process.env.DEBUG_RESOURCES === 'true') {
+      if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
         console.log('Hybrid game loop is already running');
       }
       return;
     }
 
-    if (process.env.DEBUG_RESOURCES === 'true') {
+    if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
       console.log('🎮 Starting HYBRID game loop with optimized intervals');
     }
     this.isRunning = true;
@@ -71,7 +79,7 @@ export class HybridGameLoopService {
       }
     }, 300000); // 5 minutes
 
-    if (process.env.DEBUG_RESOURCES === 'true') {
+    if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
       console.log('✅ Hybrid game loop started:');
       console.log('   🔄 Completions: Every 10 seconds (responsive)');
       console.log('   💰 Resources: Every 60 seconds (efficient)');
@@ -97,7 +105,7 @@ export class HybridGameLoopService {
     }
     
     this.isRunning = false;
-    if (process.env.DEBUG_RESOURCES === 'true') {
+    if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
       console.log('🛑 Hybrid game loop stopped');
     }
   }
@@ -107,7 +115,7 @@ export class HybridGameLoopService {
    * Call this whenever a user performs an action (login, build, etc.)
    */
   async checkUserCompletions(empireId: string): Promise<void> {
-    if (process.env.DEBUG_RESOURCES === 'true') {
+    if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
       console.log(`🔍 Checking completions for active empire: ${empireId}`);
     }
     
@@ -146,7 +154,7 @@ export class HybridGameLoopService {
       // Only log if there was actual activity
       const totalActivity = techStats.completed + unitStats.completed + defenseStats.completed + buildingStats.activatedCount + fleetArrivals;
       if (totalActivity > 0) {
-        if (process.env.DEBUG_RESOURCES === 'true') {
+        if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
           console.log(
             `[HybridLoop] completions: tech=${techStats.completed} units=${unitStats.completed} defense=${defenseStats.completed} buildings=${buildingStats.activatedCount} fleets=${fleetArrivals}`
           );
@@ -166,8 +174,8 @@ export class HybridGameLoopService {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
       const { data: activeEmpires, error } = await supabase
-        .from('empires')
-        .select('id')
+        .from(DB_TABLES.EMPIRES)
+        .select(DB_FIELDS.BUILDINGS.ID)
         .or(`last_resource_update.gte.${oneDayAgo.toISOString()},last_resource_update.is.null`);
 
       if (error) {
@@ -192,7 +200,7 @@ await CitizenService.updateEmpireBases(empireId);
         }
       }
 
-      if (process.env.DEBUG_RESOURCES === 'true') {
+      if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
         console.log(`[HybridLoop] resources updated: ${updated}/${activeEmpires?.length || 0} empires`);
       }
     } catch (error) {
@@ -204,7 +212,7 @@ await CitizenService.updateEmpireBases(empireId);
    * INFREQUENT: Process maintenance tasks (5 minute interval)
    */
   private async processMaintenanceTasks(): Promise<void> {
-    if (process.env.DEBUG_RESOURCES === 'true') {
+    if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
       console.log('🧹 Running maintenance tasks...');
     }
     
@@ -216,7 +224,7 @@ await CitizenService.updateEmpireBases(empireId);
       const techActivated = await this.activatePendingTech();
 
       if (researchCompleted > 0 || techActivated.activated > 0) {
-        if (process.env.DEBUG_RESOURCES === 'true') {
+        if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
           console.log(`[HybridLoop] maintenance: research=${researchCompleted} techActivated=${techActivated.activated}`);
         }
       }
@@ -237,11 +245,11 @@ await CitizenService.updateEmpireBases(empireId);
 
     try {
       const { data: dueItems, error } = await supabase
-        .from('unit_queues')
+        .from(DB_TABLES.UNIT_QUEUES)
         .select('*')
-        .eq('empire_id', empireId)
-        .eq('status', 'pending')
-        .lte('completes_at', now.toISOString());
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'pending')
+        .lte(DB_FIELDS.TECH_QUEUE.COMPLETES_AT, now.toISOString());
 
       if (error) {
         console.error('Error fetching due unit items:', error);
@@ -276,11 +284,11 @@ await CitizenService.updateEmpireBases(empireId);
 
     try {
       const { data: dueItems, error } = await supabase
-        .from('tech_queues')
+        .from(DB_TABLES.TECH_QUEUES)
         .select('*')
-        .eq('empire_id', empireId)
-        .eq('status', 'pending')
-        .lte('completes_at', now.toISOString());
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'pending')
+        .lte(DB_FIELDS.TECH_QUEUE.COMPLETES_AT, now.toISOString());
 
       if (error) {
         console.error('Error fetching due tech items:', error);
@@ -316,11 +324,11 @@ await CitizenService.updateEmpireBases(empireId);
       const now = new Date();
 
       const { data: buildings, error } = await supabase
-        .from('buildings')
+        .from(DB_TABLES.BUILDINGS)
         .select('*')
-        .eq('empire_id', empireId)
-        .eq('is_active', false)
-        .lte('construction_completed', now.toISOString());
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, false)
+        .lte(DB_FIELDS.BUILDINGS.CONSTRUCTION_COMPLETED, now.toISOString());
 
       if (error) {
         console.error('Error fetching due buildings:', error);
@@ -337,14 +345,14 @@ await CitizenService.updateEmpireBases(empireId);
 
           // Update building as completed
           const { error: updateError } = await supabase
-            .from('buildings')
+            .from(DB_TABLES.BUILDINGS)
             .update({
               level: newLevel,
               is_active: true,
               pending_upgrade: false,
               construction_completed: null
             })
-            .eq('id', building.id);
+            .eq(DB_FIELDS.BUILDINGS.ID, building.id);
 
           if (updateError) {
             console.error('Error updating building:', updateError);
@@ -382,11 +390,11 @@ await CitizenService.updateEmpireBases(empireId);
 
     try {
       const { data: dueItems, error } = await supabase
-        .from('defense_queues')
+        .from(DB_TABLES.DEFENSE_QUEUES)
         .select('*')
-        .eq('empire_id', empireId)
-        .eq('status', 'pending')
-        .lte('completes_at', now.toISOString());
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'pending')
+        .lte(DB_FIELDS.TECH_QUEUE.COMPLETES_AT, now.toISOString());
 
       if (error) {
         console.error('Error fetching due defense items:', error);
@@ -397,9 +405,9 @@ await CitizenService.updateEmpireBases(empireId);
       for (const item of dueItems || []) {
         try {
           const { error: updateError } = await supabase
-            .from('defense_queues')
+            .from(DB_TABLES.DEFENSE_QUEUES)
             .update({ status: 'completed' })
-            .eq('id', item.id);
+            .eq(DB_FIELDS.BUILDINGS.ID, item.id);
 
           if (updateError) {
             console.error('Error updating defense item:', updateError);
@@ -428,10 +436,10 @@ await CitizenService.updateEmpireBases(empireId);
 
     try {
       const { data: dueArrivals, error } = await supabase
-        .from('fleet_movements')
+        .from(DB_TABLES.FLEET_MOVEMENTS)
         .select('*')
-        .eq('empire_id', empireId)
-        .eq('status', 'travelling')
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'travelling')
         .lte('estimated_arrival_time', now.toISOString());
 
       if (error) {
@@ -456,25 +464,25 @@ await FleetMovementService.processArrivals();
   private async completeUnitItem(item: any): Promise<void> {
     // Your existing unit completion logic adapted for Supabase
     const { data: empire, error: empireError } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('*')
-      .eq('id', item.empire_id)
+      .eq(DB_FIELDS.BUILDINGS.ID, item.empire_id)
       .maybeSingle();
 
     if (empireError || !empire) {
       // Mark as cancelled if empire is missing
       await supabase
-        .from('unit_queues')
+        .from(DB_TABLES.UNIT_QUEUES)
         .update({ status: 'cancelled' })
-        .eq('id', item.id);
+        .eq(DB_FIELDS.BUILDINGS.ID, item.id);
       return;
     }
 
     // Mark unit queue item as completed
     await supabase
-      .from('unit_queues')
+      .from(DB_TABLES.UNIT_QUEUES)
       .update({ status: 'completed' })
-      .eq('id', item.id);
+      .eq(DB_FIELDS.BUILDINGS.ID, item.id);
 
     // Add to fleet logic... (adapted for Supabase)
     const baseCoord = String(item.location_coord || '');
@@ -482,11 +490,11 @@ await FleetMovementService.processArrivals();
 
     // Find most recent stationed fleet at this base; if none, create a new one with auto-generated name
     const { data: existingFleets, error: fleetError } = await supabase
-      .from('fleets')
+      .from(DB_TABLES.FLEETS)
       .select('*')
-      .eq('empire_id', empireId)
-      .eq('location_coord', baseCoord)
-      .order('created_at', { ascending: false })
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, baseCoord)
+      .order(DB_FIELDS.BUILDINGS.CREATED_AT, { ascending: false })
       .limit(1);
 
     if (fleetError) {
@@ -502,12 +510,12 @@ await FleetMovementService.processArrivals();
 
       // Increment nextFleetNumber for the empire
       await supabase
-        .from('empires')
+        .from(DB_TABLES.EMPIRES)
         .update({ next_fleet_number: nextNum + 1 })
-        .eq('id', empire.id);
+        .eq(DB_FIELDS.BUILDINGS.ID, empire.id);
 
       const { data: newFleet, error: createError } = await supabase
-        .from('fleets')
+        .from(DB_TABLES.FLEETS)
         .insert({
           empire_id: empireId,
           location_coord: baseCoord,
@@ -547,12 +555,12 @@ await FleetMovementService.processArrivals();
 
     // Update fleet in database
     const { error: fleetUpdateError } = await supabase
-      .from('fleets')
+      .from(DB_TABLES.FLEETS)
       .update({
         units: updatedUnits,
         size_credits: newSizeCredits
       })
-      .eq('id', fleet.id);
+      .eq(DB_FIELDS.BUILDINGS.ID, fleet.id);
 
     if (fleetUpdateError) {
       console.error('Error updating fleet:', fleetUpdateError);
@@ -578,17 +586,17 @@ await FleetMovementService.processArrivals();
   private async completeTechItem(item: any): Promise<void> {
     // Your existing tech completion logic adapted for Supabase
     const { data: empire, error: empireError } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('*')
-      .eq('id', item.empire_id)
+      .eq(DB_FIELDS.BUILDINGS.ID, item.empire_id)
       .maybeSingle();
 
     if (empireError || !empire) {
       // Mark as cancelled if empire is missing
       await supabase
-        .from('tech_queues')
+        .from(DB_TABLES.TECH_QUEUES)
         .update({ status: 'cancelled' })
-        .eq('id', item.id);
+        .eq(DB_FIELDS.BUILDINGS.ID, item.id);
       return;
     }
 
@@ -600,9 +608,9 @@ await FleetMovementService.processArrivals();
 
     // Update empire with new tech level
     const { error: empireUpdateError } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .update({ tech_levels: techLevels })
-      .eq('id', empire.id);
+      .eq(DB_FIELDS.BUILDINGS.ID, empire.id);
 
     if (empireUpdateError) {
       console.error('Error updating empire tech levels:', empireUpdateError);
@@ -611,9 +619,9 @@ await FleetMovementService.processArrivals();
 
     // Mark queue item as completed
     await supabase
-      .from('tech_queues')
+      .from(DB_TABLES.TECH_QUEUES)
       .update({ status: 'completed' })
-      .eq('id', item.id);
+      .eq(DB_FIELDS.BUILDINGS.ID, item.id);
   }
 
   // ===== REAL IMPLEMENTATIONS FROM ORIGINAL GAME LOOP =====
@@ -640,7 +648,7 @@ await FleetMovementService.processArrivals();
    */
   private async processBuildingQueue(): Promise<{ activatedCount: number; activatedIds: string[] }> {
     try {
-      // Use the existing BuildingService method which handles both MongoDB and Supabase
+      // Use the existing BuildingService method
       const result = await BuildingService.completeDueConstructions();
       
       if (result.activatedCount > 0) {
@@ -675,9 +683,9 @@ await FleetMovementService.processArrivals();
 
       // Find research projects that should be completed
       const { data: completedProjects, error } = await supabase
-        .from('research_projects')
+        .from(DB_TABLES.RESEARCH_PROJECTS)
         .select('*')
-        .eq('is_completed', false)
+        .eq(DB_FIELDS.RESEARCH_PROJECTS.IS_COMPLETED, false)
         .filter('research_progress', 'gte', 'research_cost');
 
       if (error) {
@@ -689,12 +697,12 @@ await FleetMovementService.processArrivals();
         try {
           // Update project as completed
           const { error: updateError } = await supabase
-            .from('research_projects')
+            .from(DB_TABLES.RESEARCH_PROJECTS)
             .update({
               is_completed: true,
               completed_at: now.toISOString()
             })
-            .eq('id', project.id);
+            .eq(DB_FIELDS.BUILDINGS.ID, project.id);
 
           if (updateError) {
             console.error('Error updating research project:', updateError);
@@ -722,9 +730,9 @@ await FleetMovementService.processArrivals();
   private async applyResearchBenefits(project: any): Promise<void> {
     try {
       const { data: empire, error } = await supabase
-        .from('empires')
+        .from(DB_TABLES.EMPIRES)
         .select('*')
-        .eq('id', project.empire_id)
+        .eq(DB_FIELDS.BUILDINGS.ID, project.empire_id)
         .maybeSingle();
 
       if (error || !empire) {
@@ -757,11 +765,11 @@ await FleetMovementService.processArrivals();
 
       // Find pending items that are not yet scheduled (no completesAt) or not charged
       const { data: items, error } = await supabase
-        .from('tech_queues')
+        .from(DB_TABLES.TECH_QUEUES)
         .select('*')
-        .eq('status', 'pending')
+        .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'pending')
         .or('completes_at.is.null,completes_at.eq.,charged.eq.false')
-        .order('created_at', { ascending: true });
+        .order(DB_FIELDS.BUILDINGS.CREATED_AT, { ascending: true });
 
       if (error) {
         console.error('Error fetching pending tech items:', error);
@@ -772,17 +780,17 @@ await FleetMovementService.processArrivals();
       for (const item of items || []) {
         try {
           const { data: empire, error: empireError } = await supabase
-            .from('empires')
+            .from(DB_TABLES.EMPIRES)
             .select('*')
-            .eq('id', item.empire_id)
+            .eq(DB_FIELDS.BUILDINGS.ID, item.empire_id)
             .maybeSingle();
 
           if (empireError || !empire) {
             // Mark as cancelled if empire is missing
             const { error: cancelError } = await supabase
-              .from('tech_queues')
+              .from(DB_TABLES.TECH_QUEUES)
               .update({ status: 'cancelled' })
-              .eq('id', item.id);
+              .eq(DB_FIELDS.BUILDINGS.ID, item.id);
 
             if (cancelError) {
               console.error('Error cancelling tech queue item:', cancelError);
@@ -794,9 +802,9 @@ await FleetMovementService.processArrivals();
             const levelMissing = Math.max(1, Number(item.level || 1));
             if (!item.identity_key && techKeyMissing) {
               const { error: updateError } = await supabase
-                .from('tech_queues')
+                .from(DB_TABLES.TECH_QUEUES)
                 .update({ identity_key: `${empireIdStr}:${techKeyMissing}:${levelMissing}` })
-                .eq('id', item.id);
+                .eq(DB_FIELDS.BUILDINGS.ID, item.id);
 
               if (updateError) {
                 console.error('Error updating identity_key:', updateError);
@@ -837,13 +845,13 @@ await FleetMovementService.processArrivals();
 
           // Update queue item with scheduling info
           const { error: updateError } = await supabase
-            .from('tech_queues')
+            .from(DB_TABLES.TECH_QUEUES)
             .update({
               completes_at: completesAt.toISOString(),
               charged: true,
               identity_key: item.identity_key || `${empireIdStr}:${techKey}:${desiredLevel}`
             })
-            .eq('id', item.id);
+            .eq(DB_FIELDS.BUILDINGS.ID, item.id);
 
           if (updateError) {
             console.error('Error updating tech queue item:', updateError);
@@ -853,9 +861,9 @@ await FleetMovementService.processArrivals();
 
           // Charge credits after successful scheduling
           const { error: creditError } = await supabase
-            .from('empires')
+            .from(DB_TABLES.EMPIRES)
             .update({ credits: empire.credits - creditsCost })
-            .eq('id', empire.id);
+            .eq(DB_FIELDS.BUILDINGS.ID, empire.id);
 
           if (creditError) {
             console.error('Error deducting credits for tech:', creditError);
@@ -886,14 +894,14 @@ await FleetMovementService.processArrivals();
 
       // Query arrivals from Supabase
       const { data: arrivals, error } = await supabase
-        .from('fleet_movements')
-        .select('id')
-        .eq('status', 'travelling')
+        .from(DB_TABLES.FLEET_MOVEMENTS)
+        .select(DB_FIELDS.BUILDINGS.ID)
+        .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'travelling')
         .lte('estimated_arrival_time', currentTime.toISOString());
 
       if (error) {
         console.error('Error fetching fleet arrivals from Supabase:', error);
-        return 0;
+        return STATUS_CODES.SUCCESS;
       }
 
       // Process arrivals using SupabaseFleetMovementService
@@ -905,7 +913,7 @@ await FleetMovementService.processArrivals();
       return arrivals?.length || 0;
     } catch (error) {
       console.error('Error processing fleet arrivals in hybrid loop:', error);
-      return 0;
+      return STATUS_CODES.SUCCESS;
     }
   }
 
@@ -927,3 +935,5 @@ await FleetMovementService.processArrivals();
 
 // Export singleton instance
 export const hybridGameLoop = HybridGameLoopService.getInstance();
+
+

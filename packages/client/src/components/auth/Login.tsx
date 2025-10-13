@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useServiceAuth, useServiceNetwork, useServiceToasts } from '../../hooks/useServiceIntegration';
 import { withAuthMigration } from '../ServiceMigrationWrapper';
 import spaceBackground from '../../assets/images/space-background.png';
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+
 
 // Credential storage utilities (unchanged from original)
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { LAYOUT_CLASSES, ALERT_CLASSES, LOADING_CLASSES, INPUT_CLASSES } from '../constants/css-constants';
 const CREDENTIALS_KEY = 'attrition-saved-credentials';
 
 interface SavedCredentials {
@@ -84,11 +88,11 @@ const LoginComponent: React.FC = () => {
     }
     
     // Enhanced error messages based on common issues
-    if (error.includes('Invalid credentials') || error.includes('Login failed')) {
+    if (error.includes(ERROR_MESSAGES.INVALID_CREDENTIALS) || error.includes(ERROR_MESSAGES.LOGIN_FAILED)) {
       return 'Invalid email or password. Please check your credentials and try again.';
     }
     
-    if (error.includes('Network Error') || error.includes('timeout')) {
+    if (error.includes(ERROR_MESSAGES.NETWORK_ERROR) || error.includes('timeout')) {
       return 'Connection timeout. Please check your internet connection and try again.';
     }
     
@@ -102,7 +106,7 @@ const LoginComponent: React.FC = () => {
 
   // Auto-retry logic for transient failures
   const shouldAutoRetry = (error: string): boolean => {
-    const transientErrors = ['timeout', 'Network Error', 'Connection failed'];
+    const transientErrors = ['timeout', ERROR_MESSAGES.NETWORK_ERROR, 'Connection failed'];
     return retryAttempt < 2 && transientErrors.some(e => error.includes(e));
   };
 
@@ -146,7 +150,7 @@ const LoginComponent: React.FC = () => {
         }
       } else {
         // Enhanced error handling
-        const errorMessage = getContextualErrorMessage(auth.error || 'Login failed');
+        const errorMessage = getContextualErrorMessage(auth.error || ERROR_MESSAGES.LOGIN_FAILED);
 
         // Auto-retry logic for transient failures
         if (shouldAutoRetry(auth.error || '')) {
@@ -156,7 +160,7 @@ const LoginComponent: React.FC = () => {
           // Retry after short delay without reusing the synthetic event
           setTimeout(() => {
             void attemptLogin();
-          }, 1000);
+          }, TIMEOUTS.ONE_SECOND);
           return;
         }
 
@@ -180,9 +184,9 @@ const LoginComponent: React.FC = () => {
   const getServiceStatusIndicator = () => {
     if (!auth.serviceConnected) {
       return (
-        <div className="p-3 bg-yellow-500 bg-opacity-20 border border-yellow-400 border-opacity-50 rounded-lg text-yellow-300 text-sm backdrop-blur-sm">
+        <div className={ALERT_CLASSES.WARNING}>
           <div className="flex items-center">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-400 mr-2"></div>
+            <div className={LOADING_CLASSES.SPINNER_YELLOW}></div>
             Authentication service is starting...
           </div>
         </div>
@@ -191,9 +195,9 @@ const LoginComponent: React.FC = () => {
     
     if (!network.isOnline) {
       return (
-        <div className="p-3 bg-red-500 bg-opacity-20 border border-red-400 border-opacity-50 rounded-lg text-red-300 text-sm backdrop-blur-sm">
+        <div className={ALERT_CLASSES.ERROR}>
           <div className="flex items-center">
-            <span className="mr-2">🔴</span>
+            <span className="mr-2">??</span>
             No internet connection
           </div>
         </div>
@@ -202,9 +206,9 @@ const LoginComponent: React.FC = () => {
     
     if (!network.isApiReachable) {
       return (
-        <div className="p-3 bg-orange-500 bg-opacity-20 border border-orange-400 border-opacity-50 rounded-lg text-orange-300 text-sm backdrop-blur-sm">
+        <div className={ALERT_CLASSES.INFO}>
           <div className="flex items-center">
-            <span className="mr-2">🟠</span>
+            <span className="mr-2">??</span>
             Server connection issues
           </div>
         </div>
@@ -258,7 +262,7 @@ const LoginComponent: React.FC = () => {
               
               {/* Error display */}
               {auth.error && (
-                <div className="p-3 bg-red-500 bg-opacity-20 border border-red-400 border-opacity-50 rounded-lg text-red-300 text-sm backdrop-blur-sm">
+                <div className={ALERT_CLASSES.ERROR}>
                   {getContextualErrorMessage(auth.error)}
                 </div>
               )}
@@ -275,7 +279,7 @@ const LoginComponent: React.FC = () => {
                   type="email"
                   autoComplete="email"
                   required
-                  className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-600 border-opacity-50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-50 backdrop-blur-sm transition-all duration-300"
+                  className={INPUT_CLASSES.PRIMARY}
                   placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -295,7 +299,7 @@ const LoginComponent: React.FC = () => {
                   type="password"
                   autoComplete="current-password"
                   required
-                  className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-600 border-opacity-50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-50 backdrop-blur-sm transition-all duration-300"
+                  className={INPUT_CLASSES.PRIMARY}
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -311,13 +315,13 @@ const LoginComponent: React.FC = () => {
                 className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-cyan-500/25 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  <div className={LAYOUT_CLASSES.FLEX_CENTER}>
+                    <div className={LOADING_CLASSES.SPINNER_WHITE}></div>
                     {retryAttempt > 0 ? `Retrying... (${retryAttempt}/2)` : 'Signing in...'}
                   </div>
                 ) : !isOperational ? (
-                  <div className="flex items-center justify-center">
-                    <span className="mr-2">⚠️</span>
+                  <div className={LAYOUT_CLASSES.FLEX_CENTER}>
+                    <span className="mr-2">??</span>
                     Service Unavailable
                   </div>
                 ) : (
@@ -326,7 +330,7 @@ const LoginComponent: React.FC = () => {
               </button>
 
               {/* Remember me checkbox */}
-              <div className="flex items-center justify-center">
+              <div className={LAYOUT_CLASSES.FLEX_CENTER}>
                 <label className="flex items-center text-sm text-gray-300 cursor-pointer hover:text-white transition-colors duration-200">
                   <input
                     type="checkbox"
@@ -370,3 +374,6 @@ export const Login = withAuthMigration(LoginComponent);
 export { LoginComponent };
 
 export default Login;
+
+
+

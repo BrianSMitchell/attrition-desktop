@@ -1,4 +1,7 @@
 const { ipcMain } = require('electron');
+
+import { HTTP_STATUS } from '../packages/shared/src/response-formats';
+const { ipcMain } = require('electron');
 const keytar = require('keytar');
 const path = require('path');
 const fs = require('fs');
@@ -276,11 +279,11 @@ describe('Main Process IPC Handlers', () => {
       
       global.fetch = jest.fn().mockResolvedValueOnce({
         ok: false,
-        status: 401
+        status: HTTP_STATUS.UNAUTHORIZED
       });
       
       const result = await handler();
-      expect(result).toEqual({ ok: false, status: 401 });
+      expect(result).toEqual({ ok: false, status: HTTP_STATUS.UNAUTHORIZED });
     });
 
     test('should handle auth:login and return sanitized payload (no refreshToken)', async () => {
@@ -616,3 +619,4 @@ describe('Main Process IPC Handlers', () => {
     });
   });
 });
+

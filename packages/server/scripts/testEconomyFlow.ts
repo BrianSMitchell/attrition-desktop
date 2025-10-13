@@ -1,5 +1,7 @@
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 
 // Configure dotenv
 dotenv.config();
@@ -13,7 +15,7 @@ async function testEconomyFlow() {
   try {
     console.log('=== Testing Cached Economy and Credit Payout Flow ===');
     console.log('Connecting to database...');
-    await mongoose.connect(process.env.MONGODB_URI!);
+    await mongoose.connect(process.env[ENV_VARS.MONGODB_URI]!);
     console.log('Connected to database\n');
 
     // Get all empires

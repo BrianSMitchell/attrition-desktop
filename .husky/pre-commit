@@ -1,0 +1,47 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit quality checks..."
+echo "============================================="
+
+# Run ESLint with Attrition plugin
+echo "📋 Running ESLint quality checks..."
+cd packages/server
+
+# Check if ESLint passes
+if npx eslint . --ext .js,.ts --config .eslintrc.js --max-warnings 0; then
+    echo "✅ ESLint checks passed!"
+else
+    echo ""
+    echo "❌ COMMIT BLOCKED: ESLint violations found!"
+    echo ""
+    echo "🚫 Your commit has been blocked due to code quality violations."
+    echo ""
+    echo "Common issues that may have been detected:"
+    echo "• Excessive console.log statements"
+    echo "• Functions exceeding complexity limits"
+    echo "• Inconsistent ID patterns (ObjectId vs UUID)"
+    echo "• Legacy database operations"
+    echo "• Missing service layer abstractions"
+    echo ""
+    echo "How to fix:"
+    echo "1. Review the ESLint errors above for specific locations"
+    echo "2. Use VS Code ESLint extension for real-time feedback"
+    echo "3. Run 'npm run lint:fix' to auto-fix many issues"
+    echo "4. Fix remaining issues manually"
+    echo "5. Stage your changes and try committing again"
+    echo ""
+    echo "💡 Tip: Use the VS Code ESLint extension for immediate feedback"
+    echo "   as you type, preventing these issues before commit."
+    exit 1
+fi
+
+echo ""
+echo "🎯 Running additional quality checks..."
+
+# Check for other quality metrics if needed
+# Add more quality checks here as needed
+
+echo "✅ All quality checks passed!"
+echo "🚀 Proceeding with commit..."
+echo ""

@@ -1,4 +1,5 @@
-import { isReverseProxySSL } from '../runtimeEnv';
+﻿import { isReverseProxySSL } from '../runtimeEnv';
+import { ENV_VARS } from '@shared/constants/env-vars';
 
 describe('isReverseProxySSL', () => {
   const OLD_ENV = process.env;
@@ -6,7 +7,7 @@ describe('isReverseProxySSL', () => {
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...OLD_ENV };
-    delete process.env.USE_REVERSE_PROXY_SSL;
+    delete process.env[ENV_VARS.USE_REVERSE_PROXY_SSL];
     delete process.env.RENDER;
   });
 
@@ -19,13 +20,13 @@ describe('isReverseProxySSL', () => {
   });
 
   test('returns true when USE_REVERSE_PROXY_SSL is true (any casing)', () => {
-    process.env.USE_REVERSE_PROXY_SSL = 'true';
+    process.env[ENV_VARS.USE_REVERSE_PROXY_SSL] = 'true';
     expect(isReverseProxySSL()).toBe(true);
 
-    process.env.USE_REVERSE_PROXY_SSL = 'True';
+    process.env[ENV_VARS.USE_REVERSE_PROXY_SSL] = 'True';
     expect(isReverseProxySSL()).toBe(true);
 
-    process.env.USE_REVERSE_PROXY_SSL = 'YES';
+    process.env[ENV_VARS.USE_REVERSE_PROXY_SSL] = 'YES';
     expect(isReverseProxySSL()).toBe(true);
   });
 
@@ -36,7 +37,7 @@ describe('isReverseProxySSL', () => {
 
   test('returns true when either flag is true', () => {
     process.env.RENDER = 'true';
-    process.env.USE_REVERSE_PROXY_SSL = 'false';
+    process.env[ENV_VARS.USE_REVERSE_PROXY_SSL] = 'false';
     expect(isReverseProxySSL()).toBe(true);
   });
 });

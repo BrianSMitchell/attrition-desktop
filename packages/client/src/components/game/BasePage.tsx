@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth, useGame, useGameActions } from '../../stores/enhancedAppStore';
 import { gameApi } from '../../stores/services/gameApi';
@@ -10,6 +10,7 @@ import type { Building, BuildingType } from '@game/shared';
 import { getBuildingSpec } from '@game/shared';
 import { useFleetSocketEvents } from '../../hooks/useFleetSocketEvents';
 import { FleetDebug } from '../debug/FleetDebug';
+import { LAYOUT_CLASSES } from '../constants/css-constants';
 
 // Type definitions for API data
 type BaseStatsDTO = any;
@@ -190,15 +191,15 @@ const BasePage: React.FC = () => {
 
           setBaseObj(derivedBase);
           // Load fleets for owner view too
-          console.log('[BasePage] 🚢 ABOUT TO LOAD FLEETS FOR OWNER:', coord);
+          console.log('[BasePage] ðŸš¢ ABOUT TO LOAD FLEETS FOR OWNER:', coord);
           await gameActions.loadFleetsForBase(coord);
-          console.log('[BasePage] 🚢 FLEET LOAD COMPLETE FOR OWNER');
+          console.log('[BasePage] ðŸš¢ FLEET LOAD COMPLETE FOR OWNER');
         } else {
           setBaseObj(null);
           // public view: load fleets via enhanced store
-          console.log('[BasePage] 🚢 ABOUT TO LOAD FLEETS FOR PUBLIC:', coord);
+          console.log('[BasePage] ðŸš¢ ABOUT TO LOAD FLEETS FOR PUBLIC:', coord);
           await gameActions.loadFleetsForBase(coord);
-          console.log('[BasePage] 🚢 FLEET LOAD COMPLETE FOR PUBLIC');
+          console.log('[BasePage] ðŸš¢ FLEET LOAD COMPLETE FOR PUBLIC');
         }
       } catch (e) {
         if (!mounted) return;
@@ -283,10 +284,10 @@ const BasePage: React.FC = () => {
     };
 
     const testFleetLoad = async () => {
-      console.log('[BasePage] 🧪 MANUAL FLEET LOAD TEST for:', coord);
+      console.log('[BasePage] ðŸ§ª MANUAL FLEET LOAD TEST for:', coord);
       if (coord) {
         await gameActions.loadFleetsForBase(coord);
-        console.log('[BasePage] 🧪 MANUAL FLEET LOAD COMPLETE');
+        console.log('[BasePage] ðŸ§ª MANUAL FLEET LOAD COMPLETE');
       }
     };
 
@@ -301,7 +302,7 @@ const BasePage: React.FC = () => {
             onClick={testFleetLoad}
             className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded shadow-lg font-bold"
           >
-            🧪 TEST FLEET LOAD
+            ðŸ§ª TEST FLEET LOAD
           </button>
         </div>
         
@@ -315,7 +316,7 @@ const BasePage: React.FC = () => {
               className="px-3 py-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
               onClick={() => navigate(-1)}
             >
-              ← Back
+              â† Back
             </button>
           </div>
         </div>
@@ -351,11 +352,11 @@ const BasePage: React.FC = () => {
             className="px-3 py-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
             onClick={() => navigate(-1)}
           >
-            ← Back
+            â† Back
           </button>
         </div>
         <div className="text-sm text-gray-300">
-          Owner: <span className="text-empire-gold">{ownerUsername ?? '—'}</span>
+          Owner: <span className="text-empire-gold">{ownerUsername ?? 'â€”'}</span>
         </div>
 
         {baseStats && (
@@ -380,7 +381,7 @@ const BasePage: React.FC = () => {
               })()}
               sub={
                 <span>
-                  +{baseStats.energy.produced.toLocaleString()} prod {' '}−{baseStats.energy.consumed.toLocaleString()} cons
+                  +{baseStats.energy.produced.toLocaleString()} prod {' '}âˆ’{baseStats.energy.consumed.toLocaleString()} cons
                 </span>
               }
             />
@@ -400,7 +401,7 @@ const BasePage: React.FC = () => {
       {/* Planet image + information */}
       <div className="game-card">
         <div className="grid md:grid-cols-2 gap-6 items-start">
-          <div className="flex items-center justify-center">
+          <div className={LAYOUT_CLASSES.FLEX_CENTER}>
             <PlanetVisual coord={coord!} className="w-56 h-56 md:w-72 md:h-72" />
           </div>
           <div>
@@ -551,3 +552,4 @@ const BasePage: React.FC = () => {
 };
 
 export default BasePage;
+

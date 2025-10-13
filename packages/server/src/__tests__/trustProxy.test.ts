@@ -1,6 +1,9 @@
 import request from 'supertest';
+import { API_ENDPOINTS } from '../constants/api-endpoints';
+
 
 // Important: set NODE_ENV=test before importing app so server doesn't start
+import { HTTP_STATUS } from '@shared/response-formats';
 const OLD_ENV = process.env;
 process.env = { ...OLD_ENV, NODE_ENV: 'test' };
 
@@ -19,10 +22,10 @@ describe('trust proxy configuration and secure detection', () => {
 
   test('secure detection true when X-Forwarded-Proto is https', async () => {
     const res = await request(app)
-      .get('/api/status')
+      .get(API_ENDPOINTS.SYSTEM.STATUS)
       .set('X-Forwarded-Proto', 'https');
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(HTTP_STATUS.OK);
     expect(res.body).toHaveProperty('success', true);
     expect(res.body).toHaveProperty('data');
     expect(res.body.data).toHaveProperty('secure', true);
@@ -30,11 +33,13 @@ describe('trust proxy configuration and secure detection', () => {
 
   test('secure detection false when X-Forwarded-Proto is http', async () => {
     const res = await request(app)
-      .get('/api/status')
+      .get(API_ENDPOINTS.SYSTEM.STATUS)
       .set('X-Forwarded-Proto', 'http');
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(HTTP_STATUS.OK);
     expect(res.body).toHaveProperty('success', true);
     expect(res.body.data).toHaveProperty('secure', false);
   });
 });
+
+

@@ -1,0 +1,37 @@
+{
+  "eslint.enable": true,
+  "eslint.workingDirectories": [
+    ".",
+    "packages/server",
+    "packages/client"
+  ],
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "eslint.options": {
+    "extensions": [".js", ".jsx", ".ts", ".tsx"]
+  },
+  "eslint.codeAction.showDocumentation": {
+    "enable": true
+  },
+  "eslint.format.enable": true,
+  "eslint.lintTask.enable": true,
+  "eslint.codeActionsOnSave.mode": "all",
+  "eslint.run": "onType",
+  "eslint.quiet": false,
+  "eslint.trace": "verbose",
+  "eslint.debug": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+  "eslint.experimental.useFlatConfig": false,
+  "eslint.useESLintClass": true,
+  "eslint.alwaysShowStatus": true,
+  "eslint.statusVisibility": "always"
+}

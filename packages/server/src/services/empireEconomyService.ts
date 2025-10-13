@@ -1,5 +1,13 @@
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+// Constants imports for eliminating hardcoded values
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
 import { supabase } from '../config/supabase';
-import { EconomyService } from './economyService';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+import { DB_FIELDS } from '../../../constants/database-fields';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
 
 /**
  * EmpireEconomyService - Manages cached empire economy values
@@ -18,13 +26,13 @@ export class EmpireEconomyService {
   static async updateEmpireEconomy(empireId: string): Promise<number> {
     try {
       const { data: empire, error: fetchError } = await supabase
-        .from('empires')
-        .select('name')
-        .eq('id', empireId)
+        .from(DB_TABLES.EMPIRES)
+        .select(DB_FIELDS.EMPIRES.NAME)
+        .eq(DB_FIELDS.BUILDINGS.ID, empireId)
         .single();
 
       if (fetchError || !empire) {
-        throw new Error('Empire not found');
+        throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
       }
 
       // Calculate fresh economy using existing service
@@ -34,15 +42,15 @@ export class EmpireEconomyService {
 
       // Cache the result
       const { error: updateError } = await supabase
-        .from('empires')
+        .from(DB_TABLES.EMPIRES)
         .update({ economy_per_hour: totalEconomy })
-        .eq('id', empireId);
+        .eq(DB_FIELDS.BUILDINGS.ID, empireId);
 
       if (updateError) {
         throw new Error(`Failed to update empire economy: ${updateError.message}`);
       }
 
-      if (process.env.DEBUG_RESOURCES === 'true') {
+      if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
         console.log(`💰 Empire ${empireId} (${empire.name}) economy updated: ${totalEconomy} credits/hour (cached)`);
       }
       
@@ -60,18 +68,18 @@ export class EmpireEconomyService {
   static async getCachedEmpireEconomy(empireId: string): Promise<number> {
     try {
       const { data: empire, error: fetchError } = await supabase
-        .from('empires')
+        .from(DB_TABLES.EMPIRES)
         .select('economy_per_hour, name')
-        .eq('id', empireId)
+        .eq(DB_FIELDS.BUILDINGS.ID, empireId)
         .single();
 
       if (fetchError || !empire) {
-        throw new Error('Empire not found');
+        throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
       }
 
       // If economy hasn't been cached yet, calculate it once
       if (empire.economy_per_hour === undefined || empire.economy_per_hour === null) {
-        if (process.env.DEBUG_RESOURCES === 'true') {
+        if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
           console.log(`⚠️ Empire ${empireId} economy not cached, calculating...`);
         }
         return await this.updateEmpireEconomy(empireId);
@@ -91,14 +99,14 @@ export class EmpireEconomyService {
   static async recalculateAllEmpires(): Promise<void> {
     try {
       const { data: empires, error: fetchError } = await supabase
-        .from('empires')
+        .from(DB_TABLES.EMPIRES)
         .select('id, name');
 
       if (fetchError) {
         throw new Error(`Failed to fetch empires: ${fetchError.message}`);
       }
 
-      if (process.env.DEBUG_RESOURCES === 'true') {
+      if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
         console.log(`🔄 Recalculating economy for ${empires?.length ?? 0} empires...`);
       }
 
@@ -112,7 +120,7 @@ export class EmpireEconomyService {
         }
       }
 
-      if (process.env.DEBUG_RESOURCES === 'true') {
+      if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
         console.log(`✅ Completed empire economy recalculation`);
       }
     } catch (error) {
@@ -127,7 +135,7 @@ export class EmpireEconomyService {
    */
   static async onBuildingChange(empireId: string, changeDescription?: string): Promise<void> {
     try {
-      if (process.env.DEBUG_RESOURCES === 'true') {
+      if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
         console.log(`🏗️ Building change for empire ${empireId}: ${changeDescription || 'update'}`);
       }
       await this.updateEmpireEconomy(empireId);
@@ -142,7 +150,7 @@ export class EmpireEconomyService {
    */
   static async onResearchComplete(empireId: string, researchName?: string): Promise<void> {
     try {
-      if (process.env.DEBUG_RESOURCES === 'true') {
+      if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
         console.log(`🔬 Research completed for empire ${empireId}: ${researchName || 'unknown'}`);
       }
       await this.updateEmpireEconomy(empireId);
@@ -151,3 +159,5 @@ export class EmpireEconomyService {
     }
   }
 }
+
+

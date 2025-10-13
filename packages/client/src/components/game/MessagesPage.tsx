@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useMessageStore, MessageTab } from '../../stores/messageStore';
 
+import { TIMEOUTS, GAME_CONSTANTS } from '@shared/constants/magic-numbers';
+import { LAYOUT_CLASSES } from '../constants/css-constants';
 const MessagesPage: React.FC = () => {
   const {
     activeTab,
@@ -63,7 +65,7 @@ const MessagesPage: React.FC = () => {
     } else {
       setDeleteConfirm(messageId);
       // Auto-cancel confirmation after 3 seconds
-      setTimeout(() => setDeleteConfirm(null), 3000);
+      setTimeout(() => setDeleteConfirm(null), TIMEOUTS.THREE_SECONDS);
     }
   };
 
@@ -72,7 +74,7 @@ const MessagesPage: React.FC = () => {
       const date = new Date(dateString);
       const now = new Date();
       const diffMs = now.getTime() - date.getTime();
-      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      const diffMinutes = Math.floor(diffMs / (GAME_CONSTANTS.MILLISECONDS_PER_SECOND * GAME_CONSTANTS.SECONDS_PER_MINUTE));
       const diffHours = Math.floor(diffMinutes / 60);
       const diffDays = Math.floor(diffHours / 24);
       
@@ -119,7 +121,7 @@ const MessagesPage: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="game-card">
-        <div className="flex items-center justify-between">
+        <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
           <h1 className="text-2xl font-bold">Messages</h1>
           {summary && (
             <div className="flex items-center space-x-4 text-sm text-gray-400">
@@ -155,13 +157,13 @@ const MessagesPage: React.FC = () => {
         {/* Error Display */}
         {error && (
           <div className="p-4 bg-red-900/30 border border-red-700 text-red-300">
-            <div className="flex items-center justify-between">
+            <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
               <span>{error}</span>
               <button
                 onClick={clearError}
                 className="text-red-400 hover:text-red-300"
               >
-                ✕
+                âœ•
               </button>
             </div>
           </div>
@@ -394,3 +396,4 @@ const MessagesPage: React.FC = () => {
 };
 
 export default MessagesPage;
+

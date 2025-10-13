@@ -90,10 +90,11 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // Debris system actions
   deployRecyclerUnit: async (coord) => {
-    if (!get().currentEmpire || !socket) return false;
+    const socketInstance = socket();
+    if (!get().currentEmpire || !socketInstance) return false;
 
     try {
-      await socket.emit('deploy-recycler', { coord });
+      await socketInstance.emit('deploy-recycler', { coord });
       return true;
     } catch (error) {
       console.error('Failed to deploy recycler:', error);
@@ -102,10 +103,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   recallRecyclerUnit: async (coord) => {
-    if (!get().currentEmpire || !socket) return false;
+    const socketInstance = socket();
+    if (!get().currentEmpire || !socketInstance) return false;
 
     try {
-      await socket.emit('recall-recycler', { coord });
+      await socketInstance.emit('recall-recycler', { coord });
       return true;
     } catch (error) {
       console.error('Failed to recall recycler:', error);
@@ -115,16 +117,22 @@ export const useGameStore = create<GameState>((set, get) => ({
 }));
 
 // Set up socket listeners for real-time updates if socket is available
-if (socket) {
-  socket.on('debris-update', ({ coord, amount }: { coord: string; amount: number }) => {
-    useGameStore.getState().updateDebrisAmount(coord, amount);
-  });
+const initializeSocketListeners = () => {
+  const socketInstance = socket();
+  if (socketInstance) {
+    socketInstance.on('debris-update', ({ coord, amount }: { coord: string; amount: number }) => {
+      useGameStore.getState().updateDebrisAmount(coord, amount);
+    });
 
-  socket.on('recycler-deployed', ({ coord, empireId }: { coord: string; empireId: string }) => {
-    useGameStore.getState().addRecycler(coord, empireId);
-  });
+    socketInstance.on('recycler-deployed', ({ coord, empireId }: { coord: string; empireId: string }) => {
+      useGameStore.getState().addRecycler(coord, empireId);
+    });
 
-  socket.on('recycler-recalled', ({ coord, empireId }: { coord: string; empireId: string }) => {
-    useGameStore.getState().removeRecycler(coord, empireId);
-  });
-}
+    socketInstance.on('recycler-recalled', ({ coord, empireId }: { coord: string; empireId: string }) => {
+      useGameStore.getState().removeRecycler(coord, empireId);
+    });
+  }
+};
+
+// Initialize socket listeners (safe to call multiple times)
+initializeSocketListeners();

@@ -1,3 +1,6 @@
+﻿import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+
 // Message routing
 export { 
   MessageRouter, 
@@ -24,7 +27,7 @@ import { ConnectionHealthMonitor } from './ConnectionHealthMonitor';
 // Convenience function to create a configured message router
 export function createMessageRouter(options: MessageRouterOptions = {}) {
   return new MessageRouter({
-    enableLogging: process.env.NODE_ENV === 'development',
+    enableLogging: process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.DEVELOPMENT,
     ...options,
   });
 }
@@ -32,7 +35,7 @@ export function createMessageRouter(options: MessageRouterOptions = {}) {
 // Convenience function to create a configured health monitor
 export function createHealthMonitor(options: HealthCheckOptions = {}) {
   return new ConnectionHealthMonitor({
-    enableLogging: process.env.NODE_ENV === 'development',
+    enableLogging: process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.DEVELOPMENT,
     ...options,
   });
 }

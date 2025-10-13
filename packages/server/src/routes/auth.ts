@@ -1,10 +1,20 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { validateLogin, validateRegister } from '@game/shared';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+// Constants imports for eliminating hardcoded values
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
 import { supabase } from '../config/supabase';
 import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate, generateAccessToken, generateRefreshToken, AuthRequest, revokeToken, verifyTokenWithSecrets } from '../middleware/auth';
-import { 
+import { ERROR_MESSAGES } from '../constants/response-formats';
+import { HTTP_STATUS } from '@shared/response-formats';
+import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
   authRateLimit, 
   loginRateLimit, 
   registerRateLimit, 
@@ -15,10 +25,10 @@ import {
 } from '../middleware/rateLimiting';
 import { securityMonitor, SecurityEventType } from '../utils/securityMonitor';
 import { sessionInvalidationService } from '../middleware/sessionInvalidation';
-import { getDatabaseType } from '../config/database';
+import { ERROR_MESSAGES } from '../constants/response-formats';
 
 const router: Router = Router();
-import { register, login } from '../services/authService';
+import { ERROR_MESSAGES } from '../constants/response-formats';
 
 // Security event logging
 const logSecurityEvent = (event: string, details: any) => {
@@ -40,9 +50,9 @@ router.post('/refresh', refreshRateLimit, asyncHandler(async (req: Request, res:
   try {
     const { refreshToken } = req.body || {};
     if (!refreshToken || typeof refreshToken !== 'string') {
-      return res.status(400).json({
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
-        error: 'refreshToken is required'
+        error: ERROR_MESSAGES.REFRESH_TOKEN_REQUIRED
       });
     }
 
@@ -61,28 +71,28 @@ router.post('/refresh', refreshRateLimit, asyncHandler(async (req: Request, res:
         ip: req.ip || 'unknown',
         userAgent: req.get('User-Agent') || 'unknown',
         details: {
-          error: 'Invalid refresh token',
+          error: ERROR_MESSAGES.INVALID_REFRESH_TOKEN,
           action: 'token_refresh'
         }
       });
 
-      return res.status(401).json({
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
-        error: 'Invalid refresh token'
+        error: ERROR_MESSAGES.INVALID_REFRESH_TOKEN
       });
     }
 
     // Get user from Supabase
     const { data: user, error } = await supabase
-      .from('users')
+      .from(DB_TABLES.USERS)
       .select('*')
-      .eq('id', decoded.userId)
+      .eq(DB_FIELDS.BUILDINGS.ID, decoded.userId)
       .single();
 
     if (error || !user) {
-      return res.status(401).json({
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
-        error: 'Invalid refresh token'
+        error: ERROR_MESSAGES.INVALID_REFRESH_TOKEN
       });
     }
 
@@ -116,9 +126,9 @@ router.post('/refresh', refreshRateLimit, asyncHandler(async (req: Request, res:
 
     // Get user's empire if exists
     const { data: empire } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('*')
-      .eq('user_id', user.id)
+      .eq(DB_FIELDS.EMPIRES.USER_ID, user.id)
       .single();
 
     res.json({
@@ -132,9 +142,9 @@ router.post('/refresh', refreshRateLimit, asyncHandler(async (req: Request, res:
       message: 'Token refreshed'
     });
   } catch (error) {
-    return res.status(401).json({
+    return res.status(HTTP_STATUS.UNAUTHORIZED).json({
       success: false,
-      error: 'Invalid refresh token'
+      error: ERROR_MESSAGES.INVALID_REFRESH_TOKEN
     });
   }
 }));
@@ -166,9 +176,9 @@ router.get('/me', authenticate, asyncHandler(async (req: AuthRequest, res: Respo
   const userId = (req.user as any)?._id || (req.user as any)?.id;
   if (userId) {
     const { data, error } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('*')
-      .eq('user_id', userId)
+      .eq(DB_FIELDS.EMPIRES.USER_ID, userId)
       .single();
     if (!error && data) {
       empire = data;
@@ -189,14 +199,14 @@ router.post('/revoke', authRateLimit, asyncHandler(async (req: Request, res: Res
   const { token } = req.body;
   
   if (!token) {
-    return res.status(400).json({
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
-      error: 'Token is required'
+      error: ERROR_MESSAGES.TOKEN_REQUIRED
     });
   }
   
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { jti?: string; userId?: string };
+    const decoded = jwt.verify(token, process.env[ENV_VARS.JWT_SECRET]!) as { jti?: string; userId?: string };
     
     if (decoded.jti) {
       revokeToken(decoded.jti);
@@ -213,15 +223,15 @@ router.post('/revoke', authRateLimit, asyncHandler(async (req: Request, res: Res
         message: 'Token revoked successfully'
       });
     } else {
-      res.status(400).json({
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
         error: 'Token does not support revocation'
       });
     }
   } catch (error) {
-    res.status(400).json({
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
-      error: 'Invalid token'
+      error: ERROR_MESSAGES.TOKEN_INVALID
     });
   }
 }));
@@ -233,7 +243,7 @@ router.post('/logout', authenticate, asyncHandler(async (req: AuthRequest, res: 
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { jti?: string };
+      const decoded = jwt.verify(token, process.env[ENV_VARS.JWT_SECRET]!) as { jti?: string };
       if (decoded.jti) {
         revokeToken(decoded.jti);
       }
@@ -260,15 +270,15 @@ router.post('/setup-admin', asyncHandler(async (req: Request, res: Response) => 
 
   // Simple setup key to prevent unauthorized admin creation
   if (setupKey !== 'setup-admin-2025') {
-    return res.status(401).json({ success: false, error: 'Invalid setup key' });
+    return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: 'Invalid setup key' });
   }
 
   try {
     // Check if admin already exists
     const { data: existingAdmin } = await supabase
-      .from('users')
+      .from(DB_TABLES.USERS)
       .select('*')
-      .eq('email', 'admin@attrition.com')
+      .eq(DB_FIELDS.USERS.EMAIL, 'admin@attrition.com')
       .single();
 
     if (existingAdmin) {
@@ -277,14 +287,14 @@ router.post('/setup-admin', asyncHandler(async (req: Request, res: Response) => 
 
     // Create admin user
     const { data: adminUser, error } = await supabase
-      .from('users')
+      .from(DB_TABLES.USERS)
       .insert({
         email: 'admin@attrition.com',
         username: 'AdminCommander',
         password_hash: 'AdminPassword123!', // Note: In production, this should be properly hashed
         role: 'admin',
         game_profile: {
-          credits: 100,
+          credits: GAME_CONSTANTS.STARTING_CREDITS,
           experience: 0
         }
       })
@@ -307,7 +317,7 @@ router.post('/setup-admin', asyncHandler(async (req: Request, res: Response) => 
     });
 
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Failed to create admin user', details: error.message });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: 'Failed to create admin user', details: error.message });
   }
 }));
 
@@ -317,18 +327,18 @@ router.post('/admin-login', asyncHandler(async (req: Request, res: Response) => 
 
   // Simple password check for admin account
   if (password !== 'AdminPassword123!') {
-    return res.status(401).json({ success: false, error: 'Invalid admin password' });
+    return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: 'Invalid admin password' });
   }
 
   // Find admin user
   const { data: adminUser, error } = await supabase
-    .from('users')
+    .from(DB_TABLES.USERS)
     .select('*')
-    .eq('email', 'admin@attrition.com')
+    .eq(DB_FIELDS.USERS.EMAIL, 'admin@attrition.com')
     .single();
 
   if (error || !adminUser || adminUser.role !== 'admin') {
-    return res.status(404).json({ success: false, error: 'Admin user not found' });
+    return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Admin user not found' });
   }
 
   // Generate tokens for admin
@@ -348,3 +358,6 @@ router.post('/admin-login', asyncHandler(async (req: Request, res: Response) => 
 }));
 
 export default router;
+
+
+

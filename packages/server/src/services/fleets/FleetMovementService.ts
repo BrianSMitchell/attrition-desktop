@@ -1,7 +1,8 @@
 import { supabase } from '../../config/supabase';
 import { getIO } from '../../index';
-import { getUnitSpec } from '@game/shared';
+import { ERROR_MESSAGES } from '../../constants/response-formats';
 
+import { DB_FIELDS } from '../../../constants/database-fields';
 export interface CoordinateParsed {
   server: string;
   galaxy: number;
@@ -113,7 +114,7 @@ export class FleetMovementService {
 
       // Check if destination exists in universe
       const { data: location, error } = await supabase
-        .from('locations')
+        .from(DB_TABLES.LOCATIONS)
         .select('coord')
         .eq('coord', destinationCoord)
         .maybeSingle();
@@ -140,16 +141,16 @@ export class FleetMovementService {
     try {
       // Find the fleet
       const { data: fleet, error: fleetError } = await supabase
-        .from('fleets')
+        .from(DB_TABLES.FLEETS)
         .select('*')
-        .eq('id', fleetId)
-        .eq('empire_id', empireId)
+        .eq(DB_FIELDS.BUILDINGS.ID, fleetId)
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
         .maybeSingle();
 
       if (fleetError || !fleet) {
         return {
           success: false,
-          error: 'Fleet not found',
+          error: ERROR_MESSAGES.FLEET_NOT_FOUND,
           code: 'FLEET_NOT_FOUND',
         };
       }
@@ -166,10 +167,10 @@ export class FleetMovementService {
 
       // Check if fleet is already moving
       const { data: existingMovement, error: movementCheckError } = await supabase
-        .from('fleet_movements')
-        .select('id')
-        .eq('fleet_id', fleetId)
-        .in('status', ['pending', 'travelling'])
+        .from(DB_TABLES.FLEET_MOVEMENTS)
+        .select(DB_FIELDS.BUILDINGS.ID)
+        .eq(DB_FIELDS.FLEET_MOVEMENTS.FLEET_ID, fleetId)
+        .in(DB_FIELDS.TECH_QUEUE.STATUS, ['pending', 'travelling'])
         .maybeSingle();
 
       if (movementCheckError) {
@@ -213,7 +214,7 @@ export class FleetMovementService {
 
       // Create movement record
       const { data: movement, error: createError } = await supabase
-        .from('fleet_movements')
+        .from(DB_TABLES.FLEET_MOVEMENTS)
         .insert({
           empire_id: empireId,
           fleet_id: fleetId,
@@ -275,25 +276,25 @@ export class FleetMovementService {
     try {
       // Find the fleet
       const { data: fleet, error: fleetError } = await supabase
-        .from('fleets')
+        .from(DB_TABLES.FLEETS)
         .select('*')
-        .eq('id', fleetId)
-        .eq('empire_id', empireId)
+        .eq(DB_FIELDS.BUILDINGS.ID, fleetId)
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
         .maybeSingle();
 
       if (fleetError || !fleet) {
         return {
           success: false,
-          error: 'Fleet not found',
+          error: ERROR_MESSAGES.FLEET_NOT_FOUND,
         };
       }
 
       // Find active movement
       const { data: movement, error: movementError } = await supabase
-        .from('fleet_movements')
+        .from(DB_TABLES.FLEET_MOVEMENTS)
         .select('*')
-        .eq('fleet_id', fleetId)
-        .in('status', ['pending', 'travelling'])
+        .eq(DB_FIELDS.FLEET_MOVEMENTS.FLEET_ID, fleetId)
+        .in(DB_FIELDS.TECH_QUEUE.STATUS, ['pending', 'travelling'])
         .maybeSingle();
 
       if (movementError) {
@@ -351,11 +352,11 @@ export class FleetMovementService {
     try {
       // Find active movement
       const { data: movement, error: findError } = await supabase
-        .from('fleet_movements')
+        .from(DB_TABLES.FLEET_MOVEMENTS)
         .select('*')
-        .eq('fleet_id', fleetId)
-        .eq('empire_id', empireId)
-        .in('status', ['pending', 'travelling'])
+        .eq(DB_FIELDS.FLEET_MOVEMENTS.FLEET_ID, fleetId)
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .in(DB_FIELDS.TECH_QUEUE.STATUS, ['pending', 'travelling'])
         .maybeSingle();
 
       if (findError || !movement) {
@@ -377,13 +378,13 @@ export class FleetMovementService {
 
       // Update movement status to recalled
       const { data: updatedMovement, error: updateError } = await supabase
-        .from('fleet_movements')
+        .from(DB_TABLES.FLEET_MOVEMENTS)
         .update({
           status: 'recalled',
           recall_time: new Date().toISOString(),
           recall_reason: reason || 'Recalled by player',
         })
-        .eq('id', movement.id)
+        .eq(DB_FIELDS.BUILDINGS.ID, movement.id)
         .select()
         .single();
 
@@ -419,9 +420,9 @@ export class FleetMovementService {
 
       // Find all movements that should have arrived
       const { data: arrivals, error } = await supabase
-        .from('fleet_movements')
+        .from(DB_TABLES.FLEET_MOVEMENTS)
         .select('*')
-        .eq('status', 'travelling')
+        .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'travelling')
         .lte('estimated_arrival_time', currentTime.toISOString());
 
       if (error) {
@@ -444,9 +445,9 @@ export class FleetMovementService {
     try {
       // Update fleet location
       const { error: fleetUpdateError } = await supabase
-        .from('fleets')
+        .from(DB_TABLES.FLEETS)
         .update({ location_coord: movement.destination_coord })
-        .eq('id', movement.fleet_id);
+        .eq(DB_FIELDS.BUILDINGS.ID, movement.fleet_id);
 
       if (fleetUpdateError) {
         console.error(`Error updating fleet location for movement ${movement.id}:`, fleetUpdateError);
@@ -455,12 +456,12 @@ export class FleetMovementService {
 
       // Update movement status
       const { error: movementUpdateError } = await supabase
-        .from('fleet_movements')
+        .from(DB_TABLES.FLEET_MOVEMENTS)
         .update({
           status: 'arrived',
           actual_arrival_time: new Date().toISOString(),
         })
-        .eq('id', movement.id);
+        .eq(DB_FIELDS.BUILDINGS.ID, movement.id);
 
       if (movementUpdateError) {
         console.error(`Error updating movement status for ${movement.id}:`, movementUpdateError);
@@ -483,3 +484,5 @@ export class FleetMovementService {
     }
   }
 }
+
+

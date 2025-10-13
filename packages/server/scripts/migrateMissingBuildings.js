@@ -1,3 +1,5 @@
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 require('dotenv').config();
 const mongoose = require('mongoose');
 
@@ -8,7 +10,7 @@ async function migrateMissingBuildings() {
   const legacyConn = mongoose.createConnection('mongodb://localhost:27017/space-empire-mmo');
   
   // Connect to current database
-  const currentConn = mongoose.createConnection(process.env.MONGODB_URI);
+  const currentConn = mongoose.createConnection(process.env[ENV_VARS.MONGODB_URI]);
   
   try {
     // Wait for connections

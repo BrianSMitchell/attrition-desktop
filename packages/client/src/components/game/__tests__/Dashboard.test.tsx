@@ -2,6 +2,10 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Dashboard, DashboardComponent } from '../Dashboard';
 import {
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
+
   createMockServiceHooks,
   createOfflineServiceHooks,
   createServiceInitializingHooks,
@@ -298,7 +302,7 @@ describe('Dashboard Component', () => {
 
   describe('Error Handling', () => {
     it('shows toast notification on API error', async () => {
-      mockApi.get.mockRejectedValue(new Error('Network error'));
+      mockApi.get.mockRejectedValue(new Error(ERROR_MESSAGES.NETWORK_ERROR));
       const mockAddToast = jest.fn();
       
       mockServiceHooks.useServiceToasts.mockReturnValue({
@@ -359,7 +363,7 @@ describe('Dashboard Component', () => {
         mockServiceHooks[key as keyof typeof mockServiceHooks].mockReturnValue(value());
       });
 
-      mockApi.get.mockRejectedValue(new Error('Network error'));
+      mockApi.get.mockRejectedValue(new Error(ERROR_MESSAGES.NETWORK_ERROR));
 
       render(<DashboardComponent />);
       
@@ -429,14 +433,14 @@ describe('Dashboard Component', () => {
   });
 
   describe('Development Mode Features', () => {
-    const originalEnv = process.env.NODE_ENV;
+    const originalEnv = process.env[ENV_VARS.NODE_ENV];
 
     beforeEach(() => {
-      process.env.NODE_ENV = 'development';
+      process.env[ENV_VARS.NODE_ENV] = 'development';
     });
 
     afterEach(() => {
-      process.env.NODE_ENV = originalEnv;
+      process.env[ENV_VARS.NODE_ENV] = originalEnv;
     });
 
     it('shows data freshness indicator in development', async () => {
@@ -592,3 +596,4 @@ describe('Dashboard Component', () => {
     });
   });
 });
+

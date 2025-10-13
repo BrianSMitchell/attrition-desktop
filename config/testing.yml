@@ -1,13 +1,7 @@
 # Testing Environment Configuration
 
 # Test Database Configuration
-database:
-  uri: "mongodb://localhost:27017/attrition-test"
-  options:
-    useNewUrlParser: true
-    useUnifiedTopology: true
-    maxPoolSize: 5
-    serverSelectionTimeoutMS: 5000
+# Now using Supabase - configuration handled in environment variables
     
 # Test Server Configuration  
 server:

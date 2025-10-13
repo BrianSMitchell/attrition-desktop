@@ -1,12 +1,21 @@
-import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import { supabase } from '../config/supabase';
+﻿import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { supabase } from '../config/supabase';
+
+// Constants imports for eliminating hardcoded values
+import { HTTP_STATUS, RESPONSE_FORMAT } from '../constants/response-formats';
 
 // Helpers re-used from existing middleware
 import { generateAccessToken, generateRefreshToken } from '../middleware/auth';
 
+// Service imports for extracted functionality
+import { UserManagementService } from './UserManagementService';
+import { PlanetClaimingService } from './PlanetClaimingService';
+import { EmpireResolutionService } from './EmpireResolutionService';
+
 // Utility: unwrap Supabase results or throw
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
 function assertNoError<T>(res: { data: T | null; error: any }): T {
   if (res.error) {
     throw res.error;
@@ -14,185 +23,118 @@ function assertNoError<T>(res: { data: T | null; error: any }): T {
   return res.data as T;
 }
 
+/**
+ * AuthenticationService - Handles authentication concerns only
+ * Delegates user management, empire creation, and planet claiming to specialized services
+ */
+
+/**
+ * Register a new user with complete onboarding flow
+ * Now delegates to specialized services to eliminate feature envy
+ */
 export async function register(req: Request, res: Response) {
   const { email, username, password } = req.body as { email: string; username: string; password: string };
 
-  const normEmail = String(email || '').trim().toLowerCase();
-  const normUsername = String(username || '').trim();
-
-  if (!normEmail || !normUsername || !password || password.length < 6) {
-    return res.status(400).json({ success: false, error: 'Invalid registration details' });
-  }
-
   try {
-    // Uniqueness check
-    const existing = await supabase
-      .from('users')
-      .select('id')
-      .or(`email.eq.${normEmail},username.eq.${normUsername}`)
-      .limit(1);
-
-    if ((existing.data && existing.data.length > 0) || existing.error) {
-      if (existing.error) throw existing.error;
-      return res.status(400).json({ success: false, error: 'User with this email or username already exists' });
+    // Validate user input using UserManagementService
+    const validation = UserManagementService.validateUserInput(email, username, password);
+    if (!validation.isValid) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: validation.error });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(12);
-    const hashed = await bcrypt.hash(password, salt);
+    const { normEmail, normUsername } = validation.data!;
 
-    // Create user row
-    const userInsert = await supabase
-      .from('users')
-      .insert({ email: normEmail, username: normUsername, password_hash: hashed, credits: 100, experience: 0 })
-      .select('id')
-      .single();
+    // Check if user already exists using UserManagementService
+    const userExists = await UserManagementService.checkUserExists(normEmail, normUsername);
+    if (userExists) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'User with this email or username already exists' });
+    }
 
-    const userRow = assertNoError(userInsert);
+    // Create user using UserManagementService
+    const userRow = await UserManagementService.createUser(normEmail, normUsername, password);
     const userId: string = userRow.id;
 
-    // Find a starter planet
-    const candidate = await supabase
-      .from('locations')
-      .select('coord')
-      .eq('type', 'planet')
-      .is('owner_id', null)
-      .limit(1)
-      .single();
-
-    const starter = candidate.data?.coord as string | undefined;
-    if (!starter) {
-      return res.status(503).json({ success: false, error: 'No starter planets available' });
+    // Find and claim starter planet using PlanetClaimingService
+    const starterPlanet = await PlanetClaimingService.findAvailableStarterPlanet();
+    if (!starterPlanet) {
+      return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ success: false, error: 'No starter planets available' });
     }
 
-    // Attempt to claim atomically (update only if owner_id is null)
-    const claim = await supabase
-      .from('locations')
-      .update({ owner_id: userId })
-      .eq('coord', starter)
-      .is('owner_id', null)
-      .select('coord')
-      .single();
-
-    if (!claim.data) {
-      return res.status(503).json({ success: false, error: 'Failed to claim starter planet, please retry' });
+    const claimSuccess = await PlanetClaimingService.claimPlanet(starterPlanet, userId);
+    if (!claimSuccess) {
+      return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ success: false, error: 'Failed to claim starter planet, please retry' });
     }
 
-    // Create empire
-    const empireInsert = await supabase
-      .from('empires')
-      .insert({
-        user_id: userId,
-        name: normUsername,
-        home_system: starter,
-        territories: [starter],
-        credits: 100,
-        energy: 0,
-      })
-      .select('id, name, home_system')
-      .single();
+    // Create empire using EmpireResolutionService (reusing existing auto-bootstrap logic)
+    const empireRow = await EmpireResolutionService.autoBootstrapEmpire(userId);
 
-    const empireRow = assertNoError(empireInsert);
-
-    // Create colony
-    await supabase
-      .from('colonies')
-      .insert({ empire_id: empireRow.id, location_coord: starter, name: 'Home Base' });
-
-    // Add starter building
-    await supabase
-      .from('buildings')
-      .insert({
-        location_coord: starter,
-        empire_id: empireRow.id,
-        type: 'habitat',
-        display_name: 'Urban Structures',
-        catalog_key: 'urban_structures',
-        level: 1,
-        construction_completed: new Date().toISOString(),
-        is_active: true,
-        credits_cost: 0,
-      });
-
-    // Update user with empire and starting coordinate
-    await supabase
-      .from('users')
-      .update({ empire_id: empireRow.id, starting_coordinate: starter, last_login: new Date().toISOString() })
-      .eq('id', userId);
-
-    // Tokens (reuse existing helpers)
+    // Generate authentication tokens
     const accessToken = generateAccessToken(userId, req);
     const refreshToken = generateRefreshToken(userId);
 
-    // Return a minimal user object compatible with client
-    res.status(201).json({
+    // Return registration response
+    res.status(HTTP_STATUS.CREATED).json({
       success: true,
       data: {
-        user: { id: userId, email: normEmail, username: normUsername, gameProfile: { startingCoordinate: starter, empireId: empireRow.id } },
+        user: {
+          id: userId,
+          email: normEmail,
+          username: normUsername,
+          gameProfile: {
+            startingCoordinate: starterPlanet,
+            empireId: empireRow.id
+          }
+        },
         token: accessToken,
         refreshToken,
-        empire: { id: empireRow.id, name: empireRow.name, homeSystem: empireRow.home_system },
+        empire: {
+          id: empireRow.id,
+          name: empireRow.name,
+          homeSystem: empireRow.home_system
+        },
       },
       message: 'User registered successfully',
     });
   } catch (err: any) {
     console.error('[authService.register] failed:', err);
-    res.status(500).json({ success: false, error: 'Registration failed' });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: 'Registration failed' });
   }
 }
 
+/**
+ * Login user with password verification
+ * Uses UserManagementService for user operations and EmpireResolutionService for empire lookup
+ */
 export async function login(req: Request, res: Response) {
   const { email, password } = req.body as { email: string; password: string };
   const lookupEmail = String(email || '').trim().toLowerCase();
 
   if (!lookupEmail || !password) {
-    return res.status(400).json({ success: false, error: 'Invalid login' });
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Invalid login' });
   }
 
   try {
-    const userQuery = await supabase
-      .from('users')
-      .select('id, email, username, password_hash, empire_id, starting_coordinate')
-      .eq('email', lookupEmail)
-      .single();
-
-    if (userQuery.error || !userQuery.data) {
-      return res.status(401).json({ success: false, error: 'Invalid email or password' });
+    // Get user using UserManagementService
+    const userRow = await UserManagementService.getUserByEmail(lookupEmail);
+    if (!userRow) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: 'Invalid email or password' });
     }
 
-    const userRow = userQuery.data as any;
-    const ok = await bcrypt.compare(password, userRow.password_hash);
-    if (!ok) {
-      return res.status(401).json({ success: false, error: 'Invalid email or password' });
+    // Verify password using UserManagementService
+    const passwordValid = await UserManagementService.verifyPassword(password, userRow.password_hash);
+    if (!passwordValid) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: 'Invalid email or password' });
     }
 
-    // Update last_login
-    await supabase.from('users').update({ last_login: new Date().toISOString() }).eq('id', userRow.id);
+    // Update last login using UserManagementService
+    await UserManagementService.updateLastLogin(userRow.id);
 
+    // Generate authentication tokens
     const token = generateAccessToken(userRow.id, req);
     const refreshToken = generateRefreshToken(userRow.id);
 
-    // Load the user's empire to include in the login response (parity with non-Supabase flow)
-    let empireRow: any = null;
-    try {
-      const byUser = await supabase
-        .from('empires')
-        .select('id, name, home_system, territories, credits, energy, user_id')
-        .eq('user_id', userRow.id)
-        .maybeSingle();
-      if (byUser.data) {
-        empireRow = byUser.data;
-      } else if (userRow.empire_id) {
-        const byId = await supabase
-          .from('empires')
-          .select('id, name, home_system, territories, credits, energy, user_id')
-          .eq('id', userRow.empire_id)
-          .maybeSingle();
-        if (byId.data) empireRow = byId.data;
-      }
-    } catch {
-      // non-fatal
-    }
+    // Load empire using EmpireResolutionService (reusing existing logic)
+    const empireRow = await EmpireResolutionService.resolveEmpireByUserId(userRow.id);
 
     res.json({
       success: true,
@@ -224,6 +166,7 @@ export async function login(req: Request, res: Response) {
     });
   } catch (err: any) {
     console.error('[authService.login] failed:', err);
-    res.status(500).json({ success: false, error: 'Login failed' });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: ERROR_MESSAGES.LOGIN_FAILED });
   }
 }
+

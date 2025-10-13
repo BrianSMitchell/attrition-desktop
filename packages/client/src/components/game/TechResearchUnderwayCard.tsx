@@ -3,6 +3,7 @@ import type { Empire } from '@game/shared';
 import { getTechSpec, type TechnologyKey } from '@game/shared';
 import { useEnhancedAppStore } from '../../stores/enhancedAppStore';
 
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 interface TechQueueItemDTO {
   _id?: string;
   locationCoord: string;
@@ -68,11 +69,11 @@ const TechResearchUnderwayCard: React.FC<TechResearchUnderwayCardProps> = ({ bas
   useEffect(() => {
     fetchQueue();
     // Update progress bars every 30 seconds
-    const tickId = setInterval(() => setTick((t) => t + 1), 30000);
+    const tickId = setInterval(() => setTick((t) => t + 1), TIMEOUTS.THIRTY_SECONDS);
     // Fetch fresh data every 60 seconds for real-time updates
     const fetchId = setInterval(() => {
       fetchQueue();
-    }, 60000);
+    }, TIMEOUTS.ONE_MINUTE);
     return () => {
       clearInterval(tickId);
       clearInterval(fetchId);

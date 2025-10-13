@@ -1,3 +1,5 @@
+﻿import { API_ENDPOINTS } from '../constants/api-endpoints';
+
 /**
  * Check Game Loop Status
  * 
@@ -48,7 +50,7 @@ async function checkServerStatus() {
   console.log('🔍 Checking game server status...');
   
   try {
-    const health = await makeRequest('GET', '/health');
+    const health = await makeRequest('GET', API_ENDPOINTS.SYSTEM.HEALTH);
     if (health.status === 200) {
       console.log('✅ Server is healthy');
       console.log(`   Health data:`, health.data);
@@ -113,3 +115,4 @@ async function main() {
 if (require.main === module) {
   main().catch(console.error);
 }
+

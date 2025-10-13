@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { gameApi } from '../../../stores/services/gameApi';
 import FleetDispatchForm from './FleetDispatchForm';
 import FleetMovementStatus from './FleetMovementStatus';
 import { useUIActions } from '../../../stores/enhancedAppStore';
 import { Empire } from '@game/shared';
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+
 
 // Type definitions for fleet data
 type FleetDetailDTO = { fleet: any };
@@ -144,7 +146,7 @@ const FleetManagement: React.FC<FleetManagementProps> = ({
     return (
       <div className="p-4 bg-red-900/50 border border-red-700 rounded text-red-200">
         <div className="font-medium">Error Loading Fleet</div>
-        <div className="text-sm mt-1">{error || 'Fleet not found'}</div>
+        <div className="text-sm mt-1">{error || ERROR_MESSAGES.FLEET_NOT_FOUND}</div>
         <button
           onClick={loadFleetData}
           className="mt-2 px-3 py-1 bg-red-700 text-white rounded hover:bg-red-600 text-sm"
@@ -362,3 +364,5 @@ const FleetManagement: React.FC<FleetManagementProps> = ({
 };
 
 export default FleetManagement;
+
+

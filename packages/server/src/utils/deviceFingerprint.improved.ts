@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { Request } from 'express';
 
+import { STATUS_CODES } from '@shared/constants/magic-numbers';
 export interface DeviceFingerprint {
   hash: string;
   userAgent: string;
@@ -92,7 +93,7 @@ function extractPlatform(userAgent: string): string {
 export const compareDeviceFingerprints = (fp1: DeviceFingerprint, fp2: DeviceFingerprint): number => {
   // Exact hash match
   if (fp1.hash === fp2.hash) {
-    return 1.0;
+    return STATUS_CODES.ERROR.0;
   }
   
   let score = 0;

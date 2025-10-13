@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { FleetsListDTO } from '../../services/fleetsService';
 import FleetManagement from './fleet/FleetManagement';
 import { useUIActions, useGameApi } from '../../stores/enhancedAppStore';
+import { LAYOUT_CLASSES } from '../constants/css-constants';
 
 interface FleetModalProps {
   onUpdate: () => void;
@@ -78,12 +79,12 @@ const FleetModal: React.FC<FleetModalProps> = ({ onUpdate }) => {
   if (viewMode === 'detail' && selectedFleetId) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
           <button
             onClick={handleBackToList}
             className="flex items-center gap-2 px-3 py-2 bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
           >
-            ← Back to Fleet List
+            â† Back to Fleet List
           </button>
         </div>
         
@@ -97,7 +98,7 @@ const FleetModal: React.FC<FleetModalProps> = ({ onUpdate }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
         <h3 className="text-xl font-semibold text-empire-gold">Fleet Management</h3>
         <button
           onClick={loadFleets}
@@ -115,7 +116,7 @@ const FleetModal: React.FC<FleetModalProps> = ({ onUpdate }) => {
 
       {fleets.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-6xl mb-4">🚀</div>
+          <div className="text-6xl mb-4">ðŸš€</div>
           <h4 className="text-lg font-semibold text-white mb-2">No Fleets Available</h4>
           <p className="text-gray-400 mb-6">
             You currently have no fleets. Fleets are created automatically when you build ships at bases with spaceports.
@@ -125,19 +126,19 @@ const FleetModal: React.FC<FleetModalProps> = ({ onUpdate }) => {
             <h5 className="font-medium text-white mb-3">How to get fleets:</h5>
             <ul className="space-y-2 text-sm text-gray-300">
               <li className="flex items-center gap-2">
-                <span className="text-blue-400">🏗️</span>
+                <span className="text-blue-400">ðŸ—ï¸</span>
                 Build a Spaceport at your base
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-green-400">⚗️</span>
+                <span className="text-green-400">âš—ï¸</span>
                 Research ship technologies
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-yellow-400">🔧</span>
+                <span className="text-yellow-400">ðŸ”§</span>
                 Construct ships using the Units tab
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-purple-400">🚀</span>
+                <span className="text-purple-400">ðŸš€</span>
                 Ships automatically form fleets
               </li>
             </ul>
@@ -156,7 +157,7 @@ const FleetModal: React.FC<FleetModalProps> = ({ onUpdate }) => {
                 className="p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors cursor-pointer"
                 onClick={() => handleFleetSelect(fleet._id)}
               >
-                <div className="flex items-center justify-between">
+                <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h4 className="text-lg font-semibold text-white">{fleet.name}</h4>
@@ -189,7 +190,7 @@ const FleetModal: React.FC<FleetModalProps> = ({ onUpdate }) => {
                     <div className="text-right text-sm text-gray-400">
                       Click to manage
                     </div>
-                    <div className="text-right text-2xl mt-1">→</div>
+                    <div className="text-right text-2xl mt-1">â†’</div>
                   </div>
                 </div>
               </div>
@@ -200,7 +201,7 @@ const FleetModal: React.FC<FleetModalProps> = ({ onUpdate }) => {
       
       {/* Future Features Info */}
       <div className="mt-8 p-4 bg-gray-700 rounded-lg border border-gray-600">
-        <h4 className="font-medium text-white mb-3">🚀 Fleet Movement System Active!</h4>
+        <h4 className="font-medium text-white mb-3">ðŸš€ Fleet Movement System Active!</h4>
         <p className="text-sm text-gray-300 mb-3">
           Fleet movement and deployment features are now available! Select a fleet above to dispatch it to new locations.
         </p>
@@ -210,19 +211,19 @@ const FleetModal: React.FC<FleetModalProps> = ({ onUpdate }) => {
             <h5 className="font-medium text-white mb-2">Available Now:</h5>
             <ul className="space-y-1">
               <li className="flex items-center gap-2">
-                <span className="text-green-400">✅</span>
+                <span className="text-green-400">âœ…</span>
                 Fleet deployment and movement
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-green-400">✅</span>
+                <span className="text-green-400">âœ…</span>
                 Travel time calculations
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-green-400">✅</span>
+                <span className="text-green-400">âœ…</span>
                 Fleet recall capabilities
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-green-400">✅</span>
+                <span className="text-green-400">âœ…</span>
                 Real-time status tracking
               </li>
             </ul>
@@ -232,19 +233,19 @@ const FleetModal: React.FC<FleetModalProps> = ({ onUpdate }) => {
             <h5 className="font-medium text-white mb-2">Coming Soon:</h5>
             <ul className="space-y-1">
               <li className="flex items-center gap-2">
-                <span className="text-yellow-400">⏳</span>
+                <span className="text-yellow-400">â³</span>
                 Combat and warfare systems
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-yellow-400">⏳</span>
+                <span className="text-yellow-400">â³</span>
                 Map-based destination selection
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-yellow-400">⏳</span>
+                <span className="text-yellow-400">â³</span>
                 Fleet formations and tactics
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-yellow-400">⏳</span>
+                <span className="text-yellow-400">â³</span>
                 Exploration missions
               </li>
             </ul>
@@ -256,3 +257,4 @@ const FleetModal: React.FC<FleetModalProps> = ({ onUpdate }) => {
 };
 
 export default FleetModal;
+

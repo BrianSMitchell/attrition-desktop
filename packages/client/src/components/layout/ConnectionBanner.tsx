@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useEnhancedNetwork } from '../../stores/enhancedAppStore';
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
 
+
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 const ConnectionBanner: React.FC = () => {
   const network = useEnhancedNetwork();
   const [isVisible, setIsVisible] = useState(false);
@@ -16,7 +19,7 @@ const ConnectionBanner: React.FC = () => {
         if (isFullyConnected) {
           setIsVisible(false);
         }
-      }, 3000);
+      }, TIMEOUTS.THREE_SECONDS);
       return () => clearTimeout(timer);
     } else {
       // Hide immediately when connected
@@ -27,7 +30,7 @@ const ConnectionBanner: React.FC = () => {
   if (!isVisible) return null;
 
   const getMessage = () => {
-    if (!network.status.isOnline) return 'No internet connection';
+    if (!network.status.isOnline) return ERROR_MESSAGES.NO_INTERNET_CONNECTION;
     if (!network.status.isApiReachable) return 'Server unreachable';
     return 'Connected to server';
   };
@@ -73,7 +76,7 @@ const ConnectionBanner: React.FC = () => {
             onClick={() => setIsVisible(false)}
             className="opacity-75 hover:opacity-100 transition-opacity"
           >
-            Ã—
+            ×
           </button>
         </div>
       </div>
@@ -82,3 +85,5 @@ const ConnectionBanner: React.FC = () => {
 };
 
 export default ConnectionBanner;
+
+

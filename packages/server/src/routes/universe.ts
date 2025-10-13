@@ -2,8 +2,15 @@ import express from 'express';
 import { generateUniverse } from '../scripts/generateUniverse';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { isValidCoordinate, parseCoord } from '@game/shared';
-import { supabase } from '../config/supabase';
+import { ERROR_MESSAGES } from '../constants/response-formats';
 
+// Constants imports for eliminating hardcoded values
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+import { HTTP_STATUS } from '@shared/response-formats';
 const router: express.Router = express.Router();
 
 // Map Overhaul star kinds to display colors (used for galaxy/region coloring)
@@ -31,29 +38,29 @@ router.get('/coord/:coord', authenticate, async (req: AuthRequest, res) => {
 
     // Validate coordinate format
     if (!isValidCoordinate(coord)) {
-      return res.status(400).json({
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
         error: 'Invalid coordinate format. Expected format: A00:10:22:10'
       });
     }
 
     const { data: row } = await supabase
-      .from('locations')
+      .from(DB_TABLES.LOCATIONS)
       .select('*')
       .eq('coord', coord)
       .maybeSingle();
 
     if (!row) {
-      return res.status(404).json({ success: false, error: 'Location not found' });
+      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.LOCATION_NOT_FOUND });
     }
 
     // Optionally load owner username
     let ownerInfo: any = null;
     if ((row as any).owner_id) {
       const u = await supabase
-        .from('users')
+        .from(DB_TABLES.USERS)
         .select('id, username')
-        .eq('id', (row as any).owner_id)
+        .eq(DB_FIELDS.BUILDINGS.ID, (row as any).owner_id)
         .maybeSingle();
       if (u.data) ownerInfo = { id: u.data.id, username: u.data.username };
     }
@@ -83,9 +90,9 @@ router.get('/coord/:coord', authenticate, async (req: AuthRequest, res) => {
     });
   } catch (error) {
     console.error('Error fetching location:', error);
-    res.status(500).json({
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      error: 'Internal server error'
+      error: ERROR_MESSAGES.INTERNAL_ERROR
     });
   }
 });
@@ -108,7 +115,7 @@ router.get('/system/:server/:galaxy/:region/:system', authenticate, async (req: 
       isNaN(regionNum) || regionNum < 0 || regionNum > 99 ||
       isNaN(systemNum) || systemNum < 0 || systemNum > 99
     ) {
-      return res.status(400).json({
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
         error: 'Invalid system coordinates'
       });
@@ -117,7 +124,7 @@ router.get('/system/:server/:galaxy/:region/:system', authenticate, async (req: 
     // Build coordinate pattern for this system
     const prefix = `${server}${galaxy.padStart(2,'0')}:${region.padStart(2,'0')}:${system.padStart(2,'0')}:`;
     const { data: rows } = await supabase
-      .from('locations')
+      .from(DB_TABLES.LOCATIONS)
       .select('*')
       .like('coord', `${prefix}%`)
       .order('coord', { ascending: true });
@@ -143,9 +150,9 @@ router.get('/system/:server/:galaxy/:region/:system', authenticate, async (req: 
 
   } catch (error) {
     console.error('Error fetching system:', error);
-    res.status(500).json({
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      error: 'Internal server error'
+      error: ERROR_MESSAGES.INTERNAL_ERROR
     });
   }
 });
@@ -159,9 +166,9 @@ router.get('/user/:userId/locations', authenticate, async (req: AuthRequest, res
     const { userId } = req.params;
 
     const { data: rows } = await supabase
-      .from('locations')
+      .from(DB_TABLES.LOCATIONS)
       .select('coord, type, created_at')
-      .eq('owner_id', userId)
+      .eq(DB_FIELDS.LOCATIONS.OWNER_ID, userId)
       .order('coord');
 
     res.json({
@@ -171,9 +178,9 @@ router.get('/user/:userId/locations', authenticate, async (req: AuthRequest, res
 
   } catch (error) {
     console.error('Error fetching user locations:', error);
-    res.status(500).json({
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      error: 'Internal server error'
+      error: ERROR_MESSAGES.INTERNAL_ERROR
     });
   }
 });
@@ -186,7 +193,7 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
     if (req.user!.role !== 'admin') {
-      return res.status(403).json({
+      return res.status(HTTP_STATUS.FORBIDDEN).json({
         success: false,
         error: 'Access denied. Admin privileges required.'
       });
@@ -208,7 +215,7 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
   } catch (error: unknown) {
     console.error('Error generating universe:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    res.status(500).json({
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
       error: 'Failed to generate universe',
       details: errorMessage
@@ -223,11 +230,11 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
 router.get('/stats', authenticate, async (req: AuthRequest, res) => {
   try {
     const [all, planets, asteroids, owned, unowned] = await Promise.all([
-      supabase.from('locations').select('id', { count: 'exact', head: true }),
-      supabase.from('locations').select('id', { count: 'exact', head: true }).eq('type', 'planet'),
-      supabase.from('locations').select('id', { count: 'exact', head: true }).eq('type', 'asteroid'),
-      supabase.from('locations').select('id', { count: 'exact', head: true }).not('owner_id', 'is', null),
-      supabase.from('locations').select('id', { count: 'exact', head: true }).is('owner_id', null),
+      supabase.from(DB_TABLES.LOCATIONS).select(DB_FIELDS.BUILDINGS.ID, { count: 'exact', head: true }),
+      supabase.from(DB_TABLES.LOCATIONS).select(DB_FIELDS.BUILDINGS.ID, { count: 'exact', head: true }).eq(DB_FIELDS.CREDIT_TRANSACTIONS.TYPE, 'planet'),
+      supabase.from(DB_TABLES.LOCATIONS).select(DB_FIELDS.BUILDINGS.ID, { count: 'exact', head: true }).eq(DB_FIELDS.CREDIT_TRANSACTIONS.TYPE, 'asteroid'),
+      supabase.from(DB_TABLES.LOCATIONS).select(DB_FIELDS.BUILDINGS.ID, { count: 'exact', head: true }).not(DB_FIELDS.LOCATIONS.OWNER_ID, 'is', null),
+      supabase.from(DB_TABLES.LOCATIONS).select(DB_FIELDS.BUILDINGS.ID, { count: 'exact', head: true }).is(DB_FIELDS.LOCATIONS.OWNER_ID, null),
     ]);
 
     const totalLocations = all.count || 0;
@@ -250,9 +257,9 @@ router.get('/stats', authenticate, async (req: AuthRequest, res) => {
 
   } catch (error) {
     console.error('Error fetching universe stats:', error);
-    res.status(500).json({
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      error: 'Internal server error'
+      error: ERROR_MESSAGES.INTERNAL_ERROR
     });
   }
 });
@@ -274,7 +281,7 @@ router.get('/region/:server/:galaxy/:region', authenticate, async (req: AuthRequ
       isNaN(galaxyNum) || galaxyNum < 0 || galaxyNum > 39 ||
       isNaN(regionNum) || regionNum < 0 || regionNum > 99
     ) {
-      return res.status(400).json({
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
         error: 'Invalid region coordinates'
       });
@@ -285,18 +292,18 @@ router.get('/region/:server/:galaxy/:region', authenticate, async (req: AuthRequ
     // stars at body 00
     const starLike = `${server}${gg}:${rr}:%:00`;
     const { data: stars } = await supabase
-      .from('locations')
+      .from(DB_TABLES.LOCATIONS)
       .select('coord, star_overhaul')
-      .eq('type', 'star')
+      .eq(DB_FIELDS.CREDIT_TRANSACTIONS.TYPE, 'star')
       .like('coord', starLike)
       .order('coord', { ascending: true });
 
     // Fetch all owned coords in region once
     const ownedLike = `${server}${gg}:${rr}:%`;
     const { data: ownedRows } = await supabase
-      .from('locations')
+      .from(DB_TABLES.LOCATIONS)
       .select('coord')
-      .not('owner_id', 'is', null)
+      .not(DB_FIELDS.LOCATIONS.OWNER_ID, 'is', null)
       .like('coord', ownedLike);
 
     const ownedBySystem = new Set<string>();
@@ -328,9 +335,9 @@ router.get('/region/:server/:galaxy/:region', authenticate, async (req: AuthRequ
     });
   } catch (error) {
     console.error('Error fetching region systems:', error);
-    res.status(500).json({
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      error: 'Internal server error'
+      error: ERROR_MESSAGES.INTERNAL_ERROR
     });
   }
 });
@@ -350,7 +357,7 @@ router.get('/galaxy/:server/:galaxy/regions', authenticate, async (req: AuthRequ
       typeof server !== 'string' || server.length !== 1 ||
       isNaN(galaxyNum) || galaxyNum < 0 || galaxyNum > 39
     ) {
-      return res.status(400).json({
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
         error: 'Invalid galaxy coordinates'
       });
@@ -359,9 +366,9 @@ router.get('/galaxy/:server/:galaxy/regions', authenticate, async (req: AuthRequ
     const galaxyStr = galaxy.padStart(2, '0');
     const like = `${server}${galaxyStr}:%:%:00`;
     const { data: stars } = await supabase
-      .from('locations')
+      .from(DB_TABLES.LOCATIONS)
       .select('coord')
-      .eq('type', 'star')
+      .eq(DB_FIELDS.CREDIT_TRANSACTIONS.TYPE, 'star')
       .like('coord', like);
 
     const buckets: Record<number, number[]> = {};
@@ -380,9 +387,9 @@ router.get('/galaxy/:server/:galaxy/regions', authenticate, async (req: AuthRequ
     res.json({ success: true, data: { server, galaxy: galaxyNum, regions } });
   } catch (error) {
     console.error('Error fetching galaxy region summaries:', error);
-    return res.status(500).json({
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      error: 'Internal server error'
+      error: ERROR_MESSAGES.INTERNAL_ERROR
     });
   }
 });
@@ -400,7 +407,7 @@ router.get('/galaxy/:server/:galaxy/region-stars', authenticate, async (req: Aut
       typeof server !== 'string' || server.length !== 1 ||
       isNaN(galaxyNum) || galaxyNum < 0 || galaxyNum > 39
     ) {
-      return res.status(400).json({
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
         error: 'Invalid galaxy coordinates'
       });
@@ -409,9 +416,9 @@ router.get('/galaxy/:server/:galaxy/region-stars', authenticate, async (req: Aut
     const galaxyStr = galaxy.padStart(2, '0');
     const like = `${server}${galaxyStr}:%:%:00`;
     const { data: stars } = await supabase
-      .from('locations')
+      .from(DB_TABLES.LOCATIONS)
       .select('coord, star_overhaul')
-      .eq('type', 'star')
+      .eq(DB_FIELDS.CREDIT_TRANSACTIONS.TYPE, 'star')
       .like('coord', like);
 
     const buckets = new Map<number, Array<{ system: number; color: string }>>();
@@ -432,11 +439,13 @@ router.get('/galaxy/:server/:galaxy/region-stars', authenticate, async (req: Aut
     res.json({ success: true, data: { server, galaxy: galaxyNum, regions } });
   } catch (error) {
     console.error('Error fetching galaxy region star colors:', error);
-    return res.status(500).json({
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      error: 'Internal server error'
+      error: ERROR_MESSAGES.INTERNAL_ERROR
     });
   }
 });
 
 export default router;
+
+

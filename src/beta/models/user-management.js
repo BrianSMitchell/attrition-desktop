@@ -1,3 +1,5 @@
+﻿import { ERROR_MESSAGES } from '../constants/response-formats';
+
 /**
  * Beta User Management System
  * Handles beta user registration, access controls, and permissions
@@ -126,7 +128,7 @@ class BetaUserManager extends EventEmitter {
 
         const user = this.betaUsers.get(userId);
         if (!user) {
-            return { valid: false, reason: 'User not found' };
+            return { valid: false, reason: ERROR_MESSAGES.USER_NOT_FOUND };
         }
 
         if (user.status !== 'active') {
@@ -312,7 +314,7 @@ class BetaUserManager extends EventEmitter {
      */
     async updateUserStatus(userId, newStatus, reason = null) {
         const user = this.betaUsers.get(userId);
-        if (!user) throw new Error('User not found');
+        if (!user) throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
 
         const previousStatus = user.status;
         user.status = newStatus;
@@ -333,3 +335,5 @@ class BetaUserManager extends EventEmitter {
 }
 
 module.exports = BetaUserManager;
+
+

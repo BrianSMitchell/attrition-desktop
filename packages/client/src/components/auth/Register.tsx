@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth, useEnhancedAuthActions } from '../../stores/enhancedAppStore';
+import { LAYOUT_CLASSES, LOADING_CLASSES, ALERT_CLASSES } from '../constants/css-constants';
 
 const Register: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -42,13 +43,13 @@ const Register: React.FC = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="game-card">
             {error && (
-              <div className="mb-4 p-3 bg-red-600 bg-opacity-20 border border-red-600 rounded text-red-400 text-sm">
+              <div className={ALERT_CLASSES.ERROR_ALT}>
                 {error}
               </div>
             )}
             
             {password !== confirmPassword && confirmPassword && (
-              <div className="mb-4 p-3 bg-red-600 bg-opacity-20 border border-red-600 rounded text-red-400 text-sm">
+              <div className={ALERT_CLASSES.ERROR_ALT}>
                 Passwords do not match
               </div>
             )}
@@ -130,8 +131,8 @@ const Register: React.FC = () => {
                 className="game-button w-full"
               >
                 {isLoading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className={LAYOUT_CLASSES.FLEX_CENTER}>
+                    <div className={LOADING_CLASSES.SPINNER_SMALL}></div>
                     Creating account...
                   </div>
                 ) : (
@@ -156,3 +157,4 @@ const Register: React.FC = () => {
 };
 
 export default Register;
+

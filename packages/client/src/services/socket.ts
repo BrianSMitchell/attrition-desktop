@@ -1,8 +1,19 @@
-import { Socket } from "socket.io-client";
+﻿import { Socket } from "socket.io-client";
 import { SocketManager } from "./core/SocketManager";
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
 
-// Create a singleton socket instance
-export const socket = getSocket();
+
+// Singleton socket instance - initialized lazily to prevent race conditions
+let _socket: Socket | null = null;
+
+// Lazy socket getter to prevent initialization race conditions
+export const socket = () => {
+  if (!_socket) {
+    _socket = getSocket();
+  }
+  return _socket;
+};
 
 /**
  * Legacy socket API - now acts as a compatibility layer that delegates to SocketManager.
@@ -18,7 +29,7 @@ let socketManager: SocketManager | null = null;
 // Get or create SocketManager instance
 const getSocketManager = (): SocketManager => {
   if (!socketManager) {
-    socketManager = new SocketManager({ enableLogging: process.env.NODE_ENV === 'development' });
+    socketManager = new SocketManager({ enableLogging: process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.DEVELOPMENT });
   }
   return socketManager;
 };

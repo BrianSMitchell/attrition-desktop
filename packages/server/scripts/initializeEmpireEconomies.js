@@ -1,3 +1,5 @@
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 require('dotenv').config();
 const mongoose = require('mongoose');
 
@@ -8,7 +10,7 @@ const EmpireEconomyService = require('../src/services/EmpireEconomyService.ts');
 async function initializeEmpireEconomies() {
   try {
     console.log('Connecting to database...');
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env[ENV_VARS.MONGODB_URI]);
     console.log('Connected to database');
 
     // Get all empires

@@ -1,6 +1,7 @@
 import { supabase } from '../../config/supabase';
 import { getBuildingSpec, BuildingKey, getDefensesList, computeEnergyBalance } from '@game/shared';
 
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 export interface BaseStatsDTO {
   area: { total: number; used: number; free: number };
   energy: { produced: number; consumed: number; balance: number; rawBalance?: number; projectedBalance?: number };
@@ -13,8 +14,8 @@ export class StatsService {
   static async getBaseStats(empireId: string, coord: string): Promise<BaseStatsDTO> {
     // 1) Location environment
     const locRes = await supabase
-      .from('locations')
-      .select('result')
+      .from(DB_TABLES.LOCATIONS)
+      .select(DB_FIELDS.LOCATIONS.RESULT)
       .eq('coord', coord)
       .maybeSingle();
 
@@ -26,10 +27,10 @@ export class StatsService {
 
     // 2) Buildings at base for this empire
     const bRes = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('catalog_key, level, is_active, pending_upgrade, construction_completed')
-      .eq('empire_id', empireId)
-      .eq('location_coord', coord);
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, coord);
 
     let areaUsed = 0;
     let areaReserved = 0;
@@ -81,11 +82,11 @@ export class StatsService {
 
     // 4) Completed defenses (energy impact)
     const defCompleted = await supabase
-      .from('defense_queue')
-      .select('defense_key')
-      .eq('empire_id', empireId)
-      .eq('location_coord', coord)
-      .eq('status', 'completed');
+      .from(DB_TABLES.DEFENSE_QUEUE)
+      .select(DB_FIELDS.DEFENSE_QUEUE.DEFENSE_KEY)
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, coord)
+      .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'completed');
 
     const defenseSpecByKey = new Map<string, { energyDelta: number; name: string }>();
     for (const d of getDefensesList()) {
@@ -101,12 +102,12 @@ export class StatsService {
 
     let defenseProduced = 0;
     let defenseConsumed = 0;
-    for (const [k, count] of defenseCountByKey.entries()) {
+    defenseCountByKey.forEach((count, k) => {
       const spec = defenseSpecByKey.get(k);
       const delta = Number(spec?.energyDelta || 0);
       if (delta >= 0) defenseProduced += count * delta;
       else defenseConsumed += count * Math.abs(delta);
-    }
+    });
 
     const producedWithDef = energyBase.produced + defenseProduced;
     const consumedWithDef = energyBase.consumed + defenseConsumed;
@@ -116,12 +117,12 @@ export class StatsService {
     let reservedNegative = 0;
     try {
       const defPending = await supabase
-        .from('defense_queue')
+        .from(DB_TABLES.DEFENSE_QUEUE)
         .select('defense_key, completes_at')
-        .eq('empire_id', empireId)
-        .eq('location_coord', coord)
-        .eq('status', 'pending')
-        .gt('completes_at', new Date(nowTs).toISOString());
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, coord)
+        .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'pending')
+        .gt(DB_FIELDS.TECH_QUEUE.COMPLETES_AT, new Date(nowTs).toISOString());
 
       for (const it of defPending.data || []) {
         const k = String((it as any).defense_key || '');

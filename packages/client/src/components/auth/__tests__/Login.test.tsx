@@ -3,6 +3,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { Login, LoginComponent } from '../Login';
 import {
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
+
   createMockServiceHooks,
   createOfflineServiceHooks,
   createDegradedServiceHooks,
@@ -208,7 +212,7 @@ describe('Login Component', () => {
     });
 
     it('shows toast notification on login failure', async () => {
-      const mockLogin = jest.fn().mockRejectedValue(new Error('Invalid credentials'));
+      const mockLogin = jest.fn().mockRejectedValue(new Error(ERROR_MESSAGES.INVALID_CREDENTIALS));
       const mockAddToast = jest.fn();
       
       mockServiceHooks.useServiceAuth.mockReturnValue({
@@ -343,14 +347,14 @@ describe('Login Component', () => {
   });
 
   describe('Development Mode Features', () => {
-    const originalEnv = process.env.NODE_ENV;
+    const originalEnv = process.env[ENV_VARS.NODE_ENV];
 
     beforeEach(() => {
-      process.env.NODE_ENV = 'development';
+      process.env[ENV_VARS.NODE_ENV] = 'development';
     });
 
     afterEach(() => {
-      process.env.NODE_ENV = originalEnv;
+      process.env[ENV_VARS.NODE_ENV] = originalEnv;
     });
 
     it('shows service health indicator in development', () => {
@@ -414,3 +418,4 @@ describe('Login Component', () => {
     });
   });
 });
+

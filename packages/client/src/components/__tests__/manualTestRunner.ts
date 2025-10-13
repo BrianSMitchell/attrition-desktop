@@ -1,4 +1,7 @@
 /**
+export default runAllComponentTests;
+import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
+/**
  * Manual Test Runner for Migrated Components
  * 
  * This script performs comprehensive validation of migrated components
@@ -268,7 +271,7 @@ const verifyMigratedMessagesPage = (): TestResult => {
         const date = new Date(dateString);
         const now = new Date();
         const diffMs = now.getTime() - date.getTime();
-        const diffMinutes = Math.floor(diffMs / (1000 * 60));
+        const diffMinutes = Math.floor(diffMs / (GAME_CONSTANTS.MILLISECONDS_PER_SECOND * GAME_CONSTANTS.SECONDS_PER_MINUTE));
         
         if (diffMinutes < 60) return diffMinutes <= 1 ? 'just now' : `${diffMinutes} minutes ago`;
         const diffHours = Math.floor(diffMinutes / 60);

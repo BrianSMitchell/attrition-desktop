@@ -1,5 +1,4 @@
-import { CelestialBody, Empire, Location } from '../../../shared/src/types';
-import { randomInt } from '../../../shared/src/utils';
+import { Empire, Location, randomInt } from '@game/shared';
 
 export class DebrisSystem {
   private static readonly DEBRIS_TICK_INTERVAL = 1000; // 1 second tick

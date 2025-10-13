@@ -1,4 +1,12 @@
 /**
+
+import { STATUS_CODES } from '@shared/constants/magic-numbers';
+/**
+
+import { DB_FIELDS } from '../../../constants/database-fields';
+import { DIRECTORY_PATHS } from '../../../shared/src/constants/file-paths';
+
+/**
  * Testing Metrics Collection Framework
  * 
  * This framework provides comprehensive metrics collection, analysis, and reporting
@@ -136,7 +144,7 @@ export class TestingMetricsCollector {
       mkdirSync(this.metricsDir, { recursive: true });
     }
     
-    ['executions', 'coverage', 'performance', 'health', 'alerts'].forEach(subDir => {
+    ['executions', DIRECTORY_PATHS.COVERAGE, 'performance', 'health', 'alerts'].forEach(subDir => {
       const dirPath = join(this.metricsDir, subDir);
       if (!existsSync(dirPath)) {
         mkdirSync(dirPath, { recursive: true });
@@ -165,7 +173,7 @@ export class TestingMetricsCollector {
   /**
    * Record a test execution
    */
-  recordTestExecution(execution: Omit<TestExecution, 'id' | 'timestamp'>): void {
+  recordTestExecution(execution: Omit<TestExecution, DB_FIELDS.BUILDINGS.ID | 'timestamp'>): void {
     const testExecution: TestExecution = {
       ...execution,
       id: this.generateId(),
@@ -187,7 +195,7 @@ export class TestingMetricsCollector {
       timestamp: new Date()
     };
 
-    const coverageFile = join(this.metricsDir, 'coverage', `${this.getDateString()}.json`);
+    const coverageFile = join(this.metricsDir, DIRECTORY_PATHS.COVERAGE, `${this.getDateString()}.json`);
     this.appendToFile(coverageFile, metrics);
 
     // Check for coverage alerts
@@ -419,7 +427,7 @@ export class TestingMetricsCollector {
     }
   }
 
-  private createAlert(alert: Omit<TestAlert, 'id' | 'timestamp' | 'acknowledged'>): void {
+  private createAlert(alert: Omit<TestAlert, DB_FIELDS.BUILDINGS.ID | 'timestamp' | 'acknowledged'>): void {
     const newAlert: TestAlert = {
       ...alert,
       id: this.generateId(),
@@ -486,7 +494,7 @@ export class TestingMetricsCollector {
   private getLatestCoverageScore(): number {
     try {
       const today = this.getDateString();
-      const coverageFile = join(this.metricsDir, 'coverage', `${today}.json`);
+      const coverageFile = join(this.metricsDir, DIRECTORY_PATHS.COVERAGE, `${today}.json`);
       if (existsSync(coverageFile)) {
         const data = JSON.parse(readFileSync(coverageFile, 'utf-8'));
         const latestCoverage = Array.isArray(data) ? data[data.length - 1] : data;
@@ -495,7 +503,7 @@ export class TestingMetricsCollector {
     } catch (error) {
       console.warn('Failed to get latest coverage score:', error);
     }
-    return 0;
+    return STATUS_CODES.SUCCESS;
   }
 
   private getLatestPerformanceScore(): number {
@@ -591,7 +599,7 @@ export class TestingMetricsCollector {
       const dateStr = date.toISOString().split('T')[0];
       
       try {
-        const coverageFile = join(this.metricsDir, 'coverage', `${dateStr}.json`);
+        const coverageFile = join(this.metricsDir, DIRECTORY_PATHS.COVERAGE, `${dateStr}.json`);
         let coverage = 0;
         
         if (existsSync(coverageFile)) {
@@ -658,7 +666,7 @@ export class TestingMetricsCollector {
   private getLatestCoverageMetrics(): CoverageMetrics[] {
     try {
       const today = this.getDateString();
-      const coverageFile = join(this.metricsDir, 'coverage', `${today}.json`);
+      const coverageFile = join(this.metricsDir, DIRECTORY_PATHS.COVERAGE, `${today}.json`);
       if (existsSync(coverageFile)) {
         const data = JSON.parse(readFileSync(coverageFile, 'utf-8'));
         return Array.isArray(data) ? data : [data];

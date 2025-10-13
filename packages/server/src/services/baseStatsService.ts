@@ -6,6 +6,9 @@ import {
   getDefensesList,
 } from '@game/shared';
 
+// Constants imports for eliminating hardcoded values
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+
 /**
  * Population capacity per Urban Structures level equals the planet's fertility.
  * i.e., capacity contribution = level * fertility.
@@ -48,8 +51,8 @@ export class BaseStatsService {
   static async getBaseStats(empireId: string, locationCoord: string): Promise<BaseStatsDTO> {
     // 1) Environment totals from Overhaul (area, etc.)
     const { data: location, error: locationError } = await supabase
-      .from('locations')
-      .select('result')
+      .from(DB_TABLES.LOCATIONS)
+      .select(DB_FIELDS.LOCATIONS.RESULT)
       .eq('coord', locationCoord)
       .maybeSingle();
 
@@ -73,10 +76,10 @@ export class BaseStatsService {
 
     // 2) Get all buildings for this empire at this location
     const { data: buildings, error: buildingsError } = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('level, catalog_key, is_active, pending_upgrade, construction_started, construction_completed')
-      .eq('empire_id', empireId)
-      .eq('location_coord', locationCoord);
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord);
 
     if (buildingsError) {
       console.error('[BaseStatsService] Error fetching buildings:', buildingsError);
@@ -147,11 +150,11 @@ export class BaseStatsService {
     // Incorporate completed defenses into energy (consumption/production)
     // Each completed defense queue item counts as one level of that defense at the base.
     const { data: completedDefenses, error: completedDefensesError } = await supabase
-      .from('defense_queue')
-      .select('defense_key')
-      .eq('empire_id', empireId)
-      .eq('location_coord', locationCoord)
-      .eq('status', 'completed');
+      .from(DB_TABLES.DEFENSE_QUEUE)
+      .select(DB_FIELDS.DEFENSE_QUEUE.DEFENSE_KEY)
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
+      .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'completed');
 
     if (completedDefensesError) {
       console.error('[BaseStatsService] Error fetching completed defenses:', completedDefensesError);
@@ -201,12 +204,12 @@ export class BaseStatsService {
     try {
       const now = new Date();
       const { data: scheduledDefense, error: scheduledDefenseError } = await supabase
-        .from('defense_queue')
-        .select('defense_key')
-        .eq('empire_id', empireId)
-        .eq('location_coord', locationCoord)
-        .eq('status', 'pending')
-        .gt('completes_at', now.toISOString());
+        .from(DB_TABLES.DEFENSE_QUEUE)
+        .select(DB_FIELDS.DEFENSE_QUEUE.DEFENSE_KEY)
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
+        .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'pending')
+        .gt(DB_FIELDS.TECH_QUEUE.COMPLETES_AT, now.toISOString());
 
       if (scheduledDefenseError) {
         console.error('[BaseStatsService] Error fetching scheduled defenses:', scheduledDefenseError);
@@ -235,10 +238,10 @@ export class BaseStatsService {
       const caps = await CapacityService.getBaseCapacities(empireId, locationCoord);
       citizensPerHour = Math.max(0, Number((caps as any)?.citizen?.value || 0));
       const { data: colony, error: colonyError } = await supabase
-        .from('colonies')
+        .from(DB_TABLES.COLONIES)
         .select('citizens')
-        .eq('empire_id', empireId)
-        .eq('location_coord', locationCoord)
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
         .maybeSingle();
 
       if (colonyError) {
@@ -273,3 +276,4 @@ export class BaseStatsService {
     };
   }
 }
+

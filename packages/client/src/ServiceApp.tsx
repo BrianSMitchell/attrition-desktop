@@ -1,5 +1,7 @@
 import App from './App';
 import { ServiceProvider, MigrationDebugPanel } from './components/ServiceMigrationWrapper';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 
 /**
  * Service-wrapped application with migration support
@@ -24,7 +26,7 @@ function ServiceApp() {
       <App />
 
       {/* Development tools - only shown in development */}
-      {process.env.NODE_ENV === 'development' && (
+      {process.env[ENV_VARS.NODE_ENV] === 'development' && (
         <MigrationDebugPanel expanded={false} />
       )}
     </ServiceProvider>

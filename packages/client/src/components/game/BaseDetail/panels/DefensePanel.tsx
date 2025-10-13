@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Defense panel component
  * Pure presentation component that shows defenses catalog, status, levels, and build table
  */
@@ -7,6 +7,7 @@ import React from 'react';
 import DefensesBuildTable from '../../DefensesBuildTable';
 import type { DefensesStatusDTO } from '../../../../services/defensesService';
 import type { DefenseSpec, DefenseKey, StructureKey as BuildingKey } from '@game/shared';
+import { LAYOUT_CLASSES } from '../constants/css-constants';
 
 const formatEta = (date?: string | Date | null) => {
   if (!date) return '';
@@ -65,13 +66,13 @@ export const DefensePanel: React.FC<DefensePanelProps> = ({
       {/* Defense construction summary */}
       {(activeConstruction || (defenseQueue && defenseQueue.length > 0)) && (
         <div className="p-3 bg-gray-800/60 border border-gray-600 rounded-md text-gray-200">
-          <div className="flex items-center justify-between">
+          <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
             <div>
               <span className="text-empire-gold font-semibold">Construction in progress</span>
               <span className="ml-2 text-sm text-gray-400">(shared with Structures)</span>
             </div>
             <div className="text-sm">
-              ETA: {activeConstruction ? formatEta(activeConstruction.completionAt) : '—'}
+              ETA: {activeConstruction ? formatEta(activeConstruction.completionAt) : 'â€”'}
             </div>
           </div>
         </div>

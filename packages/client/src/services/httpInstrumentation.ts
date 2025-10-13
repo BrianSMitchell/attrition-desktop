@@ -1,4 +1,5 @@
-import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+﻿import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
 
 /**
  * DEV-only Axios metrics instrumentation.
@@ -31,7 +32,7 @@ function pruneOld(timestamps: number[], now: number) {
 export function attachMetrics(api: AxiosInstance, name: string) {
   // Jest/Node-safe dev check (avoid import.meta which breaks CJS parsing)
   const isProd =
-    (typeof process !== "undefined" && (process as any)?.env?.NODE_ENV === "production") || false;
+    (typeof process !== "undefined" && (process as any)?.env?.NODE_ENV === ENV_VALUES.PRODUCTION) || false;
   if (isProd) {
     // Only instrument in dev
     return;

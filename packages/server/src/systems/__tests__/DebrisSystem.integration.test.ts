@@ -1,6 +1,7 @@
 import { DebrisSystem } from '../DebrisSystem';
 import { Location, Empire } from '../../../../shared/src/types';
 
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 describe('DebrisSystem Integration', () => {
   let debrisSystem: DebrisSystem;
   let locations: Map<string, Location>;
@@ -119,7 +120,7 @@ describe('DebrisSystem Integration', () => {
     }, 100);
 
     // Let it run
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, TIMEOUTS.TWO_SECONDS));
     
     clearInterval(interval);
 
@@ -139,7 +140,7 @@ describe('DebrisSystem Integration', () => {
     const startTime = Date.now();
     
     // Run for 1 second
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, TIMEOUTS.ONE_SECOND));
     
     const endTime = Date.now();
     const duration = endTime - startTime;

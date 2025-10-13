@@ -1,4 +1,7 @@
 /**
+
+import { DB_FIELDS } from '../packages/server/src/constants/database-fields';
+/**
  * Multiplayer Scenario Tests for Attrition MMO
  * 
  * This test suite demonstrates and validates the multiplayer testing framework
@@ -167,7 +170,7 @@ describe('Multiplayer Scenario Testing', () => {
           sourcePlayerId: 'player-1',
           targetPlayerId: 'player-2',
           payload: {
-            resourceType: 'energy',
+            resourceType: DB_FIELDS.EMPIRES.ENERGY,
             quantity: 1000
           }
         },
@@ -353,7 +356,7 @@ describe('Multiplayer Scenario Testing', () => {
           type: 'resource_transfer',
           sourcePlayerId: 'player-2',
           targetPlayerId: 'player-3',
-          payload: { resourceType: 'energy', quantity: 500 }
+          payload: { resourceType: DB_FIELDS.EMPIRES.ENERGY, quantity: 500 }
         },
         {
           type: 'alliance',
@@ -458,7 +461,7 @@ describe('Multiplayer Scenario Testing', () => {
           type: 'resource_transfer',
           sourcePlayerId: 'player-3',
           targetPlayerId: 'player-1',
-          payload: { resourceType: 'energy', quantity: 1000 }
+          payload: { resourceType: DB_FIELDS.EMPIRES.ENERGY, quantity: 1000 }
         }
       ];
 
@@ -600,7 +603,7 @@ describe('Multiplayer Scenario Testing', () => {
           type: 'resource_transfer',
           sourcePlayerId: 'player-6',
           targetPlayerId: 'player-4',
-          payload: { resourceType: 'energy', quantity: 2000 }
+          payload: { resourceType: DB_FIELDS.EMPIRES.ENERGY, quantity: 2000 }
         }
       ];
 
@@ -670,14 +673,14 @@ describe('Multiplayer Scenario Testing', () => {
         switch (interactionType) {
           case 'trade':
             payload = {
-              resourceType: ['metal', 'energy', 'research'][Math.floor(Math.random() * 3)],
+              resourceType: ['metal', DB_FIELDS.EMPIRES.ENERGY, 'research'][Math.floor(Math.random() * 3)],
               quantity: Math.floor(Math.random() * 500) + 100,
               pricePerUnit: Math.floor(Math.random() * 10) + 1
             };
             break;
           case 'resource_transfer':
             payload = {
-              resourceType: ['metal', 'energy', 'research'][Math.floor(Math.random() * 3)],
+              resourceType: ['metal', DB_FIELDS.EMPIRES.ENERGY, 'research'][Math.floor(Math.random() * 3)],
               quantity: Math.floor(Math.random() * 300) + 50
             };
             break;
@@ -751,7 +754,7 @@ describe('Multiplayer Scenario Testing', () => {
           sourcePlayerId: `player-${(i % 4) + 1}`,
           targetPlayerId: `player-${((i + 1) % 4) + 1}`,
           payload: {
-            resourceType: 'credits',
+            resourceType: DB_FIELDS.EMPIRES.CREDITS,
             quantity: 10
           }
         });
@@ -841,7 +844,7 @@ describe('Multiplayer Scenario Testing', () => {
           sourcePlayerId: 'player-1',
           targetPlayerId: 'nonexistent-player', // Invalid player
           payload: {
-            resourceType: 'energy',
+            resourceType: DB_FIELDS.EMPIRES.ENERGY,
             quantity: 100
           }
         }
@@ -893,7 +896,7 @@ describe('Multiplayer Scenario Testing', () => {
           type: 'trade',
           sourcePlayerId: 'player-2',
           targetPlayerId: 'player-3',
-          payload: { resourceType: 'energy', quantity: 300, pricePerUnit: 3 }
+          payload: { resourceType: DB_FIELDS.EMPIRES.ENERGY, quantity: 300, pricePerUnit: 3 }
         },
         {
           type: 'alliance',

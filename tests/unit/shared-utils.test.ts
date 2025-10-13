@@ -3,9 +3,9 @@ import {
   formatCoord, 
   calculateHierarchicalDistance, 
   isValidCoordinate,
-  generateRandomHierarchicalCoordinate 
-} from '../utils';
-import { CoordinateComponents } from '../types';
+  generateRandomHierarchicalCoordinate
+} from '../../packages/shared/src/utils';
+import { CoordinateComponents } from '../../packages/shared/src/types';
 
 describe('Coordinate Utilities', () => {
   describe('parseCoord', () => {
@@ -202,3 +202,4 @@ describe('Coordinate Utilities', () => {
     });
   });
 });
+

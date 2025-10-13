@@ -1,4 +1,6 @@
-import { SupermemoryClient } from '../SupermemoryClient';
+﻿import { SupermemoryClient } from '../SupermemoryClient';
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+
 
 const mockFetch = jest.fn();
 
@@ -47,7 +49,7 @@ describe('SupermemoryClient', () => {
   });
 
   it('should handle fetch errors when storing memory', async () => {
-    const errorMessage = 'Network error';
+    const errorMessage = ERROR_MESSAGES.NETWORK_ERROR;
     mockFetch.mockRejectedValueOnce(new Error(errorMessage));
 
     await expect(client.storeMemory({
@@ -58,3 +60,4 @@ describe('SupermemoryClient', () => {
     })).rejects.toThrow(errorMessage);
   });
 });
+

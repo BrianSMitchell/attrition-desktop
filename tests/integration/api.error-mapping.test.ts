@@ -2,6 +2,7 @@
 import api, { toApiErrorFromAxiosError, ApiError } from "../api";
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 
+import { HTTP_STATUS } from '../packages/shared/src/response-formats';
 function makeAxiosError(
   cfg: any,
   status?: number,
@@ -38,7 +39,7 @@ describe("api error normalization", () => {
       // Adapter resolves a response with success:false
       adapter: async (c) => {
         return {
-          status: 200,
+          status: HTTP_STATUS.OK,
           statusText: "OK",
           headers: {},
           config: c,
@@ -50,7 +51,7 @@ describe("api error normalization", () => {
     await expect(api.request(cfg)).rejects.toMatchObject({
       code: "INVALID_REQUEST",
       message: "Nope",
-      status: 200,
+      status: HTTP_STATUS.OK,
       details: { field: "x" },
     } as ApiError);
   });
@@ -68,7 +69,7 @@ describe("api error normalization", () => {
     await expect(api.request(cfg)).rejects.toMatchObject({
       code: "HTTP_500",
       message: "Server exploded",
-      status: 500,
+      status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
     } as ApiError);
   });
 
@@ -89,7 +90,7 @@ describe("api error normalization", () => {
     }
     expect(err).not.toBeNull();
     expect(err!.code).toBe("HTTP_500");
-    expect(err!.status).toBe(500);
+    expect(err!.status).toBe(HTTP_STATUS.INTERNAL_SERVER_ERROR);
     // message may fallback to status text if not object; just assert code+status
   });
 
@@ -135,10 +136,10 @@ describe("api error normalization", () => {
     const dtoErr = toApiErrorFromAxiosError(
       makeAxiosError(cfg, 200, { success: false, code: "INVALID_REQUEST", message: "Bad" })
     );
-    expect(dtoErr).toMatchObject({ code: "INVALID_REQUEST", message: "Bad", status: 200 });
+    expect(dtoErr).toMatchObject({ code: "INVALID_REQUEST", message: "Bad", status: HTTP_STATUS.OK });
 
     const httpErr = toApiErrorFromAxiosError(makeAxiosError(cfg, 404, { message: "NF" }));
-    expect(httpErr).toMatchObject({ code: "HTTP_404", message: "NF", status: 404 });
+    expect(httpErr).toMatchObject({ code: "HTTP_404", message: "NF", status: HTTP_STATUS.NOT_FOUND });
 
     const timeoutErr = toApiErrorFromAxiosError(makeAxiosError(cfg, undefined, undefined, "ECONNABORTED"));
     expect(timeoutErr).toMatchObject({ code: "TIMEOUT" });
@@ -147,3 +148,4 @@ describe("api error normalization", () => {
     expect(netErr).toMatchObject({ code: "NETWORK_ERROR" });
   });
 });
+

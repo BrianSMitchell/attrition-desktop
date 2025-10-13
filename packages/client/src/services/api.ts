@@ -1,4 +1,9 @@
-import axios, {
+﻿import axios, {
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+
+import { HTTP_STATUS } from '@shared/response-formats';
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
   AxiosError,
   AxiosInstance,
   AxiosResponse,
@@ -9,7 +14,7 @@ import { getToken, setToken, clearToken } from "./tokenProvider";
 import { getCurrentApiConfig } from "../utils/apiConfig";
 
 const IS_TEST =
-  typeof process !== "undefined" && (process as any)?.env?.NODE_ENV === "test";
+  typeof process !== "undefined" && (process as any)?.env?.NODE_ENV === ENV_VALUES.TEST;
 
 // Get API configuration with HTTPS enforcement
 const apiConfig = getCurrentApiConfig();
@@ -17,9 +22,9 @@ export const API_BASE_URL: string = apiConfig.apiUrl;
 
 // Log HTTPS enforcement status
 if (apiConfig.httpsEnforced) {
-  console.log('🔐 API Service: HTTPS enforcement active for production build');
+  console.log('?? API Service: HTTPS enforcement active for production build');
 } else if (apiConfig.isProduction && !apiConfig.apiUrl.startsWith('https://')) {
-  console.warn('⚠️  API Service: Production build using HTTP - HTTPS recommended');
+  console.warn('??  API Service: Production build using HTTP - HTTPS recommended');
 }
 
 // Public ApiError shape for callers/UI
@@ -33,7 +38,7 @@ export interface ApiError {
 // Axios instance
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: TIMEOUTS.TEN_SECONDS,
   headers: {
     "Content-Type": "application/json",
   },
@@ -156,7 +161,7 @@ export function toApiErrorFromAxiosError(error: AxiosError): ApiError {
 
   return {
     code: "NETWORK_ERROR",
-    message: "Network error",
+    message: ERROR_MESSAGES.NETWORK_ERROR,
   };
 }
 
@@ -262,7 +267,7 @@ api.interceptors.response.use(
         return Promise.reject<ApiError>({
           code: "UNAUTHORIZED",
           message: "Session expired",
-          status: 401,
+          status: HTTP_STATUS.UNAUTHORIZED,
         });
       }
 
@@ -291,7 +296,7 @@ api.interceptors.response.use(
               ? toApiErrorFromAxiosError(replayErr)
               : ({
                   code: "NETWORK_ERROR",
-                  message: "Network error",
+                  message: ERROR_MESSAGES.NETWORK_ERROR,
                 } as ApiError);
           return Promise.reject(norm);
         }
@@ -314,7 +319,7 @@ api.interceptors.response.use(
         return Promise.reject<ApiError>({
           code: "UNAUTHORIZED",
           message: "Session expired",
-          status: 401,
+          status: HTTP_STATUS.UNAUTHORIZED,
         });
       }
     }
@@ -351,7 +356,7 @@ api.interceptors.response.use(
                 (typeof r?.message === "string" &&
                   r.message.toLowerCase().includes("timeout")))
             ? ({ code: "TIMEOUT", message: "Request timed out" } as ApiError)
-            : ({ code: "NETWORK_ERROR", message: "Network error" } as ApiError);
+            : ({ code: "NETWORK_ERROR", message: ERROR_MESSAGES.NETWORK_ERROR } as ApiError);
         return Promise.reject(norm);
       }
     }
@@ -363,7 +368,7 @@ api.interceptors.response.use(
           (typeof (axErr as any)?.message === "string" &&
             (axErr as any).message.toLowerCase().includes("timeout")))
         ? { code: "TIMEOUT", message: "Request timed out" }
-        : { code: "NETWORK_ERROR", message: "Network error" };
+        : { code: "NETWORK_ERROR", message: ERROR_MESSAGES.NETWORK_ERROR };
 
 return Promise.reject(normalized);
   }
@@ -376,4 +381,7 @@ export async function getCreditHistory(limit: number = 50): Promise<{ history: A
 }
 
 export default api;
+
+
+
 

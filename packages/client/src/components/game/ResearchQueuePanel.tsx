@@ -2,6 +2,7 @@ import * as React from "react";
 import { getTechSpec, type TechnologyKey } from "@game/shared";
 import { useEnhancedAppStore } from "../../stores/enhancedAppStore";
 
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 interface TechQueueItem {
   _id?: string;
   id?: string; // API might return 'id' instead of '_id'
@@ -80,11 +81,11 @@ const ResearchQueuePanel: React.FC<ResearchQueuePanelProps> = ({ baseCoord, onCh
   React.useEffect(() => {
     fetchQueue();
     // Update progress bars every 30 seconds
-    const tickId = window.setInterval(() => setTick((t) => t + 1), 30000);
+    const tickId = window.setInterval(() => setTick((t) => t + 1), TIMEOUTS.THIRTY_SECONDS);
     // Fetch fresh data every 60 seconds for real-time updates
     const fetchId = window.setInterval(() => {
       fetchQueue();
-    }, 60000);
+    }, TIMEOUTS.ONE_MINUTE);
     return () => {
       clearInterval(tickId);
       clearInterval(fetchId);

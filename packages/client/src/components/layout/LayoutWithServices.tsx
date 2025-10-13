@@ -1,3 +1,5 @@
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 /**
  * Layout wrapper with enhanced ServiceProvider
  * Provides new service architecture to Layout and its child components
@@ -14,7 +16,7 @@ interface LayoutWithServicesProps {
 export const LayoutWithServices: React.FC<LayoutWithServicesProps> = ({ children }) => {
   return (
     <ServiceProvider
-      enableMonitoring={process.env.NODE_ENV === 'development'}
+      enableMonitoring={process.env[ENV_VARS.NODE_ENV] === 'development'}
       fallback={
         <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
           <div className="text-center">

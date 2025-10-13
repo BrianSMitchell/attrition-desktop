@@ -1,3 +1,6 @@
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+import { HTTP_STATUS } from '../packages/shared/src/response-formats';
 const path = require('path');
 const fs = require('fs');
 
@@ -186,7 +189,7 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       const handler = ipcHandlers['app:openExternal'];
       
       // Mock shell.openExternal to throw an error
-      mockShell.openExternal.mockRejectedValueOnce(new Error('Network error'));
+      mockShell.openExternal.mockRejectedValueOnce(new Error(ERROR_MESSAGES.NETWORK_ERROR));
       
       const result = await handler(null, 'https://example.com');
       expect(result).toBe(false);
@@ -387,11 +390,11 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       
       global.fetch.mockResolvedValueOnce({
         ok: false,
-        status: 401
+        status: HTTP_STATUS.UNAUTHORIZED
       });
       
       const result = await handler();
-      expect(result).toEqual({ ok: false, status: 401 });
+      expect(result).toEqual({ ok: false, status: HTTP_STATUS.UNAUTHORIZED });
     });
 
     test('should handle auth:refresh when fetch throws error', async () => {
@@ -400,7 +403,7 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       const refreshToken = 'test-refresh-token';
       mockKeytar.getPassword.mockResolvedValueOnce(refreshToken);
       
-      global.fetch.mockRejectedValueOnce(new Error('Network error'));
+      global.fetch.mockRejectedValueOnce(new Error(ERROR_MESSAGES.NETWORK_ERROR));
       
       const result = await handler();
       expect(result).toEqual({ ok: false, error: 'exception' });
@@ -499,11 +502,11 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       const testKey = 'test-key';
       const testValue = { data: 'test' };
       mockDesktopDb.setKeyValue.mockImplementationOnce(() => {
-        throw new Error('Database error');
+        throw new Error(ERROR_MESSAGES.DATABASE_ERROR);
       });
       
       const result = await handler(null, testKey, testValue);
-      expect(result).toEqual({ success: false, error: 'Database error' });
+      expect(result).toEqual({ success: false, error: ERROR_MESSAGES.DATABASE_ERROR });
     });
 
     test('should handle db:kv:get correctly', async () => {
@@ -534,11 +537,11 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       
       const testKey = 'test-key';
       mockDesktopDb.getKeyValue.mockImplementationOnce(() => {
-        throw new Error('Database error');
+        throw new Error(ERROR_MESSAGES.DATABASE_ERROR);
       });
       
       const result = await handler(null, testKey);
-      expect(result).toEqual({ success: false, error: 'Database error' });
+      expect(result).toEqual({ success: false, error: ERROR_MESSAGES.DATABASE_ERROR });
     });
 
     test('should handle db:kv:delete correctly', async () => {
@@ -569,11 +572,11 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       
       const testKey = 'test-key';
       mockDesktopDb.deleteKeyValue.mockImplementationOnce(() => {
-        throw new Error('Database error');
+        throw new Error(ERROR_MESSAGES.DATABASE_ERROR);
       });
       
       const result = await handler(null, testKey);
-      expect(result).toEqual({ success: false, error: 'Database error' });
+      expect(result).toEqual({ success: false, error: ERROR_MESSAGES.DATABASE_ERROR });
     });
   });
 
@@ -634,11 +637,11 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       
       const testKey = 'buildings';
       mockDesktopDb.getCatalog.mockImplementationOnce(() => {
-        throw new Error('Database error');
+        throw new Error(ERROR_MESSAGES.DATABASE_ERROR);
       });
       
       const result = await handler(null, testKey);
-      expect(result).toEqual({ success: false, error: 'Database error' });
+      expect(result).toEqual({ success: false, error: ERROR_MESSAGES.DATABASE_ERROR });
     });
 
     test('should handle db:catalogs:getAll correctly', async () => {
@@ -657,11 +660,11 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       const handler = ipcHandlers['db:catalogs:getAll'];
       
       mockDesktopDb.getAllCatalogs.mockImplementationOnce(() => {
-        throw new Error('Database error');
+        throw new Error(ERROR_MESSAGES.DATABASE_ERROR);
       });
       
       const result = await handler();
-      expect(result).toEqual({ success: false, error: 'Database error' });
+      expect(result).toEqual({ success: false, error: ERROR_MESSAGES.DATABASE_ERROR });
     });
   });
 
@@ -725,11 +728,11 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       const userId = 'user-123';
       const deviceId = 'device-456';
       mockDesktopDb.getProfileSnapshot.mockImplementationOnce(() => {
-        throw new Error('Database error');
+        throw new Error(ERROR_MESSAGES.DATABASE_ERROR);
       });
       
       const result = await handler(null, userId, deviceId);
-      expect(result).toEqual({ success: false, error: 'Database error' });
+      expect(result).toEqual({ success: false, error: ERROR_MESSAGES.DATABASE_ERROR });
     });
   });
 
@@ -758,11 +761,11 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       const payload = { action: 'build' };
       const dedupeKey = 'dedupe-456';
       mockDesktopDb.enqueueEvent.mockImplementationOnce(() => {
-        throw new Error('Database error');
+        throw new Error(ERROR_MESSAGES.DATABASE_ERROR);
       });
       
       const result = await handler(null, kind, deviceId, payload, dedupeKey);
-      expect(result).toEqual({ success: false, error: 'Database error' });
+      expect(result).toEqual({ success: false, error: ERROR_MESSAGES.DATABASE_ERROR });
     });
 
     test('should handle db:events:dequeueForFlush correctly', async () => {
@@ -796,11 +799,11 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       
       const limit = 10;
       mockDesktopDb.dequeueEventsForFlush.mockImplementationOnce(() => {
-        throw new Error('Database error');
+        throw new Error(ERROR_MESSAGES.DATABASE_ERROR);
       });
       
       const result = await handler(null, limit);
-      expect(result).toEqual({ success: false, error: 'Database error' });
+      expect(result).toEqual({ success: false, error: ERROR_MESSAGES.DATABASE_ERROR });
     });
 
     test('should handle db:events:markSent correctly', async () => {
@@ -867,11 +870,11 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       
       const olderThanDays = 7;
       mockDesktopDb.deleteOldSentEvents.mockImplementationOnce(() => {
-        throw new Error('Database error');
+        throw new Error(ERROR_MESSAGES.DATABASE_ERROR);
       });
       
       const result = await handler(null, olderThanDays);
-      expect(result).toEqual({ success: false, error: 'Database error' });
+      expect(result).toEqual({ success: false, error: ERROR_MESSAGES.DATABASE_ERROR });
     });
   });
 
@@ -928,11 +931,11 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       
       const key = 'last-sync';
       mockDesktopDb.getSyncState.mockImplementationOnce(() => {
-        throw new Error('Database error');
+        throw new Error(ERROR_MESSAGES.DATABASE_ERROR);
       });
       
       const result = await handler(null, key);
-      expect(result).toEqual({ success: false, error: 'Database error' });
+      expect(result).toEqual({ success: false, error: ERROR_MESSAGES.DATABASE_ERROR });
     });
   });
 
@@ -994,7 +997,7 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       
       global.fetch.mockResolvedValueOnce({
         ok: false,
-        status: 500,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
         text: jest.fn().mockResolvedValueOnce('Internal Server Error')
       });
       
@@ -1002,7 +1005,7 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       expect(result).toEqual({
         success: false,
         error: 'http_500',
-        status: 500,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
         details: 'Internal Server Error'
       });
     });
@@ -1075,14 +1078,14 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       
       // Mock catalog caching failure
       mockDesktopDb.setCatalog.mockImplementationOnce(() => {
-        throw new Error('Database error');
+        throw new Error(ERROR_MESSAGES.DATABASE_ERROR);
       });
       
       const result = await handler(null, 'test-access-token');
       expect(result).toEqual({
         success: false,
         error: 'cache_catalog_buildings',
-        details: 'Database error'
+        details: ERROR_MESSAGES.DATABASE_ERROR
       });
     });
 
@@ -1179,11 +1182,11 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
       const handler = ipcHandlers['db:health'];
       
       mockDesktopDb.getHealthInfo.mockImplementationOnce(() => {
-        throw new Error('Database error');
+        throw new Error(ERROR_MESSAGES.DATABASE_ERROR);
       });
       
       const result = await handler();
-      expect(result).toEqual({ success: false, error: 'Database error' });
+      expect(result).toEqual({ success: false, error: ERROR_MESSAGES.DATABASE_ERROR });
     });
   });
 
@@ -1375,3 +1378,6 @@ describe('Main Process IPC Handlers - Comprehensive Tests', () => {
     });
   });
 });
+
+
+

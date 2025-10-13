@@ -1,5 +1,11 @@
-import { Request, Response, NextFunction } from 'express';
+﻿import { Request, Response, NextFunction } from 'express';
 import { isReverseProxySSL } from '../utils/runtimeEnv';
+import { API_ENDPOINTS } from '../constants/api-endpoints';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+
+
+import { HTTP_STATUS } from '@shared/response-formats';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
 
 /**
  * HTTPS Enforcement Middleware
@@ -41,14 +47,14 @@ export function createHttpsRedirectMiddleware(config: HttpsRedirectConfig = {}) 
     forceHttps = false,
     httpsPort = 443,
     hostname,
-    exemptPaths = ['/health', '/api/status'],
+    exemptPaths = [API_ENDPOINTS.SYSTEM.HEALTH, API_ENDPOINTS.SYSTEM.STATUS],
     trustProxy = true
   } = config;
 
   return function httpsRedirectMiddleware(req: Request, res: Response, next: NextFunction) {
     const reverseProxy = isReverseProxySSL();
     // Skip HTTPS enforcement in development unless explicitly forced
-    if (process.env.NODE_ENV !== 'production' && !forceHttps) {
+    if (process.env[ENV_VARS.NODE_ENV] !== 'production' && !forceHttps) {
       return next();
     }
 
@@ -68,7 +74,7 @@ export function createHttpsRedirectMiddleware(config: HttpsRedirectConfig = {}) 
       return req.path === exemptPath;
     });
 
-    if (isExempt && process.env.NODE_ENV !== 'production') {
+    if (isExempt && process.env[ENV_VARS.NODE_ENV] !== 'production') {
       // Allow HTTP for exempt paths ONLY in development
       // In production, even exempt paths should use HTTPS
       return next();
@@ -90,11 +96,11 @@ export function createHttpsRedirectMiddleware(config: HttpsRedirectConfig = {}) 
       const redirectUrl = buildHttpsUrl(req, { hostname, httpsPort });
       
       // Enhanced logging based on environment
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION) {
         // Suppress noisy WARN logs for known exempt paths under reverse proxy mode
         const shouldWarn = !(reverseProxy && isExempt);
         if (shouldWarn) {
-          console.warn(`🔒 PRODUCTION HTTP→HTTPS redirect:`, {
+          console.warn(`?? PRODUCTION HTTP?HTTPS redirect:`, {
           ...clientInfo,
           redirectTo: redirectUrl,
           severity: 'WARNING',
@@ -102,10 +108,10 @@ export function createHttpsRedirectMiddleware(config: HttpsRedirectConfig = {}) 
         });
         } else {
           // Downgrade to INFO for exempt health/status checks in reverse proxy mode
-          console.log(`ℹ️ PRODUCTION redirect (exempt path in reverse proxy mode): ${req.method} ${req.originalUrl} → ${redirectUrl}`);
+          console.log(`?? PRODUCTION redirect (exempt path in reverse proxy mode): ${req.method} ${req.originalUrl} ? ${redirectUrl}`);
         }
       } else {
-        console.log(`🔐 HTTP → HTTPS redirect: ${req.method} ${req.originalUrl} → ${redirectUrl}`);
+        console.log(`?? HTTP ? HTTPS redirect: ${req.method} ${req.originalUrl} ? ${redirectUrl}`);
       }
 
       // Enhanced security headers for production redirects
@@ -118,7 +124,7 @@ export function createHttpsRedirectMiddleware(config: HttpsRedirectConfig = {}) 
       };
 
       // Add additional security headers for production
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION) {
         redirectHeaders['X-Content-Type-Options'] = 'nosniff';
         redirectHeaders['X-Frame-Options'] = 'DENY';
         redirectHeaders['X-XSS-Protection'] = '1; mode=block';
@@ -126,20 +132,20 @@ export function createHttpsRedirectMiddleware(config: HttpsRedirectConfig = {}) 
       }
 
       // Perform the redirect with enhanced headers
-      res.status(301).set(redirectHeaders).end();
+      res.status(HTTP_STATUS.MOVED_PERMANENTLY).set(redirectHeaders).end();
       
     } catch (error) {
       // Error handling for redirect failures
       const errorMessage = error instanceof Error ? error.message : 'Unknown redirect error';
       
-      console.error(`❌ HTTPS redirect failed:`, {
+      console.error(`? HTTPS redirect failed:`, {
         ...clientInfo,
         error: errorMessage,
         severity: 'ERROR'
       });
       
       // In production, fail securely - don't allow HTTP fallback
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION) {
         res.status(426) // Upgrade Required
           .set({
             'Content-Type': 'application/json',
@@ -157,7 +163,7 @@ export function createHttpsRedirectMiddleware(config: HttpsRedirectConfig = {}) 
       }
       
       // In development, log error but continue
-      console.warn('⚠️  HTTPS redirect failed in development, continuing with HTTP');
+      console.warn('??  HTTPS redirect failed in development, continuing with HTTP');
       next();
     }
   };
@@ -252,7 +258,7 @@ export const httpsRedirectMiddleware = createHttpsRedirectMiddleware();
  */
 export const strictHttpsMiddleware = createHttpsRedirectMiddleware({
   forceHttps: true,
-  exemptPaths: ['/health', '/api/status', '/test-http']
+  exemptPaths: [API_ENDPOINTS.SYSTEM.HEALTH, API_ENDPOINTS.SYSTEM.STATUS, '/test-http']
 });
 
 /**
@@ -280,3 +286,6 @@ export default {
   strictHttpsMiddleware,
   httpsSecurityHeadersMiddleware
 };
+
+
+

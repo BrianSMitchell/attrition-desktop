@@ -1,4 +1,5 @@
 // Simple browser-compatible EventEmitter implementation
+import { RETRY_LIMITS, BUFFER_LIMITS } from '@shared/constants/magic-numbers';
 class EventEmitter {
   private listeners: { [event: string]: Function[] } = {};
 
@@ -75,9 +76,9 @@ export class SyncEngine extends EventEmitter {
     super();
     
     this.options = {
-      batchSize: 10,
+      batchSize: BUFFER_LIMITS.BATCH_SIZE_SMALL,
       batchTimeoutMs: 2000,
-      maxRetries: 3,
+      maxRetries: RETRY_LIMITS.API_RETRIES,
       enableOptimistic: true,
       enableLogging: false,
       ...options,

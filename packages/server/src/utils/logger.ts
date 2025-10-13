@@ -1,3 +1,6 @@
+﻿import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VARS } from '@shared/constants/env-vars';
+
 // Lightweight logger that respects DEBUG_RESOURCES
 // Usage:
 //   import { logger } from './utils/logger'
@@ -16,7 +19,7 @@
 export type LogMethod = (...args: any[]) => void
 
 function isInfoEnabled(): boolean {
-  return process.env.DEBUG_RESOURCES === 'true'
+  return process.env[ENV_VARS.DEBUG_RESOURCES] === 'true'
 }
 
 function fmtNs(ns?: string): string {
@@ -78,7 +81,7 @@ export function initLogger() {
   console.debug = gatedDebug as any
 
   // Optional: also gate console.log if explicitly requested (safer opt-in)
-  if (process.env.DEBUG_PATCH_LOG === 'true') {
+  if (process.env[ENV_VARS.DEBUG_PATCH_LOG] === 'true') {
     const gatedLog: LogMethod = (...args) => {
       if (isInfoEnabled()) (console as any).__orig_log(...args)
     }

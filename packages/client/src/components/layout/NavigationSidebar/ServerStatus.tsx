@@ -1,4 +1,7 @@
 /**
+
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
+/**
  * Server status display component
  * Shows server information, player count, uptime, and network status
  */
@@ -58,7 +61,7 @@ export const ServerStatus: React.FC = () => {
 
     fetchStatus();
     // Poll less frequently; presence updates arrive via Socket.IO in real-time
-    intervalId = window.setInterval(fetchStatus, 30000);
+    intervalId = window.setInterval(fetchStatus, TIMEOUTS.THIRTY_SECONDS);
     
     return () => {
       if (intervalId) window.clearInterval(intervalId);

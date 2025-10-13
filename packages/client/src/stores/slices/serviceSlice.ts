@@ -1,6 +1,9 @@
-import { StateCreator } from 'zustand';
+﻿import { StateCreator } from 'zustand';
 import { initializeServices, getServices, cleanupServices } from '../../services/core';
 import { gameApi } from '../services/gameApi';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+
 
 // Singleton guard for service initialization
 let serviceInitializationPromise: Promise<void> | null = null;
@@ -129,7 +132,7 @@ const createServiceSlice: StateCreator<
 
             console.log('🏪PO Store: Calling initializeServices...');
             const initResult = await initializeServices({
-              enableLogging: process.env.NODE_ENV === 'development',
+              enableLogging: process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.DEVELOPMENT,
               enableMetrics: true,
               maxRetries: 1, // Reduced retries to fail faster
               retryDelay: 500, // Shorter delay

@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { 
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
   useServiceNetwork, 
   useServiceSync, 
   useServiceHealth, 
@@ -175,7 +176,7 @@ const ActionButtonComponent: React.FC<ActionButtonProps> = ({
           }, 100);
           
           // Clear progress interval after action completes
-          setTimeout(() => clearInterval(progressInterval), 1000);
+          setTimeout(() => clearInterval(progressInterval), TIMEOUTS.ONE_SECOND);
         }
 
         const context = {

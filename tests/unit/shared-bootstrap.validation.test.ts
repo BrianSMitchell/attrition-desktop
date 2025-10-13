@@ -6,7 +6,8 @@ import {
   fromServerProfileSnapshot,
   parseAndNormalizeBootstrap,
   ProfileCacheEntrySchema
-} from '../validation';
+} from '../../packages/shared/src/validation';
+import { DB_FIELDS } from '../../packages/server/src/constants/database-fields';
 
 describe('Desktop cache validation & normalization', () => {
   test('parseCatalogEntry wraps raw arrays/objects and preserves preferred form', () => {
@@ -65,7 +66,7 @@ describe('Desktop cache validation & normalization', () => {
     const payload = {
       version: { catalogs: '2.0.0', profile: '2.0.0', timestamp: new Date().toISOString() },
       catalogs: {
-        technologies: [{ key: 'energy' }],
+        technologies: [{ key: DB_FIELDS.EMPIRES.ENERGY }],
         buildings: [{ key: 'solar_plants' }]
       },
       profileSnapshot: {

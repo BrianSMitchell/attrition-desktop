@@ -1,5 +1,9 @@
 import { supabase } from '../../config/supabase';
-import { EconomyService } from '../economy/EconomyService';
+import { ERROR_MESSAGES } from '../../constants/response-formats';
+
+import { DB_FIELDS } from '../../../constants/database-fields';
+import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
 
 export class ResourceService {
   /**
@@ -10,11 +14,11 @@ export class ResourceService {
 const creditsPerHour = await EconomyService.sumCreditsPerHourForEmpire(empireId);
 
     // Debug logging
-    if (process.env.DEBUG_RESOURCES === 'true') {
+    if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
       const { data: empire } = await supabase
-        .from('empires')
-        .select('id')
-        .eq('id', empireId)
+        .from(DB_TABLES.EMPIRES)
+        .select(DB_FIELDS.BUILDINGS.ID)
+        .eq(DB_FIELDS.BUILDINGS.ID, empireId)
         .maybeSingle();
       console.log(`📊 Empire ${empireId} credits/hour: ${creditsPerHour}`);
     }
@@ -30,20 +34,20 @@ const creditsPerHour = await EconomyService.sumCreditsPerHourForEmpire(empireId)
     resourcesGained: Record<string, number>;
   }> {
     const { data: empire, error } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('id, created_at, last_resource_update')
-      .eq('id', empireId)
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
     if (error || !empire) {
-      throw new Error('Empire not found');
+      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
     }
 
     const now = new Date();
     const lastUpdate = empire.last_resource_update 
       ? new Date(empire.last_resource_update)
       : new Date(empire.created_at);
-    const hoursElapsed = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
+    const hoursElapsed = (now.getTime() - lastUpdate.getTime()) / (GAME_CONSTANTS.MILLISECONDS_PER_SECOND * GAME_CONSTANTS.SECONDS_PER_MINUTE * 60);
 
     // Get credits per hour for diagnostics
     const creditsPerHour = await this.calculateCreditsPerHour(empireId);
@@ -55,9 +59,9 @@ const creditsPerHour = await EconomyService.sumCreditsPerHourForEmpire(empireId)
 
     // Update last resource update timestamp
     await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .update({ last_resource_update: now.toISOString() })
-      .eq('id', empireId);
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId);
 
     return { creditsPerHour, resourcesGained: {} };
   }
@@ -70,13 +74,13 @@ const creditsPerHour = await EconomyService.sumCreditsPerHourForEmpire(empireId)
     creditsGained: number;
   }> {
     const { data: empire, error } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('id, credits, credits_remainder_milli, last_credit_payout, created_at')
-      .eq('id', empireId)
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
     if (error || !empire) {
-      throw new Error('Empire not found');
+      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
     }
 
     const now = new Date();
@@ -123,29 +127,29 @@ const creditsPerHour = await EconomyService.sumCreditsPerHourForEmpire(empireId)
     const newLastPayout = new Date(lastBoundary.getTime() + periodsElapsed * periodMs);
 
     // Debug logging (only in debug mode)
-    if (process.env.DEBUG_RESOURCES === 'true') {
+    if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
       console.log(`   DEBUG - Before update: credits=${currentCredits}, remainder=${currentRemainder}`);
     }
 
     // Update empire credits and remainder
     if (wholeCredits > 0) {
       await supabase
-        .from('empires')
+        .from(DB_TABLES.EMPIRES)
         .update({
           credits: newCredits,
           credits_remainder_milli: newRemainder,
           last_credit_payout: newLastPayout.toISOString(),
         })
-        .eq('id', empireId);
+        .eq(DB_FIELDS.BUILDINGS.ID, empireId);
     } else {
       // Even if no credits awarded, update the payout timestamp and remainder
       await supabase
-        .from('empires')
+        .from(DB_TABLES.EMPIRES)
         .update({
           credits_remainder_milli: newRemainder,
           last_credit_payout: newLastPayout.toISOString(),
         })
-        .eq('id', empireId);
+        .eq(DB_FIELDS.BUILDINGS.ID, empireId);
     }
 
     // Log payout transaction (non-blocking)
@@ -156,12 +160,12 @@ const creditsPerHour = await EconomyService.sumCreditsPerHourForEmpire(empireId)
     }
 
     // Debug: Log final state (only in debug mode)
-    if (process.env.DEBUG_RESOURCES === 'true') {
+    if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
       console.log(`   DEBUG - After update: credits=${newCredits}, remainder=${newRemainder}`);
     }
 
     // Diagnostic logging (only in debug mode or for significant payouts)
-    const shouldLogPayout = process.env.DEBUG_RESOURCES === 'true' || wholeCredits >= 10;
+    const shouldLogPayout = process.env[ENV_VARS.DEBUG_RESOURCES] === 'true' || wholeCredits >= 10;
     if (shouldLogPayout) {
       console.log(`💰 Empire ${empireId}:`);
       console.log(`   Credits/Hour: ${creditsPerHour}`);
@@ -182,9 +186,9 @@ const creditsPerHour = await EconomyService.sumCreditsPerHourForEmpire(empireId)
    */
   static async canAfford(empireId: string, creditsNeeded: number): Promise<boolean> {
     const { data: empire, error } = await supabase
-      .from('empires')
-      .select('credits')
-      .eq('id', empireId)
+      .from(DB_TABLES.EMPIRES)
+      .select(DB_FIELDS.EMPIRES.CREDITS)
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
     if (error || !empire) {
@@ -207,9 +211,9 @@ const creditsPerHour = await EconomyService.sumCreditsPerHourForEmpire(empireId)
 
     // Get current credits
     const { data: empire, error } = await supabase
-      .from('empires')
-      .select('credits')
-      .eq('id', empireId)
+      .from(DB_TABLES.EMPIRES)
+      .select(DB_FIELDS.EMPIRES.CREDITS)
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
     if (error || !empire) {
@@ -221,10 +225,12 @@ const creditsPerHour = await EconomyService.sumCreditsPerHourForEmpire(empireId)
 
     // Update credits
     await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .update({ credits: newCredits })
-      .eq('id', empireId);
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId);
 
     return true;
   }
 }
+
+

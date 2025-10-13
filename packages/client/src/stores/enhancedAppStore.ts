@@ -1,8 +1,9 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { persist } from 'zustand/middleware';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
 
 import createEnhancedAuthSlice, { type EnhancedAuthSlice } from './slices/enhancedAuthSlice';
 import createEnhancedNetworkSlice, { type EnhancedNetworkSlice } from './slices/enhancedNetworkSlice';
@@ -10,6 +11,8 @@ import createEnhancedSyncSlice, { type EnhancedSyncSlice } from './slices/enhanc
 import createServiceSlice, { type ServiceSlice } from './slices/serviceSlice';
 import createUISlice, { type UISlice } from './slices/uiSlice';
 import createGameSlice, { type GameSlice } from './slices/gameSlice';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 
 // Combined enhanced app state interface
 export interface EnhancedAppState 
@@ -68,7 +71,7 @@ export const useEnhancedAppStore = create<EnhancedAppState>()(
     {
       name: 'attrition-enhanced-app-store',
       // Development only devtools
-      enabled: process.env.NODE_ENV === 'development',
+      enabled: process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.DEVELOPMENT,
     }
   )
 );

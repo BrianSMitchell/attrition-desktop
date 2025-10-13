@@ -1,3 +1,6 @@
+﻿import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+
 // Centralized runtime environment helpers
 
 function parseBooleanEnv(name: string, defaultValue = false): boolean {
@@ -18,5 +21,5 @@ export function isReverseProxySSL(): boolean {
 
 /** Convenience: whether we're in production mode */
 export function isProduction(): boolean {
-  return (process.env.NODE_ENV || '').toLowerCase() === 'production';
+  return (process.env[ENV_VARS.NODE_ENV] || '').toLowerCase() === ENV_VALUES.PRODUCTION;
 }

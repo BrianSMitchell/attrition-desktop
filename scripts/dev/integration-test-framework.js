@@ -1,3 +1,5 @@
+﻿import { API_ENDPOINTS } from '../constants/api-endpoints';
+
 #!/usr/bin/env node
 
 /**
@@ -99,7 +101,7 @@ class IntegrationTestFramework {
     async waitForServer(maxAttempts = 30) {
         for (let i = 0; i < maxAttempts; i++) {
             try {
-                await this.makeRequest('GET', '/health');
+                await this.makeRequest('GET', API_ENDPOINTS.SYSTEM.HEALTH);
                 return;
             } catch (error) {
                 if (i === maxAttempts - 1) {
@@ -268,3 +270,5 @@ if (require.main === module) {
 }
 
 module.exports = IntegrationTestFramework;
+
+

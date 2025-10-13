@@ -1,6 +1,7 @@
 import { supabase } from '../../config/supabase';
 import { CapacityService } from '../bases/CapacityService';
-import {
+import { ERROR_MESSAGES } from '../../constants/response-formats';
+import { DB_FIELDS } from '../../../constants/database-fields';
   getDefensesList,
   DefenseKey,
   TechnologyKey,
@@ -83,13 +84,13 @@ export class DefensesService {
    */
   static async getStatus(empireId: string): Promise<DefensesStatusDTO> {
     const { data: empire, error } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('tech_levels')
-      .eq('id', empireId)
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
     if (error || !empire) {
-      throw new Error('Empire not found');
+      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
     }
 
     const techLevels = mapTechLevels(empire.tech_levels);
@@ -122,24 +123,24 @@ export class DefensesService {
   static async start(empireId: string, locationCoord: string, defenseKey: DefenseKey) {
     // Load empire
     const { data: empire, error: empireError } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('id, user_id, tech_levels, credits')
-      .eq('id', empireId)
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
     if (empireError || !empire) {
-      return formatError('NOT_FOUND', 'Empire not found');
+      return formatError(ERROR_MESSAGES.NOT_FOUND, ERROR_MESSAGES.EMPIRE_NOT_FOUND);
     }
 
     // Validate owned location
     const { data: location, error: locationError } = await supabase
-      .from('locations')
+      .from(DB_TABLES.LOCATIONS)
       .select('coord, owner, result')
       .eq('coord', locationCoord)
       .maybeSingle();
 
     if (locationError || !location) {
-      return formatError('NOT_FOUND', 'Location not found');
+      return formatError(ERROR_MESSAGES.NOT_FOUND, ERROR_MESSAGES.LOCATION_NOT_FOUND);
     }
 
     if (location.owner !== empire.user_id) {
@@ -165,12 +166,12 @@ export class DefensesService {
     // Check if item already in progress
     const now = Date.now();
     const { data: inProgress, error: progressError } = await supabase
-      .from('defense_queue')
+      .from(DB_TABLES.DEFENSE_QUEUE)
       .select('*')
-      .eq('empire_id', empireId)
-      .eq('location_coord', locationCoord)
-      .eq('status', 'pending')
-      .gt('completes_at', new Date(now).toISOString())
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
+      .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'pending')
+      .gt(DB_FIELDS.TECH_QUEUE.COMPLETES_AT, new Date(now).toISOString())
       .maybeSingle();
 
     if (progressError) {
@@ -192,10 +193,10 @@ export class DefensesService {
 
       // Gather active buildings
       const { data: buildings, error: buildingsError } = await supabase
-        .from('buildings')
+        .from(DB_TABLES.BUILDINGS)
         .select('catalog_key, level, is_active, pending_upgrade')
-        .eq('empire_id', empireId)
-        .eq('location_coord', locationCoord);
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord);
 
       if (buildingsError) {
         console.error('Error fetching buildings:', buildingsError);
@@ -213,11 +214,11 @@ export class DefensesService {
 
       // Include completed defenses in energy baseline
       const { data: completedDefs, error: defsError } = await supabase
-        .from('defense_queue')
-        .select('defense_key')
-        .eq('empire_id', empireId)
-        .eq('location_coord', locationCoord)
-        .eq('status', 'completed');
+        .from(DB_TABLES.DEFENSE_QUEUE)
+        .select(DB_FIELDS.DEFENSE_QUEUE.DEFENSE_KEY)
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
+        .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'completed');
 
       if (defsError) {
         console.error('Error fetching completed defenses:', defsError);
@@ -271,9 +272,9 @@ export class DefensesService {
 
       // Update empire credits
       const { error: updateError } = await supabase
-        .from('empires')
+        .from(DB_TABLES.EMPIRES)
         .update({ credits: available - cost })
-        .eq('id', empireId);
+        .eq(DB_FIELDS.BUILDINGS.ID, empireId);
 
       if (updateError) {
         console.error('Error updating empire credits:', updateError);
@@ -287,7 +288,7 @@ export class DefensesService {
 
       // Insert defense queue item
       const { data: queueItem, error: insertError } = await supabase
-        .from('defense_queue')
+        .from(DB_TABLES.DEFENSE_QUEUE)
         .insert({
           empire_id: empireId,
           location_coord: locationCoord,
@@ -329,9 +330,9 @@ export class DefensesService {
 
       // Update empire credits
       const { error: updateError } = await supabase
-        .from('empires')
+        .from(DB_TABLES.EMPIRES)
         .update({ credits: available - cost })
-        .eq('id', empireId);
+        .eq(DB_FIELDS.BUILDINGS.ID, empireId);
 
       if (updateError) {
         console.error('Error updating empire credits:', updateError);
@@ -340,7 +341,7 @@ export class DefensesService {
 
       // Insert waiting queue item (no completion time yet)
       const { data: queueItem, error: insertError } = await supabase
-        .from('defense_queue')
+        .from(DB_TABLES.DEFENSE_QUEUE)
         .insert({
           empire_id: empireId,
           location_coord: locationCoord,
@@ -364,3 +365,6 @@ export class DefensesService {
     }
   }
 }
+
+
+

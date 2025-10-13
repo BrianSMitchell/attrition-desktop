@@ -1,3 +1,5 @@
+﻿import { ERROR_MESSAGES } from '../constants/response-formats';
+
 const path = require('path');
 const fs = require('fs');
 
@@ -257,10 +259,10 @@ describe('EventQueueService', () => {
 
     test('should handle enqueue errors gracefully', async () => {
       mockDesktopDb.enqueueEvent.mockImplementationOnce(() => {
-        throw new Error('Database error');
+        throw new Error(ERROR_MESSAGES.DATABASE_ERROR);
       });
       
-      await expect(eventQueueService.enqueue('structures', {})).rejects.toThrow('Database error');
+      await expect(eventQueueService.enqueue('structures', {})).rejects.toThrow(ERROR_MESSAGES.DATABASE_ERROR);
     });
   });
 
@@ -314,13 +316,13 @@ describe('EventQueueService', () => {
       mockDesktopDb.dequeueEventsForFlush.mockReturnValue([]); // Empty for other kinds
       
       // Mock sendEventToServer to throw error
-      eventQueueService.sendEventToServer = jest.fn().mockRejectedValue(new Error('Network error'));
+      eventQueueService.sendEventToServer = jest.fn().mockRejectedValue(new Error(ERROR_MESSAGES.NETWORK_ERROR));
       mockDesktopDb.markEventFailed.mockReturnValue(true);
       
       const results = await eventQueueService.flushPendingEvents(10);
       
       expect(results.failed).toBe(1);
-      expect(mockDesktopDb.markEventFailed).toHaveBeenCalledWith(1, 'Network error');
+      expect(mockDesktopDb.markEventFailed).toHaveBeenCalledWith(1, ERROR_MESSAGES.NETWORK_ERROR);
     });
 
     test('should skip flush when already flushing', async () => {
@@ -517,7 +519,7 @@ describe('EventQueueService', () => {
 
     test('should handle synchronization errors gracefully', async () => {
       eventQueueService.getAllPendingEvents = jest.fn().mockImplementation(() => {
-        throw new Error('Sync error');
+        throw new Error(ERROR_MESSAGES.SYNC_ERROR);
       });
       
       const results = await eventQueueService.synchronizeQueue([]);
@@ -627,3 +629,5 @@ describe('EventQueueService', () => {
     });
   });
 });
+
+

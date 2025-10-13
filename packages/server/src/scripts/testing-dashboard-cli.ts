@@ -1,3 +1,9 @@
+﻿import { FILE_EXTENSIONS, FILE_PATHS } from '../../../shared/src/constants/file-paths';
+import { ENV_VARS } from '@shared/constants/env-vars';
+
+#!/usr/bin/env node
+
+import { DB_FIELDS } from '../../../constants/database-fields';
 #!/usr/bin/env node
 
 /**
@@ -12,7 +18,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { TestingMetricsCollector } from '../test-utils/testing-metrics-framework';
 import DashboardGenerator from '../test-utils/dashboard-generator';
-import AutomatedReportingSystem, { NotificationConfig, ReportConfig } from '../test-utils/automated-reporting';
+import { HTTP_STATUS } from '../constants/response-formats';
 
 const program = new Command();
 
@@ -37,22 +43,22 @@ const dashboardGenerator = new DashboardGenerator(metricsCollector);
 const getNotificationConfig = (): NotificationConfig => {
   const config: NotificationConfig = {};
 
-  if (process.env.SLACK_WEBHOOK_URL) {
+  if (process.env[ENV_VARS.SLACK_WEBHOOK_URL]) {
     config.slack = {
-      webhookUrl: process.env.SLACK_WEBHOOK_URL,
-      channel: process.env.SLACK_CHANNEL || '#testing',
-      username: process.env.SLACK_USERNAME || 'Attrition Testing Bot'
+      webhookUrl: process.env[ENV_VARS.SLACK_WEBHOOK_URL],
+      channel: process.env[ENV_VARS.SLACK_CHANNEL] || '#testing',
+      username: process.env[ENV_VARS.SLACK_USERNAME] || 'Attrition Testing Bot'
     };
   }
 
-  if (process.env.SMTP_HOST) {
+  if (process.env[ENV_VARS.SMTP_HOST]) {
     config.email = {
-      smtpHost: process.env.SMTP_HOST,
-      smtpPort: parseInt(process.env.SMTP_PORT || '587'),
-      username: process.env.SMTP_USERNAME!,
-      password: process.env.SMTP_PASSWORD!,
-      from: process.env.EMAIL_FROM!,
-      recipients: (process.env.EMAIL_RECIPIENTS || '').split(',').filter(Boolean)
+      smtpHost: process.env[ENV_VARS.SMTP_HOST],
+      smtpPort: parseInt(process.env[ENV_VARS.SMTP_PORT] || '587'),
+      username: process.env[ENV_VARS.SMTP_USERNAME]!,
+      password: process.env[ENV_VARS.SMTP_PASSWORD]!,
+      from: process.env[ENV_VARS.EMAIL_FROM]!,
+      recipients: (process.env[ENV_VARS.EMAIL_RECIPIENTS] || '').split(',').filter(Boolean)
     };
   }
 
@@ -128,7 +134,7 @@ dashboardCommand
       const path = require('path');
       
       const server = http.createServer((req: any, res: any) => {
-        let filePath = path.join(options.dir, req.url === '/' ? 'index.html' : req.url);
+        let filePath = path.join(options.dir, req.url === '/' ? FILE_PATHS.INDEX_HTML : req.url);
         
         if (!fs.existsSync(filePath)) {
           res.writeHead(404);
@@ -138,13 +144,13 @@ dashboardCommand
         
         const ext = path.extname(filePath);
         const mimeTypes: Record<string, string> = {
-          '.html': 'text/html',
-          '.css': 'text/css',
-          '.js': 'text/javascript',
-          '.json': 'application/json'
+          FILE_EXTENSIONS.HTML: 'text/html',
+          FILE_EXTENSIONS.CSS: 'text/css',
+          FILE_EXTENSIONS.JAVASCRIPT: 'text/javascript',
+          FILE_EXTENSIONS.JSON: 'application/json'
         };
         
-        res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'text/plain' });
+        res.writeHead(HTTP_STATUS.OK, { 'Content-Type': mimeTypes[ext] || 'text/plain' });
         fs.createReadStream(filePath).pipe(res);
       });
       
@@ -342,7 +348,7 @@ reportCommand
 // ============================
 
 program
-  .command('status')
+  .command(DB_FIELDS.TECH_QUEUE.STATUS)
   .description('Show overall testing system status')
   .action(async () => {
     try {
@@ -488,3 +494,5 @@ export {
   dashboardGenerator,
   reportingSystem
 };
+
+

@@ -1,9 +1,11 @@
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 require('dotenv').config();
 const mongoose = require('mongoose');
 
 async function checkBuildings() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env[ENV_VARS.MONGODB_URI]);
     console.log('=== YOUR EMPIRE BUILDINGS ===');
     
     const empireId = '68c21deb375bbf773d02005e'; // razgak

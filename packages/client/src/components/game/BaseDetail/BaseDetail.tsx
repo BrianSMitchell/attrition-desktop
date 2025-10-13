@@ -1,4 +1,7 @@
 /**
+export default BaseDetail;
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
+/**
  * Enhanced BaseDetail component
  * Uses the unified enhanced store system - no legacy services
  */
@@ -65,7 +68,7 @@ export const BaseDetail: React.FC<BaseDetailProps> = ({
   // Notice helper
   const showNotice = (msg: string, type: Notice['type'] = 'info') => {
     setNotice({ message: msg, type });
-    window.setTimeout(() => setNotice(null), 5000);
+    window.setTimeout(() => setNotice(null), TIMEOUTS.FIVE_SECONDS);
   };
 
   // Sync with initialActivePanel prop
@@ -141,32 +144,44 @@ export const BaseDetail: React.FC<BaseDetailProps> = ({
   // Compute fallback overview data from enhanced store when props are empty
   const computeFallbackBuildings = React.useCallback(() => {
     const out: any[] = [];
-    const catalog = gameState?.structures?.catalog || [];
+    const catalog = gameState?.structures?.catalog;
     const levels = gameState?.structures?.status?.currentLevels || {};
-    for (const spec of catalog as any[]) {
-      const key = (spec as any).key;
-      const level = Number((levels as any)[key] || 0);
-      out.push({
-        _id: `${base?.locationCoord || 'base'}-${key}`,
-        displayName: (spec as any).name,
-        catalogKey: key,
-        level,
-        isActive: true,
-        locationCoord: base?.locationCoord,
-      });
+    
+    // Ensure catalog is an array before iterating
+    if (Array.isArray(catalog) && catalog.length > 0) {
+      for (const spec of catalog) {
+        if (spec && typeof spec === 'object') {
+          const key = spec.key;
+          const level = Number(levels[key] || 0);
+          out.push({
+            _id: `${base?.locationCoord || 'base'}-${key}`,
+            displayName: spec.name,
+            catalogKey: key,
+            level,
+            isActive: true,
+            locationCoord: base?.locationCoord,
+          });
+        }
+      }
     }
     return out;
   }, [gameState?.structures?.catalog, gameState?.structures?.status?.currentLevels, base?.locationCoord]);
 
   const computeFallbackDefenses = React.useCallback(() => {
     const out: Array<{ key: string; name: string; level: number; energyDelta: number }> = [];
-    const catalog = (gameState?.defense?.catalog || []) as any[];
+    const catalog = gameState?.defense?.catalog;
     const levels = (gameState?.defense?.status as any)?.currentLevels || {};
-    for (const spec of catalog) {
-      const key = (spec as any).key as string;
-      const level = Number(levels[key] || 0);
-      const energyDelta = Number((spec as any).energyDelta || 0);
-      out.push({ key, name: (spec as any).name, level, energyDelta });
+    
+    // Ensure catalog is an array before iterating
+    if (Array.isArray(catalog) && catalog.length > 0) {
+      for (const spec of catalog) {
+        if (spec && typeof spec === 'object') {
+          const key = spec.key as string;
+          const level = Number(levels[key] || 0);
+          const energyDelta = Number(spec.energyDelta || 0);
+          out.push({ key, name: spec.name, level, energyDelta });
+        }
+      }
     }
     return out;
   }, [gameState?.defense?.catalog, gameState?.defense?.status]);

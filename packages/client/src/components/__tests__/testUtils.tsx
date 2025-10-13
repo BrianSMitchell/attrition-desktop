@@ -3,6 +3,7 @@ import { render, RenderOptions } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 
 // Mock service integration hooks for testing
+import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
 export const createMockServiceHooks = () => ({
   useServiceAuth: jest.fn(() => ({
     user: {
@@ -18,7 +19,7 @@ export const createMockServiceHooks = () => ({
       resources: {
         credits: 1000,
         metal: 500,
-        energy: 750,
+        energy: GAME_CONSTANTS.STARTING_POPULATION,
         research: 250
       },
       techLevels: {
@@ -242,7 +243,7 @@ export const mockEmpire = {
   resources: {
     credits: 1000,
     metal: 500,
-    energy: 750,
+    energy: GAME_CONSTANTS.STARTING_POPULATION,
     research: 250
   },
   techLevels: {

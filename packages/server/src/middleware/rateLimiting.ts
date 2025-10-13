@@ -1,5 +1,8 @@
-import rateLimit from 'express-rate-limit';
-import { Request, Response } from 'express';
+﻿import rateLimit from 'express-rate-limit';
+import { HTTP_STATUS } from '../constants/response-formats';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+
 
 // Store for tracking failed login attempts per IP
 const loginAttempts = new Map<string, { count: number; lastAttempt: number; lockedUntil?: number }>();
@@ -19,7 +22,7 @@ setInterval(() => {
 // General rate limiter for auth endpoints (relaxed for private game)
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 100 : 200, // More lenient for private game - 100 per 15min in production
+  max: process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION ? 100 : HTTP_STATUS.OK, // More lenient for private game - 100 per 15min in production
   message: {
     success: false,
     error: 'Too many requests from this IP, please try again later.',
@@ -31,7 +34,7 @@ export const authRateLimit = rateLimit({
 // Login rate limiter (relaxed for private game)
 export const loginRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 30 : 50, // More lenient for private game - 30 per 15min in production
+  max: process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION ? 30 : 50, // More lenient for private game - 30 per 15min in production
   message: {
     success: false,
     error: 'Too many login attempts from this IP, please try again later.',
@@ -50,7 +53,7 @@ export const accountLockout = (req: Request, res: Response, next: Function) => {
   // Check if IP is currently locked out
   if (attempt && attempt.lockedUntil && now < attempt.lockedUntil) {
     const remainingTime = Math.ceil((attempt.lockedUntil - now) / 1000 / 60); // minutes
-    return res.status(429).json({
+    return res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json({
       success: false,
       error: `Account temporarily locked due to too many failed attempts. Try again in ${remainingTime} minutes.`,
     });
@@ -91,7 +94,7 @@ export const clearFailedAttempts = (req: Request) => {
 // Registration rate limiter (relaxed for private game usage)
 export const registerRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: process.env.NODE_ENV === 'production' ? 20 : 30, // More lenient for private game - 20 per hour in production
+  max: process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION ? 20 : 30, // More lenient for private game - 20 per hour in production
   message: {
     success: false,
     error: 'Too many registration attempts from this IP, please try again later.',
@@ -103,7 +106,7 @@ export const registerRateLimit = rateLimit({
 // Token refresh rate limiter
 export const refreshRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 100 : 500, // Allow more frequent refreshes
+  max: process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION ? 100 : HTTP_STATUS.INTERNAL_SERVER_ERROR, // Allow more frequent refreshes
   message: {
     success: false,
     error: 'Too many token refresh requests, please try again later.',
@@ -111,3 +114,6 @@ export const refreshRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+
+

@@ -7,6 +7,7 @@ import request from 'supertest'
 import gameRouter from '../routes/game'
 
 // Mock authenticate to bypass real auth and inject a user
+import { DB_FIELDS } from '../packages/server/src/constants/database-fields';
 jest.mock('../middleware/auth', () => ({
   authenticate: (req: any, _res: any, next: any) => {
     req.user = { _id: 'user1' }
@@ -82,7 +83,7 @@ describe('Router-level idempotency (HTTP 409) mapping', () => {
   test('POST /api/game/tech/start → 409 with union-safe payload', async () => {
     const res = await request(app)
       .post('/api/game/tech/start')
-      .send({ locationCoord: 'A00:00:00:00', techKey: 'energy' })
+      .send({ locationCoord: 'A00:00:00:00', techKey: DB_FIELDS.EMPIRES.ENERGY })
 
     expect(res.status).toBe(409)
     expect(res.body).toMatchObject({

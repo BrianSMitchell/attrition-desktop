@@ -1,9 +1,11 @@
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 require('dotenv').config();
 const mongoose = require('mongoose');
 
 async function fixMissingConstructionCompleted() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env[ENV_VARS.MONGODB_URI]);
     console.log('=== FINDING BUILDINGS MISSING CONSTRUCTION COMPLETED ===');
     
     // Find all active buildings missing constructionCompleted field

@@ -1,4 +1,7 @@
-import { 
+﻿import { 
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ENV_VARS } from '@shared/constants/env-vars';
+
   PlatformAdapter, 
   QueueMetrics, 
   FlushResult, 
@@ -24,14 +27,14 @@ export class WebAdapter implements PlatformAdapter {
 
   async getAppInfo(): Promise<AppInfo> {
     return {
-      version: process.env.REACT_APP_VERSION || 'dev',
+      version: process.env[ENV_VARS.REACT_APP_VERSION] || 'dev',
       platform: 'web',
       isDesktop: false,
     };
   }
 
   async getVersion(): Promise<string> {
-    return process.env.REACT_APP_VERSION || 'dev';
+    return process.env[ENV_VARS.REACT_APP_VERSION] || 'dev';
   }
 
   storage = {
@@ -169,7 +172,7 @@ export class WebAdapter implements PlatformAdapter {
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Sync error',
+          error: error instanceof Error ? error.message : ERROR_MESSAGES.SYNC_ERROR,
         };
       }
     },
@@ -202,7 +205,7 @@ export class WebAdapter implements PlatformAdapter {
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Sync error',
+          error: error instanceof Error ? error.message : ERROR_MESSAGES.SYNC_ERROR,
         };
       }
     },
@@ -226,7 +229,7 @@ export class WebAdapter implements PlatformAdapter {
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Sync error',
+          error: error instanceof Error ? error.message : ERROR_MESSAGES.SYNC_ERROR,
         };
       }
     },
@@ -241,7 +244,7 @@ export class WebAdapter implements PlatformAdapter {
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Sync error',
+          error: error instanceof Error ? error.message : ERROR_MESSAGES.SYNC_ERROR,
         };
       }
     },
@@ -340,3 +343,4 @@ export class WebAdapter implements PlatformAdapter {
   }
 
 }
+

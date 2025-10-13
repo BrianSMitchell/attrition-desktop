@@ -1,3 +1,7 @@
+﻿/**
+
+import { DB_FIELDS } from '../../../constants/database-fields';
+import { ENV_VARS } from '@shared/constants/env-vars';
 /**
  * Advanced Security Monitoring and Session Invalidation System
  * 
@@ -76,10 +80,10 @@ export class SecurityMonitor extends EventEmitter {
   private suspiciousPatterns: Map<string, SuspiciousPattern[]> = new Map();
   
   private readonly config = {
-    maxEventsRetention: parseInt(process.env.SECURITY_EVENTS_RETENTION || '10000'),
-    maxSessionsPerUser: parseInt(process.env.MAX_SESSIONS_PER_USER || '5'),
-    deviceFingerprintThreshold: parseFloat(process.env.DEVICE_FINGERPRINT_THRESHOLD || '0.7'),
-    autoRevokeOnSuspicious: process.env.AUTO_REVOKE_ON_SUSPICIOUS === 'true',
+    maxEventsRetention: parseInt(process.env[ENV_VARS.SECURITY_EVENTS_RETENTION] || '10000'),
+    maxSessionsPerUser: parseInt(process.env[ENV_VARS.MAX_SESSIONS_PER_USER] || '5'),
+    deviceFingerprintThreshold: parseFloat(process.env[ENV_VARS.DEVICE_FINGERPRINT_THRESHOLD] || '0.7'),
+    autoRevokeOnSuspicious: process.env[ENV_VARS.AUTO_REVOKE_ON_SUSPICIOUS] === 'true',
     alertThresholds: {
       failedLogins: parseInt(process.env.FAILED_LOGIN_THRESHOLD || '10'),
       deviceChanges: parseInt(process.env.DEVICE_CHANGE_THRESHOLD || '3'),
@@ -97,7 +101,7 @@ export class SecurityMonitor extends EventEmitter {
   /**
    * Record a security event and analyze for suspicious patterns
    */
-  recordEvent(event: Omit<SecurityEvent, 'id' | 'timestamp' | 'riskScore'>): SecurityEvent {
+  recordEvent(event: Omit<SecurityEvent, DB_FIELDS.BUILDINGS.ID | 'timestamp' | 'riskScore'>): SecurityEvent {
     const fullEvent: SecurityEvent = {
       ...event,
       id: this.generateEventId(),
@@ -388,7 +392,7 @@ export class SecurityMonitor extends EventEmitter {
   /**
    * Calculate risk score for an event
    */
-  private calculateRiskScore(event: Omit<SecurityEvent, 'id' | 'timestamp' | 'riskScore'>): number {
+  private calculateRiskScore(event: Omit<SecurityEvent, DB_FIELDS.BUILDINGS.ID | 'timestamp' | 'riskScore'>): number {
     let score = 0;
 
     // Base scores by event type

@@ -1,4 +1,7 @@
-import { Request, Response } from 'express';
+﻿import { Request, Response } from 'express';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+
 
 /**
  * Security Headers Validation Utility
@@ -317,7 +320,7 @@ export function validateSecurityHeaders(headers: Record<string, string> | Respon
  */
 export function securityHeadersValidationMiddleware(req: Request, res: Response, next: Function) {
   // Only validate in non-production environments to avoid overhead
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION) {
     return next();
   }
   

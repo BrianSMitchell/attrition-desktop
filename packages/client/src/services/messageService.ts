@@ -1,5 +1,7 @@
-import api, { ApiError } from "./api";
+﻿import api, { ApiError } from "./api";
 import { ApiResponse } from "@game/shared";
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+
 
 export interface Message {
   _id: string;
@@ -60,7 +62,7 @@ export const messageService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<MessageSummary>;
     }
   },
@@ -84,7 +86,7 @@ export const messageService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<{ messages: Message[], totalPages: number }>;
     }
   },
@@ -108,7 +110,7 @@ export const messageService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<{ messages: Message[], totalPages: number }>;
     }
   },
@@ -130,7 +132,7 @@ export const messageService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<Message>;
     }
   },
@@ -196,7 +198,7 @@ export const messageService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<void>;
     }
   },
@@ -218,7 +220,7 @@ export const messageService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<void>;
     }
   },
@@ -240,10 +242,12 @@ export const messageService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<Message>;
     }
   },
 };
 
 export default messageService;
+
+

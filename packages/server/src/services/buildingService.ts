@@ -2,6 +2,9 @@ import { CapacityService } from './bases/CapacityService';
 import { getIO } from '../index';
 import { supabase } from '../config/supabase';
 
+// Constants imports for eliminating hardcoded values
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+
 /**
  * BuildingService
  *
@@ -42,7 +45,7 @@ export class BuildingService {
      const now = new Date();
 
      const { data: dueBuildings, error } = await supabase
-       .from('buildings')
+       .from(DB_TABLES.BUILDINGS)
        .select('id, empire_id, location_coord, catalog_key, level, pending_upgrade, construction_started, construction_completed')
        .eq('is_active', false)
        .lte('construction_completed', now.toISOString());
@@ -60,7 +63,7 @@ export class BuildingService {
          const newLevel = isPendingUpgrade ? currentLevel + 1 : Math.max(1, currentLevel);
 
          const { error: updateError } = await supabase
-           .from('buildings')
+           .from(DB_TABLES.BUILDINGS)
            .update({
              is_active: true,
              level: newLevel,
@@ -105,7 +108,7 @@ export class BuildingService {
 
      // Check if there's already an item in progress
      const { data: inProgress } = await supabase
-       .from('buildings')
+       .from(DB_TABLES.BUILDINGS)
        .select('id')
        .eq('empire_id', empireId)
        .eq('location_coord', locationCoord)
@@ -119,7 +122,7 @@ export class BuildingService {
 
      // Find earliest unscheduled item
      const { data: nextQueued } = await supabase
-       .from('buildings')
+       .from(DB_TABLES.BUILDINGS)
        .select('id, catalog_key, level, pending_upgrade, credits_cost')
        .eq('empire_id', empireId)
        .eq('location_coord', locationCoord)
@@ -135,7 +138,7 @@ export class BuildingService {
 
      // Get empire credits
      const { data: empire } = await supabase
-       .from('empires')
+       .from(DB_TABLES.EMPIRES)
        .select('credits')
        .eq('id', empireId)
        .maybeSingle();
@@ -151,7 +154,7 @@ export class BuildingService {
      // Deduct credits
      const newBalance = available - required;
      await supabase
-       .from('empires')
+       .from(DB_TABLES.EMPIRES)
        .update({ credits: newBalance })
        .eq('id', empireId);
 
@@ -181,7 +184,7 @@ export class BuildingService {
 
      // Find last scheduled completion for chaining
      const { data: lastScheduled } = await supabase
-       .from('buildings')
+       .from(DB_TABLES.BUILDINGS)
        .select('construction_completed')
        .eq('empire_id', empireId)
        .eq('location_coord', locationCoord)
@@ -199,7 +202,7 @@ export class BuildingService {
 
      // Update building with schedule
      await supabase
-       .from('buildings')
+       .from(DB_TABLES.BUILDINGS)
        .update({
          construction_started: startAt.toISOString(),
          construction_completed: completesAt.toISOString(),
@@ -229,7 +232,7 @@ export class BuildingService {
      options?: { onlyActive?: boolean }
    ): Promise<any[]> {
      let query = supabase
-       .from('buildings')
+       .from(DB_TABLES.BUILDINGS)
        .select('*')
        .eq('empire_id', empireId)
        .eq('location_coord', locationCoord);

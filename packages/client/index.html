@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Attrition</title>
     <!-- CSP relaxed for development - production builds should use stricter CSP -->
+    <!-- Note: frame-ancestors directive only works via HTTP headers, not meta tags -->
     <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
   script-src 'self' 'unsafe-inline' blob:;
@@ -17,7 +18,6 @@
   object-src 'none';
   base-uri 'self';
   form-action 'self';
-  frame-ancestors 'none';
 ">
   </head>
   <body>

@@ -1,5 +1,9 @@
-import helmet from 'helmet';
-import { Request, Response, NextFunction } from 'express';
+﻿import helmet from 'helmet';
+import { HTTP_STATUS } from '../constants/response-formats';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VARS } from '@shared/constants/env-vars';
+
 
 /**
  * Comprehensive security headers middleware
@@ -179,8 +183,8 @@ export function createSecurityHeadersMiddleware(isDevelopment = false) {
     // Expect-CT: Certificate Transparency enforcement (commented out - not supported in current Helmet version)
     // expectCt: {
     //   maxAge: 86400, // 24 hours
-    //   enforce: process.env.NODE_ENV === 'production',
-    //   reportUri: process.env.SECURITY_REPORT_URI || undefined
+    //   enforce: process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION,
+    //   reportUri: process.env[ENV_VARS.SECURITY_REPORT_URI] || undefined
     // }
   });
 }
@@ -199,7 +203,7 @@ export function csrfProtectionMiddleware(req: Request, res: Response, next: Next
     const secureOptions = {
       ...options,
       httpOnly: true,           // Prevent XSS access to cookies
-      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      secure: process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION, // HTTPS only in production
       sameSite: 'strict' as const,  // Strict SameSite policy
       maxAge: options.maxAge || 24 * 60 * 60 * 1000 // 24 hours default
     };
@@ -210,8 +214,8 @@ export function csrfProtectionMiddleware(req: Request, res: Response, next: Next
   // Origin validation for state-changing operations
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     const origin = req.get('Origin') || req.get('Referer');
-    const allowedOrigins = process.env.CORS_ORIGIN
-      ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)
+    const allowedOrigins = process.env[ENV_VARS.CORS_ORIGIN]
+      ? process.env[ENV_VARS.CORS_ORIGIN].split(',').map(o => o.trim()).filter(Boolean)
       : ['http://localhost:5173', 'http://localhost:5174'];
 
     if (origin) {
@@ -231,8 +235,8 @@ export function csrfProtectionMiddleware(req: Request, res: Response, next: Next
         }
       });
 
-      if (!isAllowed && process.env.NODE_ENV === 'production') {
-        return res.status(403).json({
+      if (!isAllowed && process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION) {
+        return res.status(HTTP_STATUS.FORBIDDEN).json({
           success: false,
           error: 'Forbidden: Invalid origin'
         });
@@ -289,3 +293,5 @@ export default function securityHeadersStack(isDevelopment = false) {
     securityLoggingMiddleware
   ];
 }
+
+

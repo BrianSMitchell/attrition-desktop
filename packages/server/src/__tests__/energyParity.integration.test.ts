@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Integration test: energy parity between structures list and construct route
  *
  * Ensures that when GET /bases/:coord/structures shows a positive raw balance that
@@ -7,13 +7,14 @@
  */
 
 import request from 'supertest';
-import { app } from '../../src/index';
+import { HTTP_STATUS } from '../constants/response-formats';
+import { ENV_VARS } from '@shared/constants/env-vars';
 
 // Minimal scaffolding helpers; in real test env these would be real fakes/mocks or seeded DB
 async function loginAsAdmin() {
   // In test rigs this would create a user/empire; here we assume dev server has admin token path
   // If needed, replace with actual auth helper.
-  return { token: process.env.TEST_ADMIN_TOKEN || '' };
+  return { token: process.env[ENV_VARS.TEST_ADMIN_TOKEN] || '' };
 }
 
 describe('Energy parity — structures list vs. construct (integration)', () => {
@@ -32,8 +33,8 @@ describe('Energy parity — structures list vs. construct (integration)', () => 
     const listRes = await request(app)
       .get(`/api/game/bases/${encodeURIComponent(coord)}/structures`)
       .set('Authorization', `Bearer ${token}`);
-    expect([200, 409]).toContain(listRes.status);
-    if (listRes.status === 200) {
+    expect([HTTP_STATUS.OK, 409]).toContain(listRes.status);
+    if (listRes.status === HTTP_STATUS.OK) {
       expect(listRes.body?.success).toBe(true);
     }
 
@@ -41,7 +42,7 @@ describe('Energy parity — structures list vs. construct (integration)', () => 
     const statsRes = await request(app)
       .get(`/api/game/base-stats/${encodeURIComponent(coord)}`)
       .set('Authorization', `Bearer ${token}`);
-    expect(statsRes.status).toBe(200);
+    expect(statsRes.status).toBe(HTTP_STATUS.OK);
     const raw = statsRes.body?.data?.stats?.energy?.rawBalance;
     expect(typeof raw).toBe('number');
 
@@ -52,7 +53,11 @@ describe('Energy parity — structures list vs. construct (integration)', () => 
         .set('Authorization', `Bearer ${token}`);
 
       // Either success, or conflict if something else raced in — both mean parity and gating are healthy
-      expect([200, 409]).toContain(constructRes.status);
+      expect([HTTP_STATUS.OK, 409]).toContain(constructRes.status);
     }
   });
 });
+
+
+
+

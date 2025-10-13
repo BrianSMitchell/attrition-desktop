@@ -4,6 +4,7 @@ import gameRouter from '../routes/game';
 import { getUnitSpec } from '@game/shared';
 
 // Bypass real auth; inject a fake user
+import { HTTP_STATUS } from '../packages/shared/src/response-formats';
 jest.mock('../middleware/auth', () => ({
   authenticate: (req: any, _res: any, next: any) => {
     req.user = { _id: 'user1' };
@@ -66,7 +67,7 @@ function makeApp() {
   return app;
 }
 
-// Helpers to emulate Mongoose query chain semantics used in router
+// Helpers to emulate database query chain semantics used in router
 function queryWithLean<T>(value: T) {
   return { lean: jest.fn().mockResolvedValue(value) };
 }
@@ -77,7 +78,7 @@ function queryWithSelectAndLean<T>(value: T) {
   return { select: jest.fn().mockReturnValue(queryWithLean(value)) };
 }
 
-describe('GET /api/game/bases/summary — production (units) summary handling', () => {
+describe('GET /api/game/bases/summary � production (units) summary handling', () => {
   const app = makeApp();
 
   beforeEach(() => {
@@ -125,7 +126,7 @@ describe('GET /api/game/bases/summary — production (units) summary handling', 
 
     const res = await request(app).get('/api/game/bases/summary');
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(HTTP_STATUS.OK);
     expect(res.body?.success).toBe(true);
     const bases = res.body?.data?.bases;
     expect(Array.isArray(bases)).toBe(true);
@@ -169,7 +170,7 @@ describe('GET /api/game/bases/summary — production (units) summary handling', 
 
     const res = await request(app).get('/api/game/bases/summary');
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(HTTP_STATUS.OK);
     expect(res.body?.success).toBe(true);
     const bases = res.body?.data?.bases;
     expect(Array.isArray(bases)).toBe(true);
@@ -189,3 +190,4 @@ describe('GET /api/game/bases/summary — production (units) summary handling', 
     expect(production.next.percent).toBe(0);
   });
 });
+

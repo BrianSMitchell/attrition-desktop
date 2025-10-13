@@ -1,7 +1,9 @@
 import { supabase } from '../config/supabase';
-import { getDatabaseType } from '../config/database';
 
-// Credit transaction types - migrated from MongoDB model
+// Constants imports for eliminating hardcoded values
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+
+// Credit transaction types
 export type CreditTxnType =
   | 'payout'          // periodic credits payout (income)
   | 'construction'    // structure construction charge
@@ -14,7 +16,7 @@ export type CreditTxnType =
 
 export class CreditLedgerService {
   static async logTransaction(params: {
-    empireId: string; // Now using UUID strings instead of MongoDB ObjectId
+    empireId: string;
     amount: number; // signed
     type: CreditTxnType;
     note?: string;
@@ -24,19 +26,19 @@ export class CreditLedgerService {
     try {
       let balanceAfter = params.balanceAfter;
       if (typeof balanceAfter !== 'number') {
-        // Query empire credits using Supabase instead of MongoDB
+        // Query empire credits from database
         const { data: empire } = await supabase
-          .from('empires')
-          .select('credits')
-          .eq('id', params.empireId)
+          .from(DB_TABLES.EMPIRES)
+          .select(DB_FIELDS.EMPIRES.CREDITS)
+          .eq(DB_FIELDS.BUILDINGS.ID, params.empireId)
           .single();
 
         balanceAfter = Number(empire?.credits ?? 0);
       }
 
-      // Insert transaction record using Supabase instead of MongoDB
+      // Insert transaction record
       await supabase
-        .from('credit_transactions')
+        .from(DB_TABLES.CREDIT_TRANSACTIONS)
         .insert({
           empire_id: params.empireId,
           amount: Math.round(Number(params.amount) || 0),

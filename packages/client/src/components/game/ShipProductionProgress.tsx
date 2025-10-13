@@ -1,8 +1,10 @@
-import * as React from "react";
+﻿import * as React from "react";
 import { useMemo } from "react";
 import type { UnitKey, UnitSpec } from "@game/shared";
 
 // Enhanced store compatible types
+import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
+import { LAYOUT_CLASSES } from '../constants/css-constants';
 export interface UnitProductionItem {
   id: string;
   unitKey: UnitKey;
@@ -50,9 +52,9 @@ const ShipProductionProgress: React.FC<ShipProductionProgressProps> = ({
     
     if (diff < 1000) return "Completed";
     
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    const hours = Math.floor(diff / (GAME_CONSTANTS.MILLISECONDS_PER_SECOND * GAME_CONSTANTS.SECONDS_PER_MINUTE * 60));
+    const minutes = Math.floor((diff % (GAME_CONSTANTS.MILLISECONDS_PER_SECOND * GAME_CONSTANTS.SECONDS_PER_MINUTE * 60)) / (GAME_CONSTANTS.MILLISECONDS_PER_SECOND * GAME_CONSTANTS.SECONDS_PER_MINUTE));
+    const seconds = Math.floor((diff % (GAME_CONSTANTS.MILLISECONDS_PER_SECOND * GAME_CONSTANTS.SECONDS_PER_MINUTE)) / 1000);
     
     if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
     if (minutes > 0) return `${minutes}m ${seconds}s`;
@@ -94,7 +96,7 @@ const ShipProductionProgress: React.FC<ShipProductionProgressProps> = ({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
         <h4 className="text-sm font-semibold text-empire-gold">Ship Production</h4>
         <div className="text-xs text-gray-400">
           {grouped.length} type{grouped.length !== 1 ? 's' : ''}, {totalItems} item{totalItems !== 1 ? 's' : ''}
@@ -136,3 +138,4 @@ const ShipProductionProgress: React.FC<ShipProductionProgressProps> = ({
 };
 
 export default ShipProductionProgress;
+

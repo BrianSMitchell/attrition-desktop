@@ -1,6 +1,6 @@
 import https from 'https';
 import tls from 'tls';
-import { Request, Response } from 'express';
+import { HTTP_STATUS } from '../constants/response-formats';
 
 /**
  * TLS Security Validation and Monitoring Utilities
@@ -432,7 +432,7 @@ export function tlsSecurityStatusHandler(req: Request, res: Response) {
     });
   } catch (error) {
     console.error('❌ TLS security status error:', error);
-    res.status(500).json({
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
       error: 'Failed to get TLS security status',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -447,3 +447,5 @@ export default {
   tlsMonitoringMiddleware,
   tlsSecurityStatusHandler
 };
+
+

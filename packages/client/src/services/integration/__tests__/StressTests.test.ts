@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from 'vitest';
 import { 
+import { HTTP_STATUS } from '@shared/response-formats';
   AppInitializer, 
   initializeApp, 
   cleanupApp,
@@ -60,7 +61,7 @@ beforeAll(() => {
   (global as any).fetch = vi.fn(() => 
     Promise.resolve({
       ok: true,
-      status: 200,
+      status: HTTP_STATUS.OK,
       json: () => Promise.resolve({ success: true }),
     })
   );
@@ -349,7 +350,7 @@ describe('Service Integration Stress Tests', () => {
         }
         return Promise.resolve({
           ok: true,
-          status: 200,
+          status: HTTP_STATUS.OK,
           json: () => Promise.resolve({ success: true }),
         } as Response);
       });

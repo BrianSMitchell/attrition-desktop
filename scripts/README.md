@@ -8,6 +8,10 @@ This directory contains various utility scripts organized by purpose.
 Core utility scripts:
 - `pre-build-cleanup.js` - Cross-platform script to kill Electron/Node processes before building
 - `pre-build-cleanup.ps1` - Windows PowerShell version with enhanced features
+- `setup-github-token.js` - 🔑 Interactive GitHub token setup with secure input and validation
+- `setup-github-token.ps1` - PowerShell wrapper for GitHub token setup
+- `post.ps1` - 🚀 Social media posting workflow with X/Twitter integration
+- `setup-credentials.ps1` - 🔑 One-time setup for social media API credentials
 
 ### `dev/`
 Development utilities and tools:
@@ -57,6 +61,106 @@ Many scripts require environment variables to be set:
 - Log operations for debugging and audit purposes
 - Make scripts idempotent where possible
 - Include help text or usage instructions
+
+---
+
+# 🔑 GitHub Token Setup
+
+## Quick Setup (Recommended)
+
+The easiest way to set up your GitHub token:
+
+```bash
+npm run setup:github-token
+```
+
+### Alternative Methods
+
+1. **Using Node.js directly:**
+   ```bash
+   node scripts/setup-github-token.js
+   ```
+
+2. **Using PowerShell:**
+   ```powershell
+   .\scripts\setup-github-token.ps1
+   ```
+
+### What the Setup Script Does
+
+1. **Prompts for your token** with secure input (partially hidden)
+2. **Validates the token format** (checks for GitHub token patterns)
+3. **Tests the token** by making an API call to GitHub
+4. **Saves the token** to your `.env` file securely
+5. **Confirms everything works** with a configuration test
+
+### Security Features
+
+- ✅ Input is partially hidden during token entry
+- ✅ Token is validated before saving
+- ✅ Automatic backup of existing `.env` file
+- ✅ Detailed error messages for troubleshooting
+- ✅ Configuration verification after setup
+
+### Getting Your GitHub Token
+
+1. Go to [GitHub Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens)
+2. Click "Generate new token (classic)"
+3. Select the scopes you need:
+   - `repo` - Full access to repositories
+   - `workflow` - Update GitHub Actions workflows  
+   - `write:packages` - Upload packages to GitHub Package Registry
+   - `read:user` - Read user profile data
+4. Copy the generated token
+5. Run the setup script and paste it when prompted
+
+### Usage in Code
+
+```javascript
+// Using the helper functions (recommended)
+const { getGitHubHeaders } = require('../config/github');
+const headers = getGitHubHeaders();
+
+// Direct access
+const token = process.env.GITHUB_TOKEN;
+```
+
+---
+
+# 🚀 Social Media Integration
+
+## Quick Start
+
+### First Time Setup
+1. Run the credential setup script:
+   ```powershell
+   & ./setup-credentials.ps1
+   ```
+2. Enter your X/Twitter API credentials when prompted
+3. Credentials will be securely saved to `.env` file (automatically ignored by git)
+
+### Daily Usage
+```powershell
+& ./post.ps1
+```
+
+## X/Twitter API Setup
+
+1. Visit [Twitter Developer Portal](https://developer.twitter.com/en/portal/dashboard)
+2. Create an app if you haven't already
+3. Generate your API keys and tokens:
+   - API Key
+   - API Key Secret  
+   - Access Token
+   - Access Token Secret
+4. Run `setup-credentials.ps1` and enter these values
+
+## Security Features
+
+✅ **Credentials stored in `.env` file** - Never committed to version control  
+✅ **Secure input** - Credentials are masked during entry  
+✅ **Git ignored** - `.env` file is already in `.gitignore`  
+✅ **Fallback prompt** - If credentials are missing, script will prompt for them  
 
 ---
 

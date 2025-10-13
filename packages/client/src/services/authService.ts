@@ -1,6 +1,11 @@
-import { ApiResponse, AuthResponse } from '@game/shared';
+﻿import { ApiResponse, AuthResponse } from '@game/shared';
 import { AuthManager } from './core/AuthManager';
 import { getCurrentApiConfig } from '../utils/apiConfig';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+
+
+import { ERROR_MESSAGES } from '@shared/constants/response-formats';
 
 /**
  * Legacy authService API - now acts as a compatibility layer that delegates to AuthManager.
@@ -16,7 +21,7 @@ let authManager: AuthManager | null = null;
 // Get or create AuthManager instance
 const getAuthManager = (): AuthManager => {
   if (!authManager) {
-    authManager = new AuthManager({ enableLogging: process.env.NODE_ENV === 'development' });
+    authManager = new AuthManager({ enableLogging: process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.DEVELOPMENT });
   }
   return authManager;
 };
@@ -64,7 +69,7 @@ export const authService = {
         return {
           success: false,
           error: 'Login failed - invalid credentials',
-          message: 'Login failed'
+          message: ERROR_MESSAGES.LOGIN_FAILED
         };
       }
     } catch (error) {
@@ -72,7 +77,7 @@ export const authService = {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Network error occurred',
-        message: 'Login failed'
+        message: ERROR_MESSAGES.LOGIN_FAILED
       };
     }
   },
@@ -232,3 +237,5 @@ export { getAuthManager, ensureInitialized };
 
 // Legacy default export
 export default authService;
+
+

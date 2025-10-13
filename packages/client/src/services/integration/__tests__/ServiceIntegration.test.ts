@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi, beforeAll, afterAll } from 'vitest';
 import { 
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+
+import { HTTP_STATUS } from '@shared/response-formats';
   ServiceRegistry, 
   initializeServices, 
   cleanupServices,
@@ -64,7 +67,7 @@ beforeAll(() => {
   (global as any).fetch = vi.fn(() => 
     Promise.resolve({
       ok: true,
-      status: 200,
+      status: HTTP_STATUS.OK,
       json: () => Promise.resolve({ success: true }),
     })
   );
@@ -106,7 +109,7 @@ describe('Service Integration Tests', () => {
 
     it('should handle service initialization failures gracefully', async () => {
       // Mock a service failure
-      vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));
+      vi.mocked(fetch).mockRejectedValueOnce(new Error(ERROR_MESSAGES.NETWORK_ERROR));
 
       await expect(initializeServices({
         enableLogging: false,
@@ -330,7 +333,7 @@ describe('Service Integration Tests', () => {
 
     it('should handle initialization failures gracefully', async () => {
       // Mock service initialization failure
-      vi.mocked(fetch).mockRejectedValueOnce(new Error('Service unavailable'));
+      vi.mocked(fetch).mockRejectedValueOnce(new Error(ERROR_MESSAGES.SERVICE_UNAVAILABLE));
 
       await expect(initializeApp()).rejects.toThrow();
 
@@ -437,3 +440,5 @@ describe('Service Integration Tests', () => {
     });
   });
 });
+
+

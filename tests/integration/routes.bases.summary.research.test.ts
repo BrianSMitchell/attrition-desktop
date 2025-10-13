@@ -4,6 +4,8 @@ import gameRouter from '../routes/game';
 import { getTechSpec } from '@game/shared';
 
 // Bypass real auth; inject a fake user
+import { HTTP_STATUS } from '../packages/shared/src/response-formats';
+import { DB_FIELDS } from '../packages/server/src/constants/database-fields';
 jest.mock('../middleware/auth', () => ({
   authenticate: (req: any, _res: any, next: any) => {
     req.user = { _id: 'user1' };
@@ -66,7 +68,7 @@ function makeApp() {
   return app;
 }
 
-// Helpers to emulate Mongoose query chain semantics used in router
+// Helpers to emulate database query chain semantics used in router
 function queryWithLean<T>(value: T) {
   return { lean: jest.fn().mockResolvedValue(value) };
 }
@@ -77,7 +79,7 @@ function queryWithSelectAndLean<T>(value: T) {
   return { select: jest.fn().mockReturnValue(queryWithLean(value)) };
 }
 
-describe('GET /api/game/bases/summary â€” research summary handling', () => {
+describe('GET /api/game/bases/summary — research summary handling', () => {
   const app = makeApp();
 
   beforeEach(() => {
@@ -107,7 +109,7 @@ BuildingFind.mockReturnValue(queryWithSelectAndLean([]));
   test('returns scheduled research with remaining > 0 and percent between 0..100', async () => {
     const now = Date.now();
     const scheduled = {
-      techKey: 'energy',
+      techKey: DB_FIELDS.EMPIRES.ENERGY,
       startedAt: new Date(now - 2 * 60 * 1000), // started 2 minutes ago
       completesAt: new Date(now + 8 * 60 * 1000), // completes in 8 minutes
       status: 'pending',
@@ -119,7 +121,7 @@ BuildingFind.mockReturnValue(queryWithSelectAndLean([]));
 
     const res = await request(app).get('/api/game/bases/summary');
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(HTTP_STATUS.OK);
     expect(res.body?.success).toBe(true);
     const bases = res.body?.data?.bases;
     expect(Array.isArray(bases)).toBe(true);
@@ -128,7 +130,7 @@ BuildingFind.mockReturnValue(queryWithSelectAndLean([]));
     const research = bases[0]?.research;
     expect(research).toBeTruthy();
 
-    const expectedName = getTechSpec('energy' as any).name;
+    const expectedName = getTechSpec(DB_FIELDS.EMPIRES.ENERGY as any).name;
     expect(research.name).toBe(expectedName);
 
     // remaining should be positive
@@ -143,7 +145,7 @@ BuildingFind.mockReturnValue(queryWithSelectAndLean([]));
 
   test('returns unscheduled/waiting research with remaining=0 and percent=0 when completesAt is null', async () => {
     const unscheduled = {
-      techKey: 'energy',
+      techKey: DB_FIELDS.EMPIRES.ENERGY,
       createdAt: new Date(Date.now() - 5 * 60 * 1000),
       status: 'pending',
       charged: false,
@@ -158,7 +160,7 @@ BuildingFind.mockReturnValue(queryWithSelectAndLean([]));
 
     const res = await request(app).get('/api/game/bases/summary');
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(HTTP_STATUS.OK);
     expect(res.body?.success).toBe(true);
     const bases = res.body?.data?.bases;
     expect(Array.isArray(bases)).toBe(true);
@@ -167,7 +169,7 @@ BuildingFind.mockReturnValue(queryWithSelectAndLean([]));
     const research = bases[0]?.research;
     expect(research).toBeTruthy();
 
-    const expectedName = getTechSpec('energy' as any).name;
+    const expectedName = getTechSpec(DB_FIELDS.EMPIRES.ENERGY as any).name;
     expect(research.name).toBe(expectedName);
 
     // waiting state
@@ -175,3 +177,4 @@ BuildingFind.mockReturnValue(queryWithSelectAndLean([]));
     expect(research.percent).toBe(0);
   });
 });
+

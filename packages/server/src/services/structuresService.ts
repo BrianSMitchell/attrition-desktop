@@ -2,7 +2,10 @@ import { supabase } from '../config/supabase';
 import { CapacityService } from './bases/CapacityService';
 import { BaseStatsService } from './baseStatsService';
 import { EconomyService } from './economyService';
-import {
+import { ERROR_MESSAGES } from '../constants/response-formats';
+import { DB_FIELDS } from '../../../constants/database-fields';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
   getBuildingsList,
   getBuildingSpec,
   canStartBuildingByTech,
@@ -11,7 +14,10 @@ import {
   computeEnergyBalance,
 } from '@game/shared';
 import { formatAlreadyInProgress } from './utils/idempotency';
-import { BuildingService } from './buildingService';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+// Constants imports for eliminating hardcoded values
+import { ERROR_MESSAGES } from '../constants/response-formats';
 
 function mapFromEmpireTechLevels(techLevelsJson: any): Partial<Record<string, number>> {
    const out: Record<string, number> = {};
@@ -84,13 +90,13 @@ export class StructuresService {
   static async getStatus(empireId: string): Promise<StructuresStatusDTO> {
     // Get empire data from Supabase
     const { data: empire, error } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('tech_levels')
-      .eq('id', empireId)
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
     if (error || !empire) {
-      throw new Error('Empire not found');
+      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
     }
 
     const techLevels = mapFromEmpireTechLevels(empire.tech_levels);
@@ -135,24 +141,24 @@ static async start(empireId: string, locationCoord: string, buildingKey: Buildin
     }
     // Load empire
     const { data: empire, error: empireError } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('id, user_id, credits, tech_levels')
-      .eq('id', empireId)
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
     if (empireError || !empire) {
-      return formatError('NOT_FOUND', 'Empire not found');
+      return formatError(ERROR_MESSAGES.NOT_FOUND, ERROR_MESSAGES.EMPIRE_NOT_FOUND);
     }
 
     // Validate location exists and is owned by this empire's user
     const { data: location, error: locationError } = await supabase
-      .from('locations')
+      .from(DB_TABLES.LOCATIONS)
       .select('coord, owner_id, result')
       .eq('coord', locationCoord)
       .maybeSingle();
 
     if (locationError || !location) {
-      return formatError('NOT_FOUND', 'Location not found');
+      return formatError(ERROR_MESSAGES.NOT_FOUND, ERROR_MESSAGES.LOCATION_NOT_FOUND);
     }
 
     if (location.owner_id !== empire.user_id) {
@@ -177,14 +183,14 @@ const techCheck = canStartBuildingByTech(techLevels as any, spec);
     }
 
     // Determine whether this is a new construction (no existing) or an upgrade (existing active)
-    // IMPORTANT: Prefer matching by catalogKey to avoid collisions when multiple catalog entries
+    // import { ERROR_MESSAGES } from '../constants/response-formats';
     // share the same legacy mapped type (e.g., 'habitat').
     let existing = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('id, level, is_active, pending_upgrade, catalog_key')
-      .eq('location_coord', locationCoord)
-      .eq('empire_id', empireId)
-      .eq('catalog_key', buildingKey)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.CATALOG_KEY, buildingKey)
       .maybeSingle();
 
     let isUpgrade = false;
@@ -242,10 +248,10 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
 
     // Energy feasibility check via shared helper (baseline +2, planet scaling, queued reservations)
     const { data: existingBuildings, error: buildingsError } = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('is_active, pending_upgrade, catalog_key, level, construction_completed')
-      .eq('empire_id', empireId)
-      .eq('location_coord', locationCoord);
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord);
 
     if (buildingsError) {
       return formatError('DATABASE_ERROR', 'Failed to fetch existing buildings', { error: buildingsError });
@@ -342,11 +348,11 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
 
     // Build ordered earlier items: scheduled first (by constructionCompleted ASC), then unscheduled (by createdAt ASC)
     const { data: queuedCapacityItems, error: queuedError } = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('catalog_key, pending_upgrade, construction_completed, created_at')
-      .eq('empire_id', empireId)
-      .eq('location_coord', locationCoord)
-      .eq('is_active', false);
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
+      .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, false);
 
     if (queuedError) {
       return formatError('DATABASE_ERROR', 'Failed to fetch queued capacity items', { error: queuedError });
@@ -512,12 +518,12 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
       // Create new building for first-time construction (atomic upsert to guarantee idempotency)
       // Compute per-queue sequence to allow multiple queued copies at same level (L1:Q1, L1:Q2, …)
       const { count: queuedCount, error: countError } = await supabase
-        .from('buildings')
+        .from(DB_TABLES.BUILDINGS)
         .select('*', { count: 'exact', head: true })
-        .eq('empire_id', empireId)
-        .eq('location_coord', locationCoord)
-        .eq('catalog_key', buildingKey)
-        .eq('is_active', false);
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
+        .eq(DB_FIELDS.BUILDINGS.CATALOG_KEY, buildingKey)
+        .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, false);
 
       if (countError) {
         return formatError('DATABASE_ERROR', 'Failed to count existing queued buildings', { error: countError });
@@ -543,7 +549,7 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
 
       // Use upsert to avoid race between concurrent starts; if a document already exists, treat as idempotent.
       const { data: upsertResult, error: upsertError } = await supabase
-        .from('buildings')
+        .from(DB_TABLES.BUILDINGS)
         .upsert(insertDoc, { onConflict: 'identity_key', ignoreDuplicates: false })
         .select()
         .maybeSingle();
@@ -551,7 +557,7 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
       if (upsertError) {
         // Check if it's a duplicate key error (another request already queued the same item)
         if (upsertError.code === '23505' || upsertError.message?.includes('duplicate')) {
-          if (process.env.DEBUG_RESOURCES === 'true') {
+          if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
             console.log(`[StructuresService.start] idempotent existing queued for identityKey=${identityKey}`);
           }
           return formatAlreadyInProgress('structures', identityKey, buildingKey);
@@ -562,7 +568,7 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
 
       // Fetch the newly created document to return in the response
       const { data: fetchedBuilding, error: fetchError } = await supabase
-        .from('buildings')
+        .from(DB_TABLES.BUILDINGS)
         .select('*')
         .eq('identity_key', identityKey)
         .maybeSingle();
@@ -575,7 +581,7 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
 
       // Broadcast queue addition
       try {
-        const { getIO } = await import('../index');
+        const { getIO } = await import { ERROR_MESSAGES } from '../constants/response-formats';
         const io = getIO();
         (io as any)?.broadcastQueueUpdate?.(empireId, locationCoord, 'queue:item_queued', {
           locationCoord,
@@ -590,7 +596,7 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
       identityKey = `${empireId}:${locationCoord}:${buildingKey}:L${nextLevel}`;
 
       await supabase
-        .from('buildings')
+        .from(DB_TABLES.BUILDINGS)
         .update({
           is_active: false,
           pending_upgrade: true,
@@ -599,19 +605,19 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
           construction_started: constructionStarted,
           construction_completed: constructionCompleted,
         })
-        .eq('id', existing.data!.id)
-        .eq('is_active', true)
+        .eq(DB_FIELDS.BUILDINGS.ID, existing.data!.id)
+        .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, true)
         .or('pending_upgrade.is.null,pending_upgrade.eq.false');
 
       building = await supabase
-        .from('buildings')
+        .from(DB_TABLES.BUILDINGS)
         .select('*')
-        .eq('id', existing.data!.id)
+        .eq(DB_FIELDS.BUILDINGS.ID, existing.data!.id)
         .maybeSingle();
 
       // Broadcast queue addition for upgrade
       try {
-        const { getIO } = await import('../index');
+        const { getIO } = await import { ERROR_MESSAGES } from '../constants/response-formats';
         const io = getIO();
         (io as any)?.broadcastQueueUpdate?.(empireId, locationCoord, 'queue:item_queued', {
           locationCoord,
@@ -652,3 +658,6 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
     };
   }
 }
+
+
+

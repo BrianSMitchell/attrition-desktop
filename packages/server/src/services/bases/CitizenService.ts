@@ -1,6 +1,9 @@
 import { supabase } from '../../config/supabase';
 import { CapacityService } from './CapacityService';
 
+import { DB_FIELDS } from '../../../constants/database-fields';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 /**
  * CitizenService - maintains citizen accrual per base.
  * Uses aligned payout periods with milli-citizens remainder to avoid fractional loss,
@@ -14,9 +17,9 @@ export class CitizenService {
     try {
       // Fetch all colonies for this empire
       const { data: colonies, error: fetchError } = await supabase
-        .from('colonies')
+        .from(DB_TABLES.COLONIES)
         .select('id, location_coord, citizens, last_citizen_update, citizen_remainder_milli, created_at')
-        .eq('empire_id', empireId);
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId);
 
       if (fetchError) {
         console.error('[CitizenService] Error fetching colonies:', fetchError);
@@ -50,11 +53,11 @@ export class CitizenService {
           if (!(perHour > 0)) {
             // Still advance last_citizen_update so we don't accumulate infinite periods
             await supabase
-              .from('colonies')
+              .from(DB_TABLES.COLONIES)
               .update({
                 last_citizen_update: new Date(lastBoundary.getTime() + periodsElapsed * periodMs).toISOString(),
               })
-              .eq('id', c.id);
+              .eq(DB_FIELDS.BUILDINGS.ID, c.id);
             continue;
           }
 
@@ -71,13 +74,13 @@ export class CitizenService {
 
           // Update colony
           const { error: updateError } = await supabase
-            .from('colonies')
+            .from(DB_TABLES.COLONIES)
             .update({
               citizens: newCount,
               citizen_remainder_milli: newRema,
               last_citizen_update: new Date(lastBoundary.getTime() + periodsElapsed * periodMs).toISOString(),
             })
-            .eq('id', c.id);
+            .eq(DB_FIELDS.BUILDINGS.ID, c.id);
 
           if (updateError) {
             console.error(`[CitizenService] Error updating colony ${c.id}:`, updateError);
@@ -88,7 +91,7 @@ export class CitizenService {
           updated++;
 
           // Debug logging
-          if (process.env.DEBUG_RESOURCES === 'true' && wholeCitizens > 0) {
+          if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true' && wholeCitizens > 0) {
             console.log(`👥 Colony ${coord}:`);
             console.log(`   Citizens/Hour: ${perHour}`);
             console.log(`   Periods Elapsed: ${periodsElapsed} (${periodMinutes}min each)`);

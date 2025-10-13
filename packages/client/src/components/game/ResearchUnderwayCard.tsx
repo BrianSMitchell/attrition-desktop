@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { Empire, ResearchProject } from '@game/shared';
 import { useEnhancedAppStore } from '../../stores/enhancedAppStore';
 
+import { TIMEOUTS, STATUS_CODES } from '@shared/constants/magic-numbers';
 interface ResearchUnderwayCardProps {
   empire: Empire;
 }
@@ -60,14 +61,14 @@ const ResearchUnderwayCard: React.FC<ResearchUnderwayCardProps> = ({ }) => {
     // Fetch fresh research data every 60 seconds for real-time updates
     const fetchId = setInterval(() => {
       fetchResearch();
-    }, 60000);
+    }, TIMEOUTS.ONE_MINUTE);
     return () => clearInterval(fetchId);
   }, []);
 
   const active = projects.filter((p) => !p.isCompleted);
 
   const getProgressPercent = (p: ResearchProject) => {
-    if (!p.researchCost || p.researchCost <= 0) return 0;
+    if (!p.researchCost || p.researchCost <= 0) return STATUS_CODES.SUCCESS;
     return Math.min(100, (p.researchProgress / p.researchCost) * 100);
   };
 

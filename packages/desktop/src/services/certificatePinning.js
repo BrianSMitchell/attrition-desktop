@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import https from 'https';
 import errorLogger from './errorLoggingService.js';
+import { ENV_VARS } from './packages/shared/src/constants/env-vars';
+
 
 /**
  * Certificate Pinning Service
@@ -72,7 +74,7 @@ function validateCertificatePins(hostname, peerCertificateChain) {
   }
 
   // Check if pinning should be enforced
-  const isDev = process.env.NODE_ENV === 'development';
+  const isDev = process.env[ENV_VARS.NODE_ENV] === 'development';
   const shouldEnforce = !isDev || pinConfig.enforceInDev;
 
   if (!shouldEnforce) {
@@ -346,7 +348,7 @@ export function initializeCertificatePinning() {
   // Log pinning status for each host
   configuredHosts.forEach(hostname => {
     const config = certificatePins[hostname];
-    const isDev = process.env.NODE_ENV === 'development';
+    const isDev = process.env[ENV_VARS.NODE_ENV] === 'development';
     const enforced = !isDev || config.enforceInDev;
     
     console.log(`[CertPinning] ${hostname}: ${config.pins.length} pins, enforced: ${enforced}`);

@@ -1,3 +1,5 @@
+import { FILE_PATHS, DIRECTORY_PATHS } from '../../../shared/src/constants/file-paths';
+
 /**
  * Testing Dashboard Generator
  * 
@@ -7,7 +9,7 @@
 
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { TestingMetricsCollector, TestHealthMetrics, TestTrend, TestAlert } from './testing-metrics-framework';
+import { HTTP_STATUS } from '../constants/response-formats';
 
 export interface DashboardTheme {
   primaryColor: string;
@@ -55,7 +57,7 @@ export class DashboardGenerator {
     const dashboardData = this.metricsCollector.generateDashboardData();
     const html = this.createMainDashboardHTML(dashboardData);
     
-    const filePath = join(this.outputDir, 'index.html');
+    const filePath = join(this.outputDir, FILE_PATHS.INDEX_HTML);
     writeFileSync(filePath, html);
     
     return filePath;
@@ -212,7 +214,7 @@ export class DashboardGenerator {
                         <div class="issue-section">
                             <h5>🔄 Flaky Tests (${data.health.flakyTests.length})</h5>
                             <ul class="flaky-tests-list">
-                                ${data.health.flakyTests.slice(0, 5).map(test => `<li>${test}</li>`).join('')}
+${data.health.flakyTests.slice(0, 5).map((test: string) => `<li>${test}</li>`).join('')}
                                 ${data.health.flakyTests.length > 5 ? `<li><em>... and ${data.health.flakyTests.length - 5} more</em></li>` : ''}
                             </ul>
                         </div>
@@ -222,7 +224,7 @@ export class DashboardGenerator {
                         <div class="issue-section">
                             <h5>🐌 Slow Tests (${data.health.slowTests.length})</h5>
                             <ul class="slow-tests-list">
-                                ${data.health.slowTests.slice(0, 5).map(test => `<li>${test.name} <span class="duration">(${(test.avgDuration / 1000).toFixed(1)}s)</span></li>`).join('')}
+${data.health.slowTests.slice(0, 5).map((test: { name: string; avgDuration: number }) => `<li>${test.name} <span class="duration">(${(test.avgDuration / 1000).toFixed(1)}s)</span></li>`).join('')}
                             </ul>
                         </div>
                     ` : '<p class="no-issues">No slow tests detected ⚡</p>'}
@@ -252,7 +254,7 @@ export class DashboardGenerator {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    ${this.getNavigation('coverage')}
+    ${this.getNavigation(DIRECTORY_PATHS.COVERAGE)}
     
     <div class="container">
         <header class="dashboard-header">
@@ -563,7 +565,7 @@ export class DashboardGenerator {
 
         .health-metric .label {
             min-width: 100px;
-            font-weight: 500;
+            font-weight: HTTP_STATUS.INTERNAL_SERVER_ERROR;
         }
 
         .health-metric .value {
@@ -681,7 +683,7 @@ export class DashboardGenerator {
         }
 
         .alert-message {
-            font-weight: 500;
+            font-weight: HTTP_STATUS.INTERNAL_SERVER_ERROR;
         }
 
         .alert-time {
@@ -784,8 +786,8 @@ export class DashboardGenerator {
 
   private getNavigation(activeTab: string): string {
     const tabs = [
-      { key: 'main', label: '🏠 Overview', href: 'index.html' },
-      { key: 'coverage', label: '📊 Coverage', href: 'coverage.html' },
+      { key: 'main', label: '🏠 Overview', href: FILE_PATHS.INDEX_HTML },
+      { key: DIRECTORY_PATHS.COVERAGE, label: '📊 Coverage', href: 'coverage.html' },
       { key: 'performance', label: '⚡ Performance', href: 'performance.html' },
       { key: 'alerts', label: '🚨 Alerts', href: 'alerts.html' }
     ];
@@ -1160,3 +1162,5 @@ export class DashboardGenerator {
 }
 
 export default DashboardGenerator;
+
+

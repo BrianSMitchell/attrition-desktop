@@ -1,7 +1,9 @@
-import { StateCreator } from 'zustand';
+﻿import { StateCreator } from 'zustand';
 import { User, Empire } from '@game/shared';
 import { getServices } from '../../services/core';
 import { AuthState as ServiceAuthState } from '../../services/core/types';
+
+import { ERROR_MESSAGES } from '@shared/constants/response-formats';
 
 interface AuthState {
   user: Omit<User, 'passwordHash'> | null;
@@ -182,15 +184,15 @@ const createEnhancedAuthSlice: StateCreator<
             }
           }
           
-          console.log('✅ Auth: Login successful, store synced with service');
+          console.log('âœ… Auth: Login successful, store synced with service');
           return true;
         } else {
-          setError('Login failed');
+          setError(ERROR_MESSAGES.LOGIN_FAILED);
           return false;
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Login failed';
-        console.error('❌ Auth: Login error:', error);
+        const message = error instanceof Error ? error.message : ERROR_MESSAGES.LOGIN_FAILED;
+        console.error('âŒ Auth: Login error:', error);
         setError(message);
         return false;
       } finally {
@@ -234,7 +236,7 @@ const createEnhancedAuthSlice: StateCreator<
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Registration failed';
-        console.error('❌ Auth: Register error:', error);
+        console.error('âŒ Auth: Register error:', error);
         setError(message);
         return false;
       } finally {
@@ -254,9 +256,9 @@ const createEnhancedAuthSlice: StateCreator<
         }
         
         clearAuth();
-        console.log('✅ Auth: Logout successful');
+        console.log('âœ… Auth: Logout successful');
       } catch (error) {
-        console.error('❌ Auth: Logout error:', error);
+        console.error('âŒ Auth: Logout error:', error);
         // Clear auth anyway on logout errors
         clearAuth();
       } finally {
@@ -272,7 +274,7 @@ const createEnhancedAuthSlice: StateCreator<
       try {
         const services = getServices();
         if (!services.isReady()) {
-          console.warn('⚠️ Auth: Services not ready for refresh');
+          console.warn('âš ï¸ Auth: Services not ready for refresh');
           return;
         }
 
@@ -280,9 +282,9 @@ const createEnhancedAuthSlice: StateCreator<
         const serviceState = services.getAuthManager().getState();
         syncAuthWithService(serviceState);
         
-        console.log('✅ Auth: Status refreshed successfully');
+        console.log('âœ… Auth: Status refreshed successfully');
       } catch (error) {
-        console.error('❌ Auth: Refresh error:', error);
+        console.error('âŒ Auth: Refresh error:', error);
         // Don't clear auth on refresh errors - user might still be logged in
       } finally {
         setAuthLoading(false);
@@ -311,7 +313,7 @@ const createEnhancedAuthSlice: StateCreator<
         lastSyncAt: Date.now(),
       });
 
-      console.log('🔄 Auth: Store synced with service state:', {
+      console.log('ðŸ”„ Auth: Store synced with service state:', {
         hasUser: !!serviceState.user,
         hasEmpire: !!serviceState.empire,
         hasToken: !!serviceState.token,
@@ -323,7 +325,7 @@ const createEnhancedAuthSlice: StateCreator<
       try {
         const services = getServices();
         if (!services.isReady()) {
-          console.warn('⚠️ Auth: Services not ready for initialization');
+          console.warn('âš ï¸ Auth: Services not ready for initialization');
           return;
         }
 
@@ -337,9 +339,9 @@ const createEnhancedAuthSlice: StateCreator<
         const serviceState = services.getAuthManager().getState();
         get().syncAuthWithService(serviceState);
 
-        console.log('✅ Auth: Service integration initialized');
+        console.log('âœ… Auth: Service integration initialized');
       } catch (error) {
-        console.error('❌ Auth: Service initialization failed:', error);
+        console.error('âŒ Auth: Service initialization failed:', error);
         
         // Set service disconnected state
         set((state) => ({
@@ -365,9 +367,10 @@ const createEnhancedAuthSlice: StateCreator<
         },
       }));
 
-      console.log('✅ Auth: Service integration cleaned up');
+      console.log('âœ… Auth: Service integration cleaned up');
     },
   };
 };
 
 export default createEnhancedAuthSlice;
+

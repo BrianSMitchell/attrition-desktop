@@ -1,10 +1,16 @@
-import { Request, Response, NextFunction } from 'express';
+﻿import { Request, Response, NextFunction } from 'express';
 import winston from 'winston';
 import { v4 as uuidv4 } from 'uuid';
+import { HTTP_STATUS, ERROR_MESSAGES } from '../constants/response-formats';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VALUES } from '../../../shared/src/constants/configuration-keys';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VARS } from '@shared/constants/env-vars';
+
 
 // Create Winston logger instance
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env[ENV_VARS.LOG_LEVEL] || 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
@@ -54,25 +60,25 @@ export const errorHandler = (
 
   // Default error values
   let {
-    statusCode = 500,
-    message = 'Internal Server Error',
-    errorCode = 'INTERNAL_ERROR'
+    statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    message = ERROR_MESSAGES.INTERNAL_ERROR,
+    errorCode = ERROR_MESSAGES.INTERNAL_ERROR
   } = error;
 
   // Enhanced error categorization
   let category = ErrorCategory.SYSTEM;
 
-  // Mongoose validation error
+  // Generic validation error
   if (error.name === 'ValidationError') {
-    statusCode = 400;
-    message = 'Validation Error';
+    statusCode = HTTP_STATUS.BAD_REQUEST;
+    message = ERROR_MESSAGES.VALIDATION_ERROR;
     errorCode = 'VALIDATION_ERROR';
     category = ErrorCategory.VALIDATION;
   }
 
-  // Mongoose duplicate key error
-  if (error.name === 'MongoServerError' && (error as any).code === 11000) {
-    statusCode = 400;
+  // Database constraint errors (Supabase/PostgreSQL)
+  if ((error as any).code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
+    statusCode = HTTP_STATUS.BAD_REQUEST;
     message = 'Duplicate field value';
     errorCode = 'DUPLICATE_VALUE';
     category = ErrorCategory.DATABASE;
@@ -80,21 +86,21 @@ export const errorHandler = (
 
   // JWT errors
   if (error.name === 'JsonWebTokenError') {
-    statusCode = 401;
-    message = 'Invalid token';
+    statusCode = HTTP_STATUS.UNAUTHORIZED;
+    message = ERROR_MESSAGES.TOKEN_INVALID;
     errorCode = 'INVALID_TOKEN';
     category = ErrorCategory.AUTHENTICATION;
   }
 
   if (error.name === 'TokenExpiredError') {
-    statusCode = 401;
-    message = 'Token expired';
+    statusCode = HTTP_STATUS.UNAUTHORIZED;
+    message = ERROR_MESSAGES.TOKEN_EXPIRED;
     errorCode = 'TOKEN_EXPIRED';
     category = ErrorCategory.AUTHENTICATION;
   }
 
-  // MongoDB connection errors
-  if (error.name === 'MongoNetworkError' || error.name === 'MongooseServerSelectionError') {
+  // Database connection errors (Supabase)
+  if (error.message?.includes('connection') || error.message?.includes('timeout')) {
     statusCode = 503;
     message = 'Database unavailable';
     errorCode = 'DATABASE_UNAVAILABLE';
@@ -127,7 +133,7 @@ export const errorHandler = (
   logger.error('Application Error', errorLog);
 
   // Don't leak internal error details in production
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isDevelopment = process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.DEVELOPMENT;
   
   const response = {
     success: false,
@@ -135,7 +141,7 @@ export const errorHandler = (
     errorCode,
     correlationId,
     ...(isDevelopment && { stack: error.stack }),
-    ...(statusCode >= 500 && { 
+    ...(statusCode >= HTTP_STATUS.INTERNAL_SERVER_ERROR && { 
       message: 'An internal server error occurred. Please try again later.' 
     })
   };
@@ -151,7 +157,7 @@ export const asyncHandler = (fn: Function) => (req: Request, res: Response, next
 // Validation error handler
 export const handleValidationError = (error: any, fieldName: string) => {
   const appError: AppError = new Error(`Invalid ${fieldName}`);
-  appError.statusCode = 400;
+  appError.statusCode = HTTP_STATUS.BAD_REQUEST;
   appError.errorCode = 'VALIDATION_ERROR';
   appError.context = { field: fieldName, originalError: error.message };
   return appError;
@@ -160,12 +166,12 @@ export const handleValidationError = (error: any, fieldName: string) => {
 // Database error handler
 export const handleDatabaseError = (error: any, operation: string) => {
   const appError: AppError = new Error(`Database operation failed: ${operation}`);
-  appError.statusCode = 500;
+  appError.statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR;
   appError.errorCode = 'DATABASE_ERROR';
   appError.context = { operation, originalError: error.message };
   
   // Log database errors with higher severity
-  logger.error('Database Error', {
+  logger.error(ERROR_MESSAGES.DATABASE_ERROR, {
     operation,
     error: error.message,
     stack: error.stack
@@ -177,7 +183,7 @@ export const handleDatabaseError = (error: any, operation: string) => {
 // Business logic error handler
 export const handleBusinessLogicError = (message: string, errorCode: string = 'BUSINESS_LOGIC_ERROR') => {
   const appError: AppError = new Error(message);
-  appError.statusCode = 400;
+  appError.statusCode = HTTP_STATUS.BAD_REQUEST;
   appError.errorCode = errorCode;
   appError.isOperational = true;
   return appError;
@@ -235,3 +241,9 @@ export const performanceMonitor = (req: Request, res: Response, next: NextFuncti
 
   next();
 };
+
+
+
+
+
+

@@ -1,5 +1,7 @@
-import * as React from "react";
+﻿import * as React from "react";
 import { useSync, useUIActions } from '../../stores/enhancedAppStore';
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+
 
 /**
  * Effect-only component that surfaces user feedback for sync operations using the new event-driven sync system.
@@ -23,7 +25,7 @@ const SyncFeedback: React.FC = () => {
 
     // Transition: error state entered
     if (status.state === "error" && prevState !== "error") {
-      const message = status.lastError ? String(status.lastError) : "Sync error";
+      const message = status.lastError ? String(status.lastError) : ERROR_MESSAGES.SYNC_ERROR;
       addToast({ type: "error", message, duration: 4000 });
     }
 
@@ -81,3 +83,5 @@ const SyncFeedback: React.FC = () => {
 };
 
 export default SyncFeedback;
+
+

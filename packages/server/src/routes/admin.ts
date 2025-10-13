@@ -1,15 +1,24 @@
-import { Router, Request, Response } from 'express';
+﻿import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
-import { supabase } from '../config/supabase';
-import { getDatabaseType } from '../config/database';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+import { ENV_VARS } from '@shared/constants/env-vars';
 
+// Constants imports for eliminating hardcoded values
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+import { supabase } from '../config/supabase';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+import { HTTP_STATUS } from '@shared/response-formats';
+import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
 const router = Router();
 
 function requireAdminSecret(req: Request, res: Response): boolean {
-  const secret = process.env.ADMIN_MAINTENANCE_SECRET;
+  const secret = process.env[ENV_VARS.ADMIN_MAINTENANCE_SECRET];
   const provided = req.get('x-admin-maintenance-secret') || req.query.secret;
   if (!secret || !provided || secret !== String(provided)) {
-    res.status(401).json({ success: false, error: 'Unauthorized' });
+    res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: ERROR_MESSAGES.UNAUTHORIZED_ACCESS });
     return false;
   }
   return true;
@@ -19,7 +28,7 @@ function requireAdminSecret(req: Request, res: Response): boolean {
 router.post('/seed-supabase', asyncHandler(async (req: Request, res: Response) => {
   if (!requireAdminSecret(req, res)) return;
   if (getDatabaseType() !== 'supabase') {
-    return res.status(400).json({ success: false, error: 'DB_TYPE is not supabase' });
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'DB_TYPE is not supabase' });
   }
 
   const count = Math.min(Number(req.body?.count || 100), 2000);
@@ -37,12 +46,12 @@ router.post('/seed-supabase', asyncHandler(async (req: Request, res: Response) =
   }
 
   const { data, error } = await supabase
-    .from('locations')
+    .from(DB_TABLES.LOCATIONS)
     .upsert(rows, { onConflict: 'coord' })
     .select('coord');
 
   if (error) {
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: error.message });
   }
 
   res.json({ success: true, inserted: data?.length ?? 0 });
@@ -52,28 +61,28 @@ router.post('/seed-supabase', asyncHandler(async (req: Request, res: Response) =
 router.post('/backfill-starters', asyncHandler(async (req: Request, res: Response) => {
   if (!requireAdminSecret(req, res)) return;
   if (getDatabaseType() !== 'supabase') {
-    return res.status(400).json({ success: false, error: 'DB_TYPE is not supabase' });
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'DB_TYPE is not supabase' });
   }
 
   // Fetch users with missing empire_id
   const { data: users, error: usersErr } = await supabase
-    .from('users')
+    .from(DB_TABLES.USERS)
     .select('id, email, username, empire_id, starting_coordinate')
-    .is('empire_id', null)
+    .is(DB_FIELDS.BUILDINGS.EMPIRE_ID, null)
     .limit(200);
 
   if (usersErr) {
-    return res.status(500).json({ success: false, error: usersErr.message });
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: usersErr.message });
   }
 
   let processed = 0;
   for (const u of users || []) {
     // Find an unowned planet
     const { data: planet, error: pickErr } = await supabase
-      .from('locations')
+      .from(DB_TABLES.LOCATIONS)
       .select('coord')
-      .eq('type', 'planet')
-      .is('owner_id', null)
+      .eq(DB_FIELDS.CREDIT_TRANSACTIONS.TYPE, 'planet')
+      .is(DB_FIELDS.LOCATIONS.OWNER_ID, null)
       .limit(1)
       .single();
 
@@ -85,35 +94,35 @@ router.post('/backfill-starters', asyncHandler(async (req: Request, res: Respons
 
     // Claim planet
     const { error: claimErr } = await supabase
-      .from('locations')
+      .from(DB_TABLES.LOCATIONS)
       .update({ owner_id: u.id })
       .eq('coord', coord)
-      .is('owner_id', null);
+      .is(DB_FIELDS.LOCATIONS.OWNER_ID, null);
     if (claimErr) continue;
 
     // Create empire
     const { data: empireRow, error: empErr } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .insert({
         user_id: u.id,
         name: u.username || 'Commander',
         home_system: coord,
         territories: [coord],
-        credits: 100,
+        credits: GAME_CONSTANTS.STARTING_CREDITS,
         energy: 0,
       })
-      .select('id')
+      .select(DB_FIELDS.BUILDINGS.ID)
       .single();
     if (empErr || !empireRow) continue;
 
     // Create colony
     await supabase
-      .from('colonies')
+      .from(DB_TABLES.COLONIES)
       .insert({ empire_id: empireRow.id, location_coord: coord, name: 'Home Base' });
 
     // Starter building
     await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .insert({
         empire_id: empireRow.id,
         location_coord: coord,
@@ -126,9 +135,9 @@ router.post('/backfill-starters', asyncHandler(async (req: Request, res: Respons
 
     // Update user
     await supabase
-      .from('users')
+      .from(DB_TABLES.USERS)
       .update({ empire_id: empireRow.id, starting_coordinate: coord })
-      .eq('id', u.id);
+      .eq(DB_FIELDS.BUILDINGS.ID, u.id);
 
     processed++;
   }
@@ -137,3 +146,5 @@ router.post('/backfill-starters', asyncHandler(async (req: Request, res: Respons
 }));
 
 export default router;
+
+

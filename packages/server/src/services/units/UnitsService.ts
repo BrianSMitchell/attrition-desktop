@@ -1,8 +1,9 @@
 import { supabase } from '../../config/supabase';
 import { CapacityService } from '../bases/CapacityService';
 import { getUnitsList, getUnitSpec, type UnitKey } from '@game/shared';
-import { TechService } from '../tech/TechService';
+import { ERROR_MESSAGES } from '../../constants/response-formats';
 
+import { DB_FIELDS } from '../../../constants/database-fields';
 function evaluateUnitTechPrereqs(
   techLevels: Record<string, number>,
   prereqs: Array<{ key: string; level: number }>
@@ -21,17 +22,17 @@ export class UnitsService {
   static async getShipyardLevels(empireId: string, coord: string): Promise<Record<string, number>> {
     const levels: Record<string, number> = {};
     const { data: shipyards } = await supabase
-      .from('buildings')
-      .select('level')
-      .eq('empire_id', empireId)
-      .eq('location_coord', coord)
-      .eq('catalog_key', 'shipyards');
+      .from(DB_TABLES.BUILDINGS)
+      .select(DB_FIELDS.BUILDINGS.LEVEL)
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, coord)
+      .eq(DB_FIELDS.BUILDINGS.CATALOG_KEY, 'shipyards');
     const { data: orbital } = await supabase
-      .from('buildings')
-      .select('level')
-      .eq('empire_id', empireId)
-      .eq('location_coord', coord)
-      .eq('catalog_key', 'orbital_shipyards');
+      .from(DB_TABLES.BUILDINGS)
+      .select(DB_FIELDS.BUILDINGS.LEVEL)
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, coord)
+      .eq(DB_FIELDS.BUILDINGS.CATALOG_KEY, 'orbital_shipyards');
 
     const maxShip = (shipyards || []).reduce((m, b: any) => Math.max(m, Number(b.level || 0)), 0);
     const maxOrb = (orbital || []).reduce((m, b: any) => Math.max(m, Number(b.level || 0)), 0);
@@ -95,12 +96,12 @@ const techLevels = await TechService.getTechLevels(empireId);
 
   static async getQueue(empireId: string, baseCoord?: string) {
     let q = supabase
-      .from('unit_queue')
+      .from(DB_TABLES.UNIT_QUEUE)
       .select('id, unit_key, location_coord, started_at, completes_at, status, created_at')
-      .eq('empire_id', empireId)
-      .eq('status', 'pending')
-      .order('completes_at', { ascending: true });
-    if (baseCoord) q = q.eq('location_coord', baseCoord);
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'pending')
+      .order(DB_FIELDS.TECH_QUEUE.COMPLETES_AT, { ascending: true });
+    if (baseCoord) q = q.eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, baseCoord);
     const { data } = await q;
     return data || [];
   }
@@ -108,12 +109,12 @@ const techLevels = await TechService.getTechLevels(empireId);
   static async start(userId: string, empireId: string, baseCoord: string, unitKey: UnitKey) {
     // Ownership check
     const loc = await supabase
-      .from('locations')
-      .select('owner_id')
+      .from(DB_TABLES.LOCATIONS)
+      .select(DB_FIELDS.LOCATIONS.OWNER_ID)
       .eq('coord', baseCoord)
       .maybeSingle();
     if (!loc.data) {
-      return { success: false as const, code: 'NOT_FOUND', message: 'Location not found' };
+      return { success: false as const, code: ERROR_MESSAGES.NOT_FOUND, message: ERROR_MESSAGES.LOCATION_NOT_FOUND };
     }
     if (String((loc.data as any).owner_id || '') !== String(userId)) {
       return { success: false as const, code: 'NOT_OWNER', message: 'You do not own this location' };
@@ -154,7 +155,7 @@ const techLevels = await TechService.getTechLevels(empireId);
     }
 
     // Credits & capacity
-    const eRes = await supabase.from('empires').select('credits').eq('id', empireId).maybeSingle();
+    const eRes = await supabase.from(DB_TABLES.EMPIRES).select(DB_FIELDS.EMPIRES.CREDITS).eq(DB_FIELDS.BUILDINGS.ID, empireId).maybeSingle();
     const credits = Math.max(0, Number((eRes.data as any)?.credits || 0));
     const cost = Math.max(0, Number(spec.creditsCost || 0));
     if (credits < cost) {
@@ -177,7 +178,7 @@ const caps = await CapacityService.getBaseCapacities(empireId, baseCoord);
 
     // Insert pending item; completes_at required (scheduled item).
     const ins = await supabase
-      .from('unit_queue')
+      .from(DB_TABLES.UNIT_QUEUE)
       .insert({
         empire_id: empireId,
         location_coord: baseCoord,
@@ -187,7 +188,7 @@ const caps = await CapacityService.getBaseCapacities(empireId, baseCoord);
         completes_at: completesAt,
         status: 'pending',
       })
-      .select('id')
+      .select(DB_FIELDS.BUILDINGS.ID)
       .single();
 
     if (ins.error) {
@@ -205,11 +206,11 @@ const caps = await CapacityService.getBaseCapacities(empireId, baseCoord);
     }
 
     // Deduct credits after successful enqueue
-    await supabase.from('empires').update({ credits: credits - cost }).eq('id', empireId);
+    await supabase.from(DB_TABLES.EMPIRES).update({ credits: credits - cost }).eq(DB_FIELDS.BUILDINGS.ID, empireId);
 
     // Log credit transaction (best effort)
     try {
-const { CreditLedgerService } = await import('../creditLedgerService');
+const { CreditLedgerService } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
 await CreditLedgerService.logTransaction({
         empireId,
         amount: -cost,
@@ -235,3 +236,6 @@ console.warn('[UnitsService] Failed to log credit transaction:', logErr);
     } as const;
   }
 }
+
+
+

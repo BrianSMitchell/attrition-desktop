@@ -1,3 +1,5 @@
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 /*
  Quick scan for buildings with missing/incorrect catalogKey and duplicate instances per base/key.
  Usage:
@@ -9,7 +11,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, './.env') });
 
-const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/attrition';
+const MONGO_URI = process.env[ENV_VARS.MONGODB_URI] || process.env.MONGO_URI || 'mongodb://localhost:27017/attrition';
 
 const buildingSchema = new mongoose.Schema(
   {

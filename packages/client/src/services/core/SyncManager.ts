@@ -1,4 +1,5 @@
 import { 
+import { TIMEOUTS, STATUS_CODES } from '@shared/constants/magic-numbers';
   ISyncManager, 
   SyncState, 
   ServiceOptions, 
@@ -33,7 +34,7 @@ export class SyncManager implements ISyncManager {
     });
 
     this.syncMutex = new AsyncMutex({
-      timeout: 30000, // 30 second timeout for sync operations
+      timeout: TIMEOUTS.THIRTY_SECONDS, // 30 second timeout for sync operations
       debug: this._options.enableLogging,
     });
   }
@@ -140,7 +141,7 @@ export class SyncManager implements ISyncManager {
 
   async getQueueCount(): Promise<number> {
     if (!this.isReady()) {
-      return 0;
+      return STATUS_CODES.SUCCESS;
     }
 
     await this.updateQueueCount();
@@ -165,7 +166,7 @@ export class SyncManager implements ISyncManager {
       // For web, we might have a different sync mechanism
       // For now, we'll just simulate the operation
       console.log('🔄 SyncManager: Web sync not implemented, simulating...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, TIMEOUTS.ONE_SECOND));
       this.updateState({ queuedCount: 0 });
       return;
     }

@@ -68,7 +68,7 @@ describe('Building Upgrade Economy Fix - Integration Test', () => {
     console.log(`   ✅ Improvement: +${economyImprovement} credits/hour from upgrading buildings`);
   });
 
-  it('verifies the exact MongoDB query structure matches our fix', () => {
+  it('verifies the exact database query structure matches our fix', () => {
     // This test validates the specific query structure used in EconomyService
     const expectedQuery = {
       empireId: 'mock-object-id',

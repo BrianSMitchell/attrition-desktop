@@ -1,6 +1,11 @@
-import express from 'express';
+﻿import express from 'express';
 import request from 'supertest';
 import { httpsRedirectMiddleware } from '../httpsRedirect';
+import { API_ENDPOINTS } from '../constants/api-endpoints';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VARS } from '@shared/constants/env-vars';
+
+
 
 // Ensure test env
 const OLD_ENV = process.env;
@@ -12,8 +17,8 @@ describe('httpsRedirectMiddleware logging behavior', () => {
   });
 
   test('suppresses WARN for exempt /health in reverse proxy mode (still redirects)', async () => {
-    process.env.NODE_ENV = 'production';
-    process.env.USE_REVERSE_PROXY_SSL = 'true';
+    process.env[ENV_VARS.NODE_ENV] = 'production';
+    process.env[ENV_VARS.USE_REVERSE_PROXY_SSL] = 'true';
     const app = express();
     app.set('trust proxy', 1);
     app.use(httpsRedirectMiddleware);
@@ -21,7 +26,7 @@ describe('httpsRedirectMiddleware logging behavior', () => {
 const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
     const res = await request(app)
-      .get('/health')
+      .get(API_ENDPOINTS.SYSTEM.HEALTH)
       .set('Host', 'localhost:3001')
       .set('X-Forwarded-Proto', 'http');
 
@@ -31,8 +36,8 @@ const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
   });
 
   test('logs WARN for non-exempt path in reverse proxy mode', async () => {
-    process.env.NODE_ENV = 'production';
-    process.env.USE_REVERSE_PROXY_SSL = 'true';
+    process.env[ENV_VARS.NODE_ENV] = 'production';
+    process.env[ENV_VARS.USE_REVERSE_PROXY_SSL] = 'true';
     const app = express();
     app.set('trust proxy', 1);
     app.use(httpsRedirectMiddleware);
@@ -49,3 +54,4 @@ const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     warnSpy.mockRestore();
   });
 });
+

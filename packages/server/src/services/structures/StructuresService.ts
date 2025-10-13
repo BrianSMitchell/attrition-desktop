@@ -1,7 +1,10 @@
 import { supabase } from '../../config/supabase';
 import { CapacityService } from '../bases/CapacityService';
 import { StatsService } from '../bases/StatsService';
-import {
+import { ERROR_MESSAGES } from '../../constants/response-formats';
+import { DB_FIELDS } from '../../../constants/database-fields';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
   getBuildingsList,
   getBuildingSpec,
   canStartBuildingByTech,
@@ -9,7 +12,7 @@ import {
   getStructureCreditCostForLevel,
   computeEnergyBalance,
 } from '@game/shared';
-import { formatAlreadyInProgress } from '../utils/idempotency';
+import { ERROR_MESSAGES } from '../../constants/response-formats';
 
 /**
  * Helper to map tech levels from Supabase empire
@@ -83,13 +86,13 @@ export class StructuresService {
    */
   static async getStatus(empireId: string): Promise<StructuresStatusDTO> {
     const { data: empire, error } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('tech_levels')
-      .eq('id', empireId)
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
     if (error || !empire) {
-      throw new Error('Empire not found');
+      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
     }
 
     const techLevels = mapTechLevels(empire.tech_levels);
@@ -133,24 +136,24 @@ export class StructuresService {
 
     // Load empire
     const { data: empire, error: empireError } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('id, user_id, tech_levels, credits')
-      .eq('id', empireId)
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
     if (empireError || !empire) {
-      return formatError('NOT_FOUND', 'Empire not found');
+      return formatError(ERROR_MESSAGES.NOT_FOUND, ERROR_MESSAGES.EMPIRE_NOT_FOUND);
     }
 
     // Validate location exists and is owned by this empire's user
     const { data: location, error: locationError } = await supabase
-      .from('locations')
+      .from(DB_TABLES.LOCATIONS)
       .select('coord, owner, result')
       .eq('coord', locationCoord)
       .maybeSingle();
 
     if (locationError || !location) {
-      return formatError('NOT_FOUND', 'Location not found');
+      return formatError(ERROR_MESSAGES.NOT_FOUND, ERROR_MESSAGES.LOCATION_NOT_FOUND);
     }
 
     if (location.owner !== empire.user_id) {
@@ -176,11 +179,11 @@ export class StructuresService {
 
     // Check for existing building with this catalog key
     const { data: existing, error: existingError } = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('*')
-      .eq('location_coord', locationCoord)
-      .eq('empire_id', empireId)
-      .eq('catalog_key', buildingKey)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.CATALOG_KEY, buildingKey)
       .maybeSingle();
 
     if (existingError) {
@@ -243,10 +246,10 @@ const capacities = await CapacityService.getBaseCapacities(empireId, locationCoo
 
     // Energy feasibility check
     const { data: existingBuildings, error: buildingsError } = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('is_active, pending_upgrade, catalog_key, level, construction_completed')
-      .eq('empire_id', empireId)
-      .eq('location_coord', locationCoord);
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord);
 
     if (buildingsError) {
       console.error('Error fetching buildings:', buildingsError);
@@ -326,11 +329,11 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
 
     // Build ordered earlier items
     const { data: queuedCapacityItems, error: queueError } = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('catalog_key, pending_upgrade, construction_completed, created_at')
-      .eq('empire_id', empireId)
-      .eq('location_coord', locationCoord)
-      .eq('is_active', false);
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
+      .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, false);
 
     if (queueError) {
       console.error('Error fetching queued items:', queueError);
@@ -478,12 +481,12 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
       // Create new building for first-time construction
       // Compute per-queue sequence to allow multiple queued copies
       const { count: queuedCount, error: countError } = await supabase
-        .from('buildings')
+        .from(DB_TABLES.BUILDINGS)
         .select('*', { count: 'exact', head: true })
-        .eq('empire_id', empireId)
-        .eq('location_coord', locationCoord)
-        .eq('catalog_key', buildingKey)
-        .eq('is_active', false);
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
+        .eq(DB_FIELDS.BUILDINGS.CATALOG_KEY, buildingKey)
+        .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, false);
 
       if (countError) {
         console.error('Error counting queued buildings:', countError);
@@ -494,7 +497,7 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
 
       // Insert new building
       const { data: newBuilding, error: insertError } = await supabase
-        .from('buildings')
+        .from(DB_TABLES.BUILDINGS)
         .insert({
           location_coord: locationCoord,
           empire_id: empireId,
@@ -515,7 +518,7 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
       if (insertError) {
         // Check for duplicate key (idempotency)
         if (insertError.code === '23505') {
-          if (process.env.DEBUG_RESOURCES === 'true') {
+          if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
             console.log(`[SupabaseStructuresService.start] idempotent existing queued for identityKey=${identityKey}`);
           }
           return formatAlreadyInProgress('structures', identityKey, buildingKey);
@@ -528,7 +531,7 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
 
       // Broadcast queue addition
       try {
-        const { getIO } = await import('../../index');
+        const { getIO } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
         const io = getIO();
         (io as any)?.broadcastQueueUpdate?.(empireId, locationCoord, 'queue:item_queued', {
           locationCoord,
@@ -542,7 +545,7 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
       identityKey = `${empireId}:${locationCoord}:${buildingKey}:L${nextLevel}`;
 
       const { data: updatedBuilding, error: updateError } = await supabase
-        .from('buildings')
+        .from(DB_TABLES.BUILDINGS)
         .update({
           is_active: false,
           pending_upgrade: true,
@@ -551,8 +554,8 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
           construction_started: constructionStarted,
           construction_completed: constructionCompleted,
         })
-        .eq('id', existing.id)
-        .eq('is_active', true)
+        .eq(DB_FIELDS.BUILDINGS.ID, existing.id)
+        .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, true)
         .select()
         .maybeSingle();
 
@@ -570,7 +573,7 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
 
       // Broadcast queue addition for upgrade
       try {
-        const { getIO } = await import('../../index');
+        const { getIO } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
         const io = getIO();
         (io as any)?.broadcastQueueUpdate?.(empireId, locationCoord, 'queue:item_queued', {
           locationCoord,
@@ -592,7 +595,7 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
 
     // Attempt to schedule the top-of-queue item immediately (non-blocking)
     try {
-      const { BuildingService } = await import('../buildingService');
+      const { BuildingService } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
       await BuildingService.scheduleNextQueuedForBase(empireId, locationCoord);
     } catch (e) {
       console.warn('[SupabaseStructuresService.start] scheduleNextQueuedForBase failed', e);
@@ -615,16 +618,16 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
    */
   static async getQueue(empireId: string, locationCoord?: string) {
     let query = supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('id, catalog_key, level, is_active, pending_upgrade, construction_started, construction_completed, credits_cost, created_at')
-      .eq('empire_id', empireId)
-      .eq('is_active', false);
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, false);
 
     if (locationCoord) {
-      query = query.eq('location_coord', locationCoord);
+      query = query.eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord);
     }
 
-    const { data: items, error } = await query.order('construction_completed', { ascending: true, nullsFirst: false });
+    const { data: items, error } = await query.order(DB_FIELDS.BUILDINGS.CONSTRUCTION_COMPLETED, { ascending: true, nullsFirst: false });
 
     if (error) {
       console.error('[SupabaseStructuresService.getQueue] Error:', error);
@@ -651,13 +654,13 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
 
     // Find the active construction at this base (most recent incomplete item)
     const { data: item, error: fetchError } = await supabase
-      .from('buildings')
+      .from(DB_TABLES.BUILDINGS)
       .select('*')
-      .eq('empire_id', empireId)
-      .eq('location_coord', locationCoord)
-      .eq('is_active', false)
-      .gt('construction_completed', new Date(now).toISOString())
-      .order('construction_completed', { ascending: true })
+      .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
+      .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, false)
+      .gt(DB_FIELDS.BUILDINGS.CONSTRUCTION_COMPLETED, new Date(now).toISOString())
+      .order(DB_FIELDS.BUILDINGS.CONSTRUCTION_COMPLETED, { ascending: true })
       .limit(1)
       .maybeSingle();
 
@@ -698,7 +701,7 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
     if (pendingUpgrade) {
       // Revert upgrade: restore to active state
       const { error: updateError } = await supabase
-        .from('buildings')
+        .from(DB_TABLES.BUILDINGS)
         .update({
           is_active: true,
           pending_upgrade: false,
@@ -707,8 +710,8 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
           construction_completed: null,
           identity_key: null,
         })
-        .eq('id', item.id)
-        .eq('is_active', false);
+        .eq(DB_FIELDS.BUILDINGS.ID, item.id)
+        .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, false);
 
       cancelled = !updateError;
       if (updateError) {
@@ -717,9 +720,9 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
     } else {
       // Delete new construction item
       const { error: deleteError } = await supabase
-        .from('buildings')
+        .from(DB_TABLES.BUILDINGS)
         .delete()
-        .eq('id', item.id);
+        .eq(DB_FIELDS.BUILDINGS.ID, item.id);
 
       cancelled = !deleteError;
       if (deleteError) {
@@ -734,21 +737,21 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
     // Refund credits
     if (refundedCredits && refundedCredits > 0) {
       const { data: empire } = await supabase
-        .from('empires')
-        .select('credits')
-        .eq('id', empireId)
+        .from(DB_TABLES.EMPIRES)
+        .select(DB_FIELDS.EMPIRES.CREDITS)
+        .eq(DB_FIELDS.BUILDINGS.ID, empireId)
         .single();
 
       if (empire) {
         const currentCredits = Number(empire.credits || 0);
         await supabase
-          .from('empires')
+          .from(DB_TABLES.EMPIRES)
           .update({ credits: currentCredits + refundedCredits })
-          .eq('id', empireId);
+          .eq(DB_FIELDS.BUILDINGS.ID, empireId);
 
         // Log transaction (best effort)
         try {
-          const { CreditLedgerService } = await import('../creditLedgerService');
+          const { CreditLedgerService } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
           CreditLedgerService.logTransaction({
             empireId: empireId as any,
             amount: refundedCredits,
@@ -762,7 +765,7 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
 
     // Broadcast cancellation
     try {
-      const { getIO } = await import('../../index');
+      const { getIO } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
       const io = getIO();
       (io as any)?.broadcastQueueUpdate?.(empireId, locationCoord, 'queue:item_cancelled', {
         locationCoord,
@@ -779,3 +782,6 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
     );
   }
 }
+
+
+

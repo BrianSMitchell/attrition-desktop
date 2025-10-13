@@ -1,5 +1,7 @@
-import api, { ApiError } from "./api";
+﻿import api, { ApiError } from "./api";
 import { ApiResponse, BuildingKey, BuildingSpec } from "@game/shared";
+import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+
 
 // Keep DTO type for UI typing (read-only usage during decommission)
 export interface StructuresStatusDTO {
@@ -42,7 +44,7 @@ export const structuresService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<{ catalog: BuildingSpec[] }>;
     }
   },
@@ -56,7 +58,7 @@ export const structuresService = {
       return res.data;
     } catch (err) {
       if (isApiErrorLike(err)) return err as any;
-      return { success: false, code: "NETWORK_ERROR", message: "Network error" } as any;
+      return { success: false, code: "NETWORK_ERROR", message: ERROR_MESSAGES.NETWORK_ERROR } as any;
     }
   },
 
@@ -79,10 +81,12 @@ export const structuresService = {
       return {
         success: false,
         code: "NETWORK_ERROR",
-        message: "Network error",
+        message: ERROR_MESSAGES.NETWORK_ERROR,
       } as ApiResponse<{ cancelledStructure: string; refundedCredits: number | null }>;
     }
   },
 };
 
 export default structuresService;
+
+

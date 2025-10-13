@@ -1,5 +1,5 @@
-import { getStructureCreditCostForLevel, hasCanonicalStructureCostForLevel } from '../structureLevels';
-import { getBuildingSpec } from '../buildings';
+import { getStructureCreditCostForLevel, hasCanonicalStructureCostForLevel } from '../../packages/shared/src/structureLevels';
+import { getBuildingSpec } from '../../packages/shared/src/buildings';
 
 describe('structureLevels canonical costs', () => {
   describe('L1 costs align with buildings catalog', () => {

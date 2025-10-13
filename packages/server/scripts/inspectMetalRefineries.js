@@ -1,9 +1,11 @@
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+
 require('dotenv').config();
 const mongoose = require('mongoose');
 
 async function inspectMetalRefineries() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env[ENV_VARS.MONGODB_URI]);
     console.log('=== METAL REFINERIES DETAILED INSPECTION ===');
     
     const empireId = new mongoose.Types.ObjectId('68c21deb375bbf773d02005e'); // razgak

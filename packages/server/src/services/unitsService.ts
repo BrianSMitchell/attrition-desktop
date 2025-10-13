@@ -2,7 +2,13 @@ import { supabase } from '../config/supabase';
 import { CreditLedgerService } from './creditLedgerService';
 import { CapacityService } from './bases/CapacityService';
 import { getUnitsList, UnitKey, TechnologyKey } from '@game/shared';
-import { formatAlreadyInProgress } from './utils/idempotency';
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+// Constants imports for eliminating hardcoded values
+import { ERROR_MESSAGES } from '../constants/response-formats';
+
+import { DB_FIELDS } from '../../../constants/database-fields';
+import { ENV_VARS } from '../../../shared/src/constants/env-vars';
 
 function mapFromEmpireTechLevels(empire: any): Partial<Record<string, number>> {
   const mapVal = (empire as any).techLevels as Map<string, number> | undefined;
@@ -68,18 +74,18 @@ function formatError(code: string, message: string, details?: any) {
 export class UnitsService {
   static async getStatus(empireId: string, locationCoord?: string): Promise<UnitsStatusDTO> {
     const { data: empire, error } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('*')
-      .eq('id', empireId)
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
     if (error) {
       console.error('[UnitsService.getStatus] Error fetching empire:', error);
-      throw new Error('Empire not found');
+      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
     }
 
     if (!empire) {
-      throw new Error('Empire not found');
+      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
     }
 
     const techLevels = mapFromEmpireTechLevels(empire);
@@ -89,12 +95,12 @@ export class UnitsService {
     let shipyardLevels: Record<string, number> = {};
     if (locationCoord) {
       const { data: shipyards, error: shipyardError } = await supabase
-        .from('buildings')
-        .select('level')
-        .eq('empire_id', empireId)
-        .eq('location_coord', locationCoord)
-        .eq('catalog_key', 'shipyards')
-        .eq('is_active', true);
+        .from(DB_TABLES.BUILDINGS)
+        .select(DB_FIELDS.BUILDINGS.LEVEL)
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
+        .eq(DB_FIELDS.BUILDINGS.CATALOG_KEY, 'shipyards')
+        .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, true);
 
       if (shipyardError) {
         console.error('[UnitsService.getStatus] Error fetching shipyards:', shipyardError);
@@ -105,12 +111,12 @@ export class UnitsService {
 
       // Also check for orbital shipyards if needed
       const { data: orbitalShipyards, error: orbitalError } = await supabase
-        .from('buildings')
-        .select('level')
-        .eq('empire_id', empireId)
-        .eq('location_coord', locationCoord)
-        .eq('catalog_key', 'orbital_shipyards')
-        .eq('is_active', true);
+        .from(DB_TABLES.BUILDINGS)
+        .select(DB_FIELDS.BUILDINGS.LEVEL)
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
+        .eq(DB_FIELDS.BUILDINGS.CATALOG_KEY, 'orbital_shipyards')
+        .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, true);
 
       if (orbitalError) {
         console.error('[UnitsService.getStatus] Error fetching orbital shipyards:', orbitalError);
@@ -171,34 +177,34 @@ export class UnitsService {
    */
   static async start(empireId: string, locationCoord: string, unitKey: UnitKey) {
     const { data: empire, error: empireError } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .select('*')
-      .eq('id', empireId)
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
     if (empireError) {
       console.error('[UnitsService.start] Error fetching empire:', empireError);
-      return formatError('NOT_FOUND', 'Empire not found');
+      return formatError(ERROR_MESSAGES.NOT_FOUND, ERROR_MESSAGES.EMPIRE_NOT_FOUND);
     }
 
     if (!empire) {
-      return formatError('NOT_FOUND', 'Empire not found');
+      return formatError(ERROR_MESSAGES.NOT_FOUND, ERROR_MESSAGES.EMPIRE_NOT_FOUND);
     }
 
     // Validate location and ownership
     const { data: location, error: locationError } = await supabase
-      .from('locations')
+      .from(DB_TABLES.LOCATIONS)
       .select('*')
       .eq('coord', locationCoord)
       .maybeSingle();
 
     if (locationError) {
       console.error('[UnitsService.start] Error fetching location:', locationError);
-      return formatError('NOT_FOUND', 'Location not found');
+      return formatError(ERROR_MESSAGES.NOT_FOUND, ERROR_MESSAGES.LOCATION_NOT_FOUND);
     }
 
     if (!location) {
-      return formatError('NOT_FOUND', 'Location not found');
+      return formatError(ERROR_MESSAGES.NOT_FOUND, ERROR_MESSAGES.LOCATION_NOT_FOUND);
     }
 
     if (location.owner !== empire.user_id) {
@@ -235,12 +241,12 @@ export class UnitsService {
     // Optional shipyard level validation if spec defines it
     if (typeof spec.requiredShipyardLevel === 'number' && spec.requiredShipyardLevel > 0) {
       const { data: shipyards, error: shipyardError } = await supabase
-        .from('buildings')
-        .select('level')
-        .eq('empire_id', empireId)
-        .eq('location_coord', locationCoord)
-        .eq('catalog_key', 'shipyards')
-        .eq('is_active', true);
+        .from(DB_TABLES.BUILDINGS)
+        .select(DB_FIELDS.BUILDINGS.LEVEL)
+        .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
+        .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, locationCoord)
+        .eq(DB_FIELDS.BUILDINGS.CATALOG_KEY, 'shipyards')
+        .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, true);
 
       if (shipyardError) {
         console.error('[UnitsService.start] Error fetching shipyards:', shipyardError);
@@ -297,7 +303,7 @@ export class UnitsService {
     const completesAt = new Date(now.getTime() + etaMinutes * 60 * 1000);
 
     const { data: queueItem, error: queueError } = await supabase
-      .from('unit_queues')
+      .from(DB_TABLES.UNIT_QUEUES)
       .insert({
         empire_id: empireId,
         location_coord: locationCoord,
@@ -307,13 +313,13 @@ export class UnitsService {
         completes_at: completesAt.toISOString(),
         status: 'pending',
       })
-      .select('id')
+      .select(DB_FIELDS.BUILDINGS.ID)
       .single();
 
     if (queueError) {
       // Handle unique constraint violations (identity_key + status)
       if (queueError.code === '23505') { // PostgreSQL unique_violation
-        if (process.env.DEBUG_RESOURCES === 'true') {
+        if (process.env[ENV_VARS.DEBUG_RESOURCES] === 'true') {
           console.log(`[UnitsService.start] idempotent duplicate key for identityKey=${identityKey}`);
         }
         return formatAlreadyInProgress('units', identityKey, unitKey);
@@ -324,11 +330,11 @@ export class UnitsService {
 
     // Deduct credits only after queue creation succeeds
     const { error: creditError } = await supabase
-      .from('empires')
+      .from(DB_TABLES.EMPIRES)
       .update({
         credits: empire.credits - creditsCost
       })
-      .eq('id', empireId);
+      .eq(DB_FIELDS.BUILDINGS.ID, empireId);
 
     if (creditError) {
       console.error('[UnitsService.start] Error deducting credits:', creditError);
@@ -357,3 +363,6 @@ export class UnitsService {
     );
   }
 }
+
+
+

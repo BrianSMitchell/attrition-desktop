@@ -3,6 +3,7 @@ import { getSocket } from '../../services/socket';
 import { Message } from '../../services/messageService';
 import { Link } from 'react-router-dom';
 
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 interface ToastMessage {
   id: string;
   message: Message;
@@ -29,7 +30,7 @@ const MessageToast: React.FC = () => {
       // Auto-remove toast after 5 seconds
       setTimeout(() => {
         setToastMessages(prev => prev.filter(toast => toast.id !== toastId));
-      }, 5000);
+      }, TIMEOUTS.FIVE_SECONDS);
     };
 
     socket.on('message:new', handleNewMessage);

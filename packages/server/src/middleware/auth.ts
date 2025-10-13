@@ -1,11 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt, { SignOptions } from 'jsonwebtoken';
-import { asyncHandler } from './errorHandler';
-import crypto from 'crypto';
-import { generateDeviceFingerprint, DeviceFingerprint, compareDeviceFingerprints, isSuspiciousFingerprint, sanitizeFingerprint } from '../utils/deviceFingerprint';
+import jwt from 'jsonwebtoken';
 import { supabase } from '../config/supabase';
+import { asyncHandler } from './errorHandler';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { HTTP_STATUS } from '../constants/response-formats';
+import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VARS } from '@shared/constants/env-vars';
+import { 
+  DeviceFingerprint,
+  generateDeviceFingerprint,
+  compareDeviceFingerprints,
+  sanitizeFingerprint,
+  isSuspiciousFingerprint
+} from '../utils/deviceFingerprinting';
 
-// Supabase-compatible user interface that matches the expected structure
 export interface SupabaseUser {
   _id: string;
   id: string;
@@ -28,8 +36,8 @@ const revokedTokens = new Set<string>();
 
 // JWT secret management
 const getJWTSecrets = (): string[] => {
-  const current = process.env.JWT_SECRET;
-  const previous = process.env.JWT_SECRET_PREVIOUS; // For rotation support
+  const current = process.env[ENV_VARS.JWT_SECRET];
+  const previous = process.env[ENV_VARS.JWT_SECRET + '_PREVIOUS']; // For rotation support
   
   if (!current) {
     throw new Error('JWT_SECRET environment variable is required');
@@ -76,7 +84,7 @@ export const authenticate = asyncHandler(async (req: AuthRequest, res: Response,
   }
 
   if (!token) {
-    return res.status(401).json({
+    return res.status(HTTP_STATUS.UNAUTHORIZED).json({
       success: false,
       error: 'Access denied. No token provided.'
     });
@@ -94,7 +102,7 @@ export const authenticate = asyncHandler(async (req: AuthRequest, res: Response,
     
     // Check if token is revoked (if jti is present)
     if (decoded.jti && isTokenRevoked(decoded.jti)) {
-      return res.status(401).json({
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
         error: 'Token has been revoked'
       });
@@ -102,7 +110,7 @@ export const authenticate = asyncHandler(async (req: AuthRequest, res: Response,
     
     // Verify token type
     if (decoded.type !== 'access') {
-      return res.status(401).json({
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
         error: 'Invalid token type'
       });
@@ -117,7 +125,7 @@ export const authenticate = asyncHandler(async (req: AuthRequest, res: Response,
 
       // Configurable threshold (defaults to 0.3 to tolerate IP-network shifts behind CDNs/proxies)
       const threshold = (() => {
-        const raw = process.env.DEVICE_BINDING_THRESHOLD;
+        const raw = process.env[ENV_VARS.DEVICE_BINDING_THRESHOLD];
         const n = raw ? Number(raw) : NaN;
         return Number.isFinite(n) ? n : 0.3;
       })();
@@ -132,8 +140,8 @@ export const authenticate = asyncHandler(async (req: AuthRequest, res: Response,
         });
         
         // In strict mode, reject the token
-        if (process.env.DEVICE_BINDING_STRICT === 'true') {
-          return res.status(401).json({
+        if (process.env[ENV_VARS.DEVICE_BINDING_STRICT] === 'true') {
+          return res.status(HTTP_STATUS.UNAUTHORIZED).json({
             success: false,
             error: 'Token device binding verification failed'
           });
@@ -149,15 +157,15 @@ export const authenticate = asyncHandler(async (req: AuthRequest, res: Response,
       });
     }
     
-    // Get user from Supabase (fully migrated from MongoDB)
+    // Get user from database
     const { data, error } = await supabase
-      .from('users')
+      .from(DB_TABLES.USERS)
       .select('id, email, username, empire_id, starting_coordinate, role')
-      .eq('id', decoded.userId)
+      .eq(DB_FIELDS.BUILDINGS.ID, decoded.userId)
       .single();
 
     if (error || !data) {
-      return res.status(401).json({ success: false, error: 'Token is not valid' });
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: 'Token is not valid' });
     }
 
     // Map Supabase row to legacy user shape expected downstream
@@ -177,7 +185,7 @@ export const authenticate = asyncHandler(async (req: AuthRequest, res: Response,
     req.deviceFingerprint = currentFingerprint;
     next();
   } catch (error) {
-    return res.status(401).json({
+    return res.status(HTTP_STATUS.UNAUTHORIZED).json({
       success: false,
       error: 'Token is not valid'
     });
@@ -186,11 +194,11 @@ export const authenticate = asyncHandler(async (req: AuthRequest, res: Response,
 
 export const generateAccessToken = (userId: string, req?: Request): string => {
   // Use shorter TTL for production, longer for development
-  const expiresIn = process.env.NODE_ENV === 'production' ? '15m' : '1h';
+  const expiresIn = process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION ? '15m' : '1h';
   
   // Generate device fingerprint if request is provided
   let deviceFingerprint: DeviceFingerprint | undefined;
-  if (req && process.env.ENABLE_DEVICE_BINDING !== 'false') {
+  if (req && process.env[ENV_VARS.ENABLE_DEVICE_BINDING] !== 'false') {
     deviceFingerprint = generateDeviceFingerprint(req);
   }
   
@@ -218,7 +226,7 @@ export const generateAccessToken = (userId: string, req?: Request): string => {
 
 export const generateRefreshToken = (userId: string): string => {
   // Refresh tokens get shorter TTL too
-  const expiresIn = process.env.NODE_ENV === 'production' ? '7d' : '30d';
+  const expiresIn = process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION ? '7d' : '30d';
   
   return jwt.sign(
     { 
@@ -237,3 +245,6 @@ export const generateRefreshToken = (userId: string): string => {
 
 /** Backward compatibility for existing call sites */
 export const generateToken = generateAccessToken;
+
+
+

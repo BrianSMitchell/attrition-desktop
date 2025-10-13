@@ -1,0 +1,4030 @@
+{
+  "totalFiles": 119,
+  "totalIssues": 574,
+  "issuesByType": {
+    "error_message": 278,
+    "api_endpoint": 98,
+    "http_status": 53,
+    "database_table": 145
+  },
+  "issues": [
+    {
+      "file": "index.ts",
+      "line": 16,
+      "content": "import { sessionInvalidationMiddleware } from './middleware/sessionInvalidation';",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "index.ts",
+      "line": 100,
+      "content": "req.path === '/api/status' ||",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 105,
+      "content": "(process.env.RATE_LIMIT_SKIP_AUTH === 'true' && req.path.startsWith('/api/auth/')) ||",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 107,
+      "content": "(process.env.RATE_LIMIT_SKIP_GAME === 'true' && (req.path.startsWith('/api/game') || req.path.startsWith('/api/universe')))",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 107,
+      "content": "(process.env.RATE_LIMIT_SKIP_GAME === 'true' && (req.path.startsWith('/api/game') || req.path.startsWith('/api/universe')))",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 137,
+      "content": "app.use('/api/status', (req, res, next) => {",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 154,
+      "content": "app.get('/api/status', (req, res) => {",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 174,
+      "content": "res.status(500).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "index.ts",
+      "line": 183,
+      "content": "app.get('/api/https-health', httpsHealthCheckHandler);",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 184,
+      "content": "app.get('/api/tls-security', tlsSecurityStatusHandler);",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 188,
+      "content": "app.use('/api/game', sessionInvalidationMiddleware);",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 189,
+      "content": "app.use('/api/universe', sessionInvalidationMiddleware);",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 190,
+      "content": "app.use('/api/sync', sessionInvalidationMiddleware);",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 191,
+      "content": "app.use('/api/security', sessionInvalidationMiddleware);",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 192,
+      "content": "app.use('/api/messages', sessionInvalidationMiddleware);",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 195,
+      "content": "app.use('/api/auth', authRoutes);",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 196,
+      "content": "app.use('/api/security', securityRoutes); // Security monitoring endpoints",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 201,
+      "content": "app.use('/api/game', gameRoutes);",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 204,
+      "content": "app.use('/api/tech', techRoutes);  // Separate router for /api/tech/* backwards compatibility",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 205,
+      "content": "app.use('/api/universe', universeRoutes);",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 206,
+      "content": "app.use('/api/sync', syncRoutes);",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 207,
+      "content": "app.use('/api/messages', messageRoutes);",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 209,
+      "content": "app.use('/api/game/messages', messageRoutes);",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 212,
+      "content": "app.use('/api/admin', adminRoutes);",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "index.ts",
+      "line": 221,
+      "content": "res.status(404).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "index.ts",
+      "line": 223,
+      "content": "error: 'Route not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\tlsValidator.ts",
+      "line": 435,
+      "content": "res.status(500).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "utils\\tlsSessionManager.ts",
+      "line": 122,
+      "content": "reason: 'Session not found',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\tlsSessionManager.ts",
+      "line": 189,
+      "content": "this.emit('sessionInvalidated', { sessionId, reason, session });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\tlsSessionManager.ts",
+      "line": 192,
+      "content": "console.log(`🔒 TLS session invalidated: ${sessionId} (${reason || 'No reason provided'})`);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\tlsSessionManager.ts",
+      "line": 381,
+      "content": "console.warn(`⚠️  Invalid TLS session rejected: ${validation.reason}`);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\tlsSessionManager.ts",
+      "line": 382,
+      "content": "return res.status(403).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "utils\\tlsSessionManager.ts",
+      "line": 383,
+      "content": "error: 'Invalid TLS session',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\securityHeadersValidator.ts",
+      "line": 56,
+      "content": "issue: 'Missing HSTS header',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\securityHeadersValidator.ts",
+      "line": 75,
+      "content": "issue: 'HSTS missing includeSubDomains',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\securityHeadersValidator.ts",
+      "line": 91,
+      "content": "issue: 'Missing CSP header',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\securityHeadersValidator.ts",
+      "line": 107,
+      "content": "issue: 'CSP missing core directives',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\securityHeadersValidator.ts",
+      "line": 123,
+      "content": "issue: 'Missing X-Frame-Options header',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\securityHeadersValidator.ts",
+      "line": 132,
+      "content": "issue: `Invalid X-Frame-Options value: ${value}`,",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\securityHeadersValidator.ts",
+      "line": 148,
+      "content": "issue: 'Missing X-Content-Type-Options header',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\securityHeadersValidator.ts",
+      "line": 156,
+      "content": "issue: `Invalid X-Content-Type-Options value: ${value}`,",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\securityHeadersValidator.ts",
+      "line": 172,
+      "content": "issue: 'Missing Referrer-Policy header',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\securityHeadersValidator.ts",
+      "line": 208,
+      "content": "issue: `Invalid X-XSS-Protection value: ${value}`,",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\securityHeadersValidator.ts",
+      "line": 366,
+      "content": "output += `❌ Missing Headers (${report.missingHeaders.length}):\\n`;",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\httpsHealthCheck.ts",
+      "line": 94,
+      "content": "errorDetails.push(`Missing security headers: ${headersCheck.missingHeaders.join(', ')}`);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "utils\\httpsHealthCheck.ts",
+      "line": 310,
+      "content": "return res.status(200).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "utils\\httpsHealthCheck.ts",
+      "line": 344,
+      "content": "res.status(500).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "services\\UserManagementService.ts",
+      "line": 28,
+      "content": "return { isValid: false, error: 'Invalid registration details' };",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\unitsService.ts",
+      "line": 81,
+      "content": "throw new Error('Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\unitsService.ts",
+      "line": 85,
+      "content": "throw new Error('Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\unitsService.ts",
+      "line": 184,
+      "content": "return formatError('NOT_FOUND', 'Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\unitsService.ts",
+      "line": 188,
+      "content": "return formatError('NOT_FOUND', 'Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\unitsService.ts",
+      "line": 200,
+      "content": "return formatError('NOT_FOUND', 'Location not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\unitsService.ts",
+      "line": 204,
+      "content": "return formatError('NOT_FOUND', 'Location not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\unitsService.ts",
+      "line": 221,
+      "content": "...formatError('INVALID_REQUEST', 'Unknown unit key', { field: 'unitKey', value: unitKey }),",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structuresService.ts",
+      "line": 96,
+      "content": "throw new Error('Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structuresService.ts",
+      "line": 129,
+      "content": "code: 'INVALID_REQUEST',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structuresService.ts",
+      "line": 147,
+      "content": "return formatError('NOT_FOUND', 'Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structuresService.ts",
+      "line": 158,
+      "content": "return formatError('NOT_FOUND', 'Location not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structuresService.ts",
+      "line": 220,
+      "content": "return formatError('INVALID_REQUEST', msg, { buildingKey, nextLevel });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structuresService.ts",
+      "line": 268,
+      "content": "console.warn(\"[StructuresService.start] skip: missing catalogKey _id=%s\", (b as any)._id?.toString?.());",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structuresService.ts",
+      "line": 627,
+      "content": "const msg = 'Upgrade state invalid: no existing building found to upgrade.';",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structuresService.ts",
+      "line": 630,
+      "content": "code: 'INVALID_REQUEST',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structuresService.ts",
+      "line": 633,
+      "content": "reasons: ['upgrade_state_invalid', msg],",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\socketService.ts",
+      "line": 38,
+      "content": "return next(new Error('User not found'));",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\socketService.ts",
+      "line": 54,
+      "content": "return next(new Error('User not found'));",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\hybridGameLoopService.ts",
+      "line": 490,
+      "content": ".from('fleets')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\hybridGameLoopService.ts",
+      "line": 515,
+      "content": ".from('fleets')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\hybridGameLoopService.ts",
+      "line": 555,
+      "content": ".from('fleets')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\hybridGameLoopService.ts",
+      "line": 803,
+      "content": ".update({ identity_key: `${empireIdStr}:${techKeyMissing}:${levelMissing}` })",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\gameLoopService.ts",
+      "line": 372,
+      "content": ".update({ identity_key: `${empireIdStr}:${techKeyMissing}:${levelMissing}` })",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\gameLoopService.ts",
+      "line": 502,
+      "content": ".update({ identity_key: `${empireIdStr}:${techKeyMissing}:${levelMissing}` })",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\gameLoopService.ts",
+      "line": 511,
+      "content": "console.warn(`[GameLoop] tech cancel missingEmpire techKey=${item.tech_key} location=${item.location_coord}`);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\gameLoopService.ts",
+      "line": 625,
+      "content": "console.warn(`[GameLoop] unit cancel missingEmpire unitKey=${item.unit_key} location=${item.location_coord}`);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\gameLoopService.ts",
+      "line": 653,
+      "content": ".from('fleets')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\gameLoopService.ts",
+      "line": 688,
+      "content": ".from('fleets')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\gameLoopService.ts",
+      "line": 737,
+      "content": ".from('fleets')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\empireEconomyService.ts",
+      "line": 32,
+      "content": "throw new Error('Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\empireEconomyService.ts",
+      "line": 74,
+      "content": "throw new Error('Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\economyService.ts",
+      "line": 41,
+      "content": "throw new Error('Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\economyService.ts",
+      "line": 45,
+      "content": "throw new Error('Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\economyService.ts",
+      "line": 101,
+      "content": "console.warn(\"[EconomyService] skip: missing catalog_key id=%s\", (building as any).id);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\dashboardService.ts",
+      "line": 16,
+      "content": "if (!empire) throw new Error('Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\completionService.ts",
+      "line": 58,
+      "content": "console.warn(`[SupabaseCompletion] Tech cancelled - missing empire: techKey=${techKey}`);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\completionService.ts",
+      "line": 157,
+      "content": "console.warn(`[SupabaseCompletion] Unit cancelled - missing empire: unitKey=${unitKey}`);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\baseStatsService.ts",
+      "line": 106,
+      "content": "console.warn(\"[BaseStatsService] skip: missing catalogKey _id=%s\", (b as any)._id?.toString?.());",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\baseStatsService.ts",
+      "line": 241,
+      "content": ".from('colonies')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\baseStatsService.fixed.ts",
+      "line": 100,
+      "content": "console.warn(\"[BaseStatsService] skip: missing catalog_key for building at %s\", locationCoord);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\baseCitizenService.ts",
+      "line": 205,
+      "content": ".from('colonies')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\baseCitizenService.ts",
+      "line": 212,
+      "content": "console.error('[BaseCitizenService] Colony not found:', error);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\authService.ts",
+      "line": 111,
+      "content": "return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Invalid login' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\authService.ts",
+      "line": 118,
+      "content": "return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: 'Invalid email or password' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\authService.ts",
+      "line": 124,
+      "content": "return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: 'Invalid email or password' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "scripts\\wipeUniverse.ts",
+      "line": 34,
+      "content": ".from('locations')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "scripts\\testing-dashboard-cli.ts",
+      "line": 135,
+      "content": "res.end('File not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "scripts\\seedUniverse.ts",
+      "line": 49,
+      "content": ".from('locations')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "scripts\\generateUniverse.impl.ts",
+      "line": 32,
+      "content": ".from('locations')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "scripts\\generateUniverse.impl.ts",
+      "line": 183,
+      "content": ".from('locations')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "scripts\\backfillStarters.ts",
+      "line": 28,
+      "content": ".from('locations')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "scripts\\backfillStarters.ts",
+      "line": 44,
+      "content": ".from('locations')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "scripts\\backfillStarters.ts",
+      "line": 55,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "scripts\\backfillStarters.ts",
+      "line": 74,
+      "content": ".from('colonies')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "scripts\\backfillStarters.ts",
+      "line": 82,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "scripts\\backfillStarters.ts",
+      "line": 98,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "scripts\\backfillStarters.ts",
+      "line": 120,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 31,
+      "content": "* GET /api/universe/:coord",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 42,
+      "content": "error: 'Invalid coordinate format. Expected format: A00:10:22:10'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 53,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Location not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 100,
+      "content": "* GET /api/universe/system/:server/:galaxy/:region/:system",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 119,
+      "content": "error: 'Invalid system coordinates'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 160,
+      "content": "* GET /api/universe/user/:userId/locations",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 188,
+      "content": "* POST /api/universe/generate",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 197,
+      "content": "error: 'Access denied. Admin privileges required.'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 226,
+      "content": "* GET /api/universe/stats",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 267,
+      "content": "* GET /api/universe/region/:server/:galaxy/:region",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 285,
+      "content": "error: 'Invalid region coordinates'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 345,
+      "content": "* GET /api/universe/galaxy/:server/:galaxy/regions",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 361,
+      "content": "error: 'Invalid galaxy coordinates'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 397,
+      "content": "* GET /api/universe/galaxy/:server/:galaxy/region-stars",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\universe.ts",
+      "line": 411,
+      "content": "error: 'Invalid galaxy coordinates'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\sync.ts",
+      "line": 58,
+      "content": "message: 'Empire not found',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\security.ts",
+      "line": 136,
+      "content": "error: 'Session not found or already inactive'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\security.ts",
+      "line": 163,
+      "content": "error: 'Current token not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 48,
+      "content": "return res.status(200).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 174,
+      "content": "code: 'INVALID_MESSAGE_ID',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 175,
+      "content": "message: 'Invalid message ID format'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 199,
+      "content": "message: 'Message not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 218,
+      "content": "code: 'MISSING_FIELDS',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 219,
+      "content": "message: 'Missing required fields: toUsername, subject, content'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 253,
+      "content": "message: 'Sender not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 276,
+      "content": "message: 'Recipient not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 313,
+      "content": "return res.status(201).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 330,
+      "content": "code: 'INVALID_MESSAGE_ID',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 331,
+      "content": "message: 'Invalid message ID format'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 356,
+      "content": "message: 'Message not found or not authorized'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 402,
+      "content": "code: 'INVALID_MESSAGE_ID',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 403,
+      "content": "message: 'Invalid message ID format'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\messages.ts",
+      "line": 428,
+      "content": "message: 'Message not found or not authorized'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\auth.ts",
+      "line": 23,
+      "content": "import { sessionInvalidationService } from '../middleware/sessionInvalidation';",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\auth.ts",
+      "line": 70,
+      "content": "error: 'Invalid refresh token',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\auth.ts",
+      "line": 77,
+      "content": "error: 'Invalid refresh token'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\auth.ts",
+      "line": 91,
+      "content": "error: 'Invalid refresh token'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\auth.ts",
+      "line": 143,
+      "content": "error: 'Invalid refresh token'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\auth.ts",
+      "line": 230,
+      "content": "error: 'Invalid token'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\auth.ts",
+      "line": 269,
+      "content": "return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: 'Invalid setup key' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\auth.ts",
+      "line": 326,
+      "content": "return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: 'Invalid admin password' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\auth.ts",
+      "line": 337,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Admin user not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\admin.ts",
+      "line": 18,
+      "content": "res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: 'Unauthorized' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "middleware\\sessionInvalidation.ts",
+      "line": 246,
+      "content": "console.warn(`Session invalidated due to suspicious activity:`, {",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "middleware\\sessionInvalidation.ts",
+      "line": 256,
+      "content": "//   type: 'session_invalidated',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "middleware\\sessionInvalidation.ts",
+      "line": 258,
+      "content": "//   message: `Session automatically invalidated for user ${activity.userId} due to ${activity.type}`,",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "middleware\\sessionInvalidation.ts",
+      "line": 321,
+      "content": "console.error('Session invalidation middleware error:', error);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "middleware\\securityHeaders.ts",
+      "line": 235,
+      "content": "return res.status(403).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "middleware\\securityHeaders.ts",
+      "line": 237,
+      "content": "error: 'Forbidden: Invalid origin'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "middleware\\securityHeaders.ts",
+      "line": 237,
+      "content": "error: 'Forbidden: Invalid origin'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "middleware\\rateLimiting.ts",
+      "line": 53,
+      "content": "return res.status(429).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "middleware\\httpsRedirect.ts",
+      "line": 44,
+      "content": "exemptPaths = ['/health', '/api/status'],",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "middleware\\httpsRedirect.ts",
+      "line": 129,
+      "content": "res.status(301).set(redirectHeaders).end();",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "middleware\\httpsRedirect.ts",
+      "line": 143,
+      "content": "res.status(426) // Upgrade Required",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "middleware\\httpsRedirect.ts",
+      "line": 255,
+      "content": "exemptPaths: ['/health', '/api/status', '/test-http']",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "middleware\\errorHandler.ts",
+      "line": 84,
+      "content": "message = 'Invalid token';",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "middleware\\errorHandler.ts",
+      "line": 85,
+      "content": "errorCode = 'INVALID_TOKEN';",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "middleware\\errorHandler.ts",
+      "line": 153,
+      "content": "const appError: AppError = new Error(`Invalid ${fieldName}`);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "middleware\\auth.ts",
+      "line": 79,
+      "content": "return res.status(401).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "middleware\\auth.ts",
+      "line": 81,
+      "content": "error: 'Access denied. No token provided.'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "middleware\\auth.ts",
+      "line": 97,
+      "content": "return res.status(401).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "middleware\\auth.ts",
+      "line": 105,
+      "content": "return res.status(401).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "middleware\\auth.ts",
+      "line": 107,
+      "content": "error: 'Invalid token type'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "middleware\\auth.ts",
+      "line": 136,
+      "content": "return res.status(401).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "middleware\\auth.ts",
+      "line": 154,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "middleware\\auth.ts",
+      "line": 160,
+      "content": "return res.status(401).json({ success: false, error: 'Token is not valid' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "middleware\\auth.ts",
+      "line": 180,
+      "content": "return res.status(401).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "constants\\response-formats.ts",
+      "line": 54,
+      "content": "error: `${resource} not found`,",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "constants\\response-formats.ts",
+      "line": 73,
+      "content": "code: 'UNAUTHORIZED'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "constants\\response-formats.ts",
+      "line": 81,
+      "content": "error: message || 'Access denied',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "constants\\response-formats.ts",
+      "line": 82,
+      "content": "code: 'FORBIDDEN'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "constants\\response-formats.ts",
+      "line": 122,
+      "content": "AUTH_INVALID_TOKEN: 'AUTH_INVALID_TOKEN',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "constants\\response-formats.ts",
+      "line": 149,
+      "content": "INVALID_COORDINATES: 'INVALID_COORDINATES',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "constants\\response-formats.ts",
+      "line": 150,
+      "content": "INVALID_INPUT: 'INVALID_INPUT',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "constants\\response-formats.ts",
+      "line": 151,
+      "content": "MISSING_REQUIRED_FIELD: 'MISSING_REQUIRED_FIELD',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 12,
+      "content": "BASE: '/api/game',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 15,
+      "content": "TERRITORIES: '/api/game/territories',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 16,
+      "content": "TERRITORIES_BY_COORD: '/api/game/territories/:coord',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 19,
+      "content": "BASES: '/api/game/bases',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 20,
+      "content": "BASES_SUMMARY: '/api/game/bases/summary',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 21,
+      "content": "BASES_STATS: '/api/game/bases/:coord/stats',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 22,
+      "content": "BASES_CAPACITIES: '/api/game/bases/:coord/capacities',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 23,
+      "content": "BASES_COMBINED_STATS: '/api/game/bases/:coord/combined-stats',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 24,
+      "content": "BASES_STRUCTURES: '/api/game/bases/:coord/structures',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 25,
+      "content": "BASES_DEFENSES: '/api/game/bases/:coord/defenses',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 28,
+      "content": "CAPACITIES: '/api/game/capacities/:coord',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 31,
+      "content": "BUILDINGS: '/api/game/buildings',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 32,
+      "content": "BUILDINGS_BY_LOCATION: '/api/game/buildings/location/:coord',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 35,
+      "content": "STRUCTURES: '/api/game/structures',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 36,
+      "content": "STRUCTURES_CATALOG: '/api/game/structures/catalog',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 37,
+      "content": "STRUCTURES_QUEUE: '/api/game/structures/queue',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 38,
+      "content": "STRUCTURES_STATUS: '/api/game/structures/status/:coord',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 39,
+      "content": "STRUCTURES_START: '/api/game/structures/start',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 40,
+      "content": "STRUCTURES_CANCEL: '/api/game/structures/cancel/:coord',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 43,
+      "content": "TECH: '/api/game/tech',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 44,
+      "content": "TECH_CATALOG: '/api/game/tech/catalog',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 45,
+      "content": "TECH_STATUS: '/api/game/tech/status',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 46,
+      "content": "TECH_QUEUE: '/api/game/tech/queue',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 47,
+      "content": "TECH_START: '/api/game/tech/start',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 48,
+      "content": "TECH_CANCEL: '/api/game/tech/queue/:id',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 51,
+      "content": "DEFENSES: '/api/game/defenses',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 52,
+      "content": "DEFENSES_CATALOG: '/api/game/defenses/catalog',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 53,
+      "content": "DEFENSES_STATUS: '/api/game/defenses/status',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 54,
+      "content": "DEFENSES_QUEUE: '/api/game/defenses/queue',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 57,
+      "content": "FLEETS: '/api/game/fleets',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 58,
+      "content": "FLEETS_OVERVIEW: '/api/game/fleets-overview',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 59,
+      "content": "FLEETS_BY_ID: '/api/game/fleets/:id',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 60,
+      "content": "FLEETS_MOVE: '/api/game/fleets/:id/move',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 63,
+      "content": "EMPIRE: '/api/game/empire',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 64,
+      "content": "EMPIRE_CREDITS_HISTORY: '/api/game/empire/credits/history',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 67,
+      "content": "DASHBOARD: '/api/game/dashboard',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 70,
+      "content": "RESEARCH: '/api/game/research',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 73,
+      "content": "MESSAGES_SUMMARY: '/api/game/messages/summary',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 77,
+      "content": "SEED_RESEARCH: '/api/game/test/seed-research',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 78,
+      "content": "SEED_DEFENSES: '/api/game/test/seed-defenses',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 79,
+      "content": "SEED_STRUCTURES: '/api/game/test/seed-structures',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 80,
+      "content": "BUILDINGS_QUEUED: '/api/game/test/buildings/queued/:catalogKey'",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 86,
+      "content": "COORD: '/api/universe/coord/:coord'",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 91,
+      "content": "LOGIN: '/api/auth/login',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 92,
+      "content": "REFRESH: '/api/auth/refresh',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 93,
+      "content": "LOGOUT: '/api/auth/logout'",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 98,
+      "content": "STATUS: '/api/status',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 104,
+      "content": "TERRITORIES: '/api/v1/territories',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 105,
+      "content": "BASE_STATS: '/api/v1/territories/base-stats/:coord',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 106,
+      "content": "CAPACITIES: '/api/v1/territories/capacities/:coord',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 107,
+      "content": "BASES_STATS: '/api/v1/territories/bases/:coord/stats',",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "constants\\api-endpoints.ts",
+      "line": 108,
+      "content": "BASES_SUMMARY: '/api/v1/territories/bases/summary'",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "config\\supabase.ts",
+      "line": 11,
+      "content": "throw new Error('Missing Supabase environment variables. Please check your .env file.');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "config\\ssl.ts",
+      "line": 317,
+      "content": "return { isValid: false, error: 'Invalid certificate format for pinning validation' };",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "config\\ssl.ts",
+      "line": 475,
+      "content": "throw new Error('SSL private key not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "config\\ssl.ts",
+      "line": 481,
+      "content": "throw new Error('SSL certificate not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "config\\ssl.ts",
+      "line": 522,
+      "content": "throw new Error(`Invalid certificate pinning configuration: ${validationResult.reason || 'Unknown error'}`);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "config\\ssl.ts",
+      "line": 632,
+      "content": "throw new Error('Certificate file not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "config\\ssl.ts",
+      "line": 645,
+      "content": "throw new Error('Invalid private key format (must be PEM)');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "config\\ssl.ts",
+      "line": 649,
+      "content": "throw new Error('Invalid certificate format (must be PEM)');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "config\\database.ts",
+      "line": 42,
+      "content": "const { error } = await supabase.from('users').select('count').limit(1);",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "utils\\codeMetrics\\config.ts",
+      "line": 276,
+      "content": "throw new Error(`Invalid configuration: ${validation.errors.join(', ')}`);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\units\\UnitsService.ts",
+      "line": 24,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\units\\UnitsService.ts",
+      "line": 30,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\units\\UnitsService.ts",
+      "line": 111,
+      "content": ".from('locations')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\units\\UnitsService.ts",
+      "line": 116,
+      "content": "return { success: false as const, code: 'NOT_FOUND', message: 'Location not found' };",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\units\\UnitsService.ts",
+      "line": 125,
+      "content": "return { success: false as const, code: 'INVALID_REQUEST', message: 'Unknown unit key' };",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\units\\UnitsService.ts",
+      "line": 157,
+      "content": "const eRes = await supabase.from('empires').select('credits').eq('id', empireId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\units\\UnitsService.ts",
+      "line": 208,
+      "content": "await supabase.from('empires').update({ credits: credits - cost }).eq('id', empireId);",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\tech\\TechService.ts",
+      "line": 23,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\tech\\TechService.ts",
+      "line": 43,
+      "content": "const eRes = await supabase.from('empires').select('credits').eq('id', empireId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\tech\\TechService.ts",
+      "line": 64,
+      "content": ".from('tech_queue')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\tech\\TechService.ts",
+      "line": 80,
+      "content": "const loc = await supabase.from('locations').select('owner_id').eq('coord', baseCoord).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\tech\\TechService.ts",
+      "line": 84,
+      "content": "console.log('[SupabaseTechService.start] Location not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\tech\\TechService.ts",
+      "line": 85,
+      "content": "return { success: false as const, code: 'NOT_FOUND', message: 'Location not found' };",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\tech\\TechService.ts",
+      "line": 103,
+      "content": "const eRes = await supabase.from('empires').select('credits').eq('id', empireId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\tech\\TechService.ts",
+      "line": 149,
+      "content": ".from('tech_queue')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\tech\\TechService.ts",
+      "line": 180,
+      "content": ".from('tech_queue')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\tech\\TechService.ts",
+      "line": 199,
+      "content": "const updateRes = await supabase.from('empires').update({ credits: credits - cost }).eq('id', empireId);",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 86,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 92,
+      "content": "throw new Error('Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 127,
+      "content": "code: 'INVALID_REQUEST',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 136,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 142,
+      "content": "return formatError('NOT_FOUND', 'Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 147,
+      "content": ".from('locations')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 153,
+      "content": "return formatError('NOT_FOUND', 'Location not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 179,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 218,
+      "content": "return formatError('INVALID_REQUEST', msg, { buildingKey, nextLevel });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 246,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 264,
+      "content": "console.warn(`[SupabaseStructuresService.start] skip: missing catalog_key`);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 329,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 481,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 497,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 545,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 583,
+      "content": "const msg = 'Upgrade state invalid: no existing building found to upgrade.';",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 586,
+      "content": "code: 'INVALID_REQUEST',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 589,
+      "content": "reasons: ['upgrade_state_invalid', msg],",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 618,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 654,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 701,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 720,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 737,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructuresService.ts",
+      "line": 745,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 53,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 86,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 113,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 121,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 131,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 143,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 166,
+      "content": ".from('locations')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 172,
+      "content": "return { success: false, error: 'Location not found' };",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 181,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 198,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 227,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 256,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 281,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 360,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 377,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 390,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\structures\\StructureService.ts",
+      "line": 423,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\resources\\ResourceService.ts",
+      "line": 9,
+      "content": "// Use Supabase economy service to calculate from buildings",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\resources\\ResourceService.ts",
+      "line": 15,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\resources\\ResourceService.ts",
+      "line": 33,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\resources\\ResourceService.ts",
+      "line": 39,
+      "content": "throw new Error('Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\resources\\ResourceService.ts",
+      "line": 58,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\resources\\ResourceService.ts",
+      "line": 73,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\resources\\ResourceService.ts",
+      "line": 79,
+      "content": "throw new Error('Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\resources\\ResourceService.ts",
+      "line": 133,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\resources\\ResourceService.ts",
+      "line": 143,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\resources\\ResourceService.ts",
+      "line": 185,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\resources\\ResourceService.ts",
+      "line": 210,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\resources\\ResourceService.ts",
+      "line": 224,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\resources\\ResourceCalculationService.ts",
+      "line": 90,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\resources\\ResourceCalculationService.ts",
+      "line": 125,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\fleets\\FleetMovementService.ts",
+      "line": 45,
+      "content": "throw new Error(`Invalid coordinate format: ${coord}`);",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\fleets\\FleetMovementService.ts",
+      "line": 116,
+      "content": ".from('locations')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\fleets\\FleetMovementService.ts",
+      "line": 128,
+      "content": "return { valid: false, error: 'Invalid coordinate format' };",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\fleets\\FleetMovementService.ts",
+      "line": 143,
+      "content": ".from('fleets')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\fleets\\FleetMovementService.ts",
+      "line": 152,
+      "content": "error: 'Fleet not found',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\fleets\\FleetMovementService.ts",
+      "line": 192,
+      "content": "error: destinationValidation.error || 'Invalid destination',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\fleets\\FleetMovementService.ts",
+      "line": 193,
+      "content": "code: 'INVALID_DESTINATION',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\fleets\\FleetMovementService.ts",
+      "line": 278,
+      "content": ".from('fleets')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\fleets\\FleetMovementService.ts",
+      "line": 287,
+      "content": "error: 'Fleet not found',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\fleets\\FleetMovementService.ts",
+      "line": 447,
+      "content": ".from('fleets')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\empire\\EmpireService.ts",
+      "line": 31,
+      "content": "throw new Error('Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\empire\\EmpireService.ts",
+      "line": 38,
+      "content": ".from('credit_transactions')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\empire\\EmpireService.ts",
+      "line": 65,
+      "content": "throw new Error('Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\empire\\EmpireResolutionService.ts",
+      "line": 62,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\empire\\EmpireResolutionService.ts",
+      "line": 72,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\economy\\EconomyService.ts",
+      "line": 12,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\defenses\\DefensesService.ts",
+      "line": 86,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\defenses\\DefensesService.ts",
+      "line": 92,
+      "content": "throw new Error('Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\defenses\\DefensesService.ts",
+      "line": 125,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\defenses\\DefensesService.ts",
+      "line": 131,
+      "content": "return formatError('NOT_FOUND', 'Empire not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\defenses\\DefensesService.ts",
+      "line": 136,
+      "content": ".from('locations')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\defenses\\DefensesService.ts",
+      "line": 142,
+      "content": "return formatError('NOT_FOUND', 'Location not found');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\defenses\\DefensesService.ts",
+      "line": 152,
+      "content": "return formatError('INVALID_REQUEST', 'Unknown defense key', { field: 'defenseKey', value: defenseKey });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "services\\defenses\\DefensesService.ts",
+      "line": 195,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\defenses\\DefensesService.ts",
+      "line": 274,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\defenses\\DefensesService.ts",
+      "line": 332,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\bases\\StatsService.ts",
+      "line": 16,
+      "content": ".from('locations')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\bases\\StatsService.ts",
+      "line": 29,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\bases\\CitizenService.ts",
+      "line": 17,
+      "content": ".from('colonies')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\bases\\CitizenService.ts",
+      "line": 53,
+      "content": ".from('colonies')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\bases\\CitizenService.ts",
+      "line": 74,
+      "content": ".from('colonies')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\bases\\CapacityService.ts",
+      "line": 8,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\bases\\CapacityService.ts",
+      "line": 29,
+      "content": "const loc = await supabase.from('locations').select('result').eq('coord', coord).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "services\\bases\\CapacityService.ts",
+      "line": 41,
+      "content": ".from('colonies')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 36,
+      "content": "const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 42,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 58,
+      "content": "const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 64,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 101,
+      "content": "const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 107,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 145,
+      "content": "const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 151,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 154,
+      "content": "if (!id) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Invalid queue item id' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 164,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Queue item not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 187,
+      "content": "* GET /api/game/units/status?locationCoord=:coord",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 194,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 200,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 207,
+      "content": "code: 'INVALID_REQUEST',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 245,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 251,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 258,
+      "content": "code: 'INVALID_REQUEST',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 259,
+      "content": "message: 'Missing base coordinate (?base=...)',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 312,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 318,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 358,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 378,
+      "content": "if (!empireRow) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 381,
+      "content": "if (!id) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Invalid queue item id' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\unitRoutes.ts",
+      "line": 390,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Queue item not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\territoryRoutes.ts",
+      "line": 21,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\territoryRoutes.ts",
+      "line": 62,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\territoryRoutes.ts",
+      "line": 65,
+      "content": "if (!coord) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\territoryRoutes.ts",
+      "line": 87,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\territoryRoutes.ts",
+      "line": 90,
+      "content": "if (!coord) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\territoryRoutes.ts",
+      "line": 106,
+      "content": "if (!coord) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\territoryRoutes.ts",
+      "line": 116,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\technologyRoutes.ts",
+      "line": 44,
+      "content": "if (!baseCoord) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Missing base coordinate (?base=...)' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\technologyRoutes.ts",
+      "line": 54,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\technologyRoutes.ts",
+      "line": 81,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\technologyRoutes.ts",
+      "line": 106,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\technologyRoutes.ts",
+      "line": 126,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\technologyRoutes.ts",
+      "line": 129,
+      "content": "if (!id) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Invalid queue item id' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\technologyRoutes.ts",
+      "line": 144,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Queue item not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 17,
+      "content": "* GET /api/game/fleets-overview?base=:coord",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 25,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 31,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 39,
+      "content": "code: 'INVALID_REQUEST',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 89,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 95,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 106,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 156,
+      "content": "code: 'INVALID_REQUEST',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 157,
+      "content": "message: 'Invalid fleet id',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 166,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 172,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 183,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 203,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Fleet not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 247,
+      "content": "code: 'INVALID_REQUEST',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 248,
+      "content": "message: 'Invalid fleet id',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 257,
+      "content": "code: 'INVALID_REQUEST',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 265,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 271,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 315,
+      "content": "code: 'INVALID_REQUEST',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 316,
+      "content": "message: 'Invalid fleet id',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 325,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 331,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 347,
+      "content": "message: 'Fleet not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 417,
+      "content": "code: 'INVALID_REQUEST',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 418,
+      "content": "message: 'Invalid fleet id',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 425,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 431,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 478,
+      "content": "code: 'INVALID_REQUEST',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 479,
+      "content": "message: 'Invalid fleet id',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 488,
+      "content": "code: 'INVALID_REQUEST',",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 498,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 504,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\fleetRoutes.ts",
+      "line": 520,
+      "content": "message: 'Fleet not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\empireRoutes.ts",
+      "line": 35,
+      "content": "return res.status(410).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 56,
+      "content": "return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 61,
+      "content": "const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 67,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 71,
+      "content": "if (!loc.data) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Location not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 73,
+      "content": "return res.status(403).json({ success: false, error: 'You do not own this location' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 102,
+      "content": "if (!coord) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 106,
+      "content": "const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 112,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 184,
+      "content": "const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 190,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 206,
+      "content": "const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 212,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 215,
+      "content": "if (!coord) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 224,
+      "content": "if (!location) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Location not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 226,
+      "content": "return res.status(403).json({ success: false, error: 'You do not own this location' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 245,
+      "content": "if (!coord || !key) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Missing coord or key' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 249,
+      "content": "const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 255,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 259,
+      "content": "if (!loc.data) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Location not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 260,
+      "content": "if (String(loc.data.owner_id || '') !== String(userId)) return res.status(403).json({ success: false, error: 'You do not own this location' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 272,
+      "content": "return res.status(409).json({ success: false, code: 'ALREADY_IN_PROGRESS', error: 'Construction already underway at this base' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\v1\\buildingRoutes.ts",
+      "line": 285,
+      "content": "return res.status(409).json({ success: false, code: 'ALREADY_IN_PROGRESS', error: 'Construction for this structure is already queued or upgrading at this base' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\structures.ts",
+      "line": 37,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\structures.ts",
+      "line": 43,
+      "content": "if (!coord) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\structures.ts",
+      "line": 58,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\structures.ts",
+      "line": 90,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\structures.ts",
+      "line": 116,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\structures.ts",
+      "line": 123,
+      "content": "if (!coord) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\structures.ts",
+      "line": 132,
+      "content": "if (!location) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Location not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 61,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 91,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 206,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 327,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 371,
+      "content": "error: 'Empire not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 406,
+      "content": "if (!baseCoord) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Missing base coordinate (?base=...)' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 416,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 433,
+      "content": "console.log('[tech/start] Missing required params');",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 445,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 483,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 504,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 507,
+      "content": "if (!coord) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 516,
+      "content": "if (!location) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Location not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 552,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 571,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 611,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 649,
+      "content": "if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 652,
+      "content": "if (!id) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Invalid queue item id' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 661,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Queue item not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 715,
+      "content": "if (!empireRow) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 748,
+      "content": "if (!empireRow) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 803,
+      "content": "if (!empireRow) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 861,
+      "content": "if (!empireRow) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 864,
+      "content": "if (!id) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Invalid queue item id' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 873,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Queue item not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 908,
+      "content": "return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Missing base coordinate (?base=...)' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 914,
+      "content": ".from('fleets')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\index.ts",
+      "line": 973,
+      "content": ".from('fleets')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\fleets.ts",
+      "line": 52,
+      "content": "* GET /api/game/fleets",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\game\\fleets.ts",
+      "line": 53,
+      "content": "* GET /api/game/fleets?base=:coord (filtered by base coordinate)",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\game\\fleets.ts",
+      "line": 69,
+      "content": "error: 'Empire not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\fleets.ts",
+      "line": 123,
+      "content": "* GET /api/game/fleets/overview?base=:coord",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\game\\fleets.ts",
+      "line": 138,
+      "content": "error: 'Empire not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\fleets.ts",
+      "line": 190,
+      "content": "* GET /api/game/fleets/:id",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\game\\fleets.ts",
+      "line": 213,
+      "content": "error: 'Invalid fleet id'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\fleets.ts",
+      "line": 224,
+      "content": "error: 'Empire not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\fleets.ts",
+      "line": 243,
+      "content": "error: 'Fleet not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\fleets.ts",
+      "line": 287,
+      "content": "* POST /api/game/fleets/:id/move",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\game\\fleets.ts",
+      "line": 306,
+      "content": "error: 'Invalid fleet id'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\fleets.ts",
+      "line": 326,
+      "content": "error: 'Empire not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\fleets.ts",
+      "line": 350,
+      "content": "case 'INVALID_DESTINATION':",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\empire.ts",
+      "line": 27,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\empire.ts",
+      "line": 61,
+      "content": "return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\empire.ts",
+      "line": 68,
+      "content": ".from('credit_transactions')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\empire.ts",
+      "line": 98,
+      "content": "return res.status(410).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\empire.ts",
+      "line": 108,
+      "content": "return res.status(410).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\dashboard.ts",
+      "line": 8,
+      "content": "* GET /api/game/dashboard",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 11,
+      "content": "* GET /api/game/territories",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 22,
+      "content": "return res.status(404).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 24,
+      "content": "error: 'Empire not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 32,
+      "content": ".from('colonies')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 47,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 57,
+      "content": ".from('locations')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 75,
+      "content": "* GET /api/game/territories/:coord",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 87,
+      "content": "return res.status(400).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 96,
+      "content": "return res.status(404).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 98,
+      "content": "error: 'Empire not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 106,
+      "content": ".from('locations')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 112,
+      "content": "return res.status(404).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 114,
+      "content": "error: 'Territory not found'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 121,
+      "content": "return res.status(403).json({",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 123,
+      "content": "error: 'Access denied - territory not owned by your empire'",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\territories\\index.ts",
+      "line": 129,
+      "content": ".from('colonies')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 30,
+      "content": "if (!baseCoord) return res.status(400).json({ success: false, error: 'Missing base coordinate (?base=...)' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 30,
+      "content": "if (!baseCoord) return res.status(400).json({ success: false, error: 'Missing base coordinate (?base=...)' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 35,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 35,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 54,
+      "content": "return res.status(400).json({ success: false, error: 'locationCoord and techKey are required' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 60,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 60,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 86,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 86,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 103,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 103,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 109,
+      "content": "if (!id) return res.status(400).json({ success: false, error: 'Invalid queue item id' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 109,
+      "content": "if (!id) return res.status(400).json({ success: false, error: 'Invalid queue item id' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 113,
+      "content": ".from('tech_queue')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 120,
+      "content": "return res.status(500).json({ success: false, error: 'Error fetching queue item' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 124,
+      "content": "return res.status(404).json({ success: false, error: 'Queue item not found' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 124,
+      "content": "return res.status(404).json({ success: false, error: 'Queue item not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 128,
+      "content": "return res.status(400).json({ success: false, error: 'Only pending items can be cancelled' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 143,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 151,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 162,
+      "content": ".from('tech_queue')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\tech\\index.ts",
+      "line": 168,
+      "content": "return res.status(500).json({ success: false, error: 'Failed to cancel queue item' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 27,
+      "content": "* GET /api/game/bases",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 40,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 40,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 47,
+      "content": ".from('colonies')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 55,
+      "content": "const emp = await supabase.from('empires').select('territories').eq('id', empireId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 58,
+      "content": "const locs = await supabase.from('locations').select('coord').in('coord', coords);",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 68,
+      "content": "* GET /api/game/bases/:coord/stats",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 78,
+      "content": "if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 78,
+      "content": "if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 83,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 83,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 95,
+      "content": "* GET /api/game/bases/:coord/capacities",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 105,
+      "content": "if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 105,
+      "content": "if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 110,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 110,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 122,
+      "content": "* GET /api/game/bases/:coord/combined-stats",
+      "type": "api_endpoint",
+      "severity": "low"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 132,
+      "content": "if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 132,
+      "content": "if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 137,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 137,
+      "content": "return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 163,
+      "content": ".from('users')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 169,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 176,
+      "content": ".from('empires')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 194,
+      "content": "supabase.from('locations').select('coord').in('coord', coords),",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 195,
+      "content": "supabase.from('colonies').select('location_coord, name').eq('empire_id', (empireRow as any).id).in('location_coord', coords),",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 208,
+      "content": ".from('tech_queue')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 221,
+      "content": ".from('tech_queue')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 260,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 441,
+      "content": "if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 441,
+      "content": "if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 455,
+      "content": "const userRow = await supabase.from('users').select('id, empire_id').eq('id', userId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 458,
+      "content": "const e = await supabase.from('empires').select('id').eq('user_id', userId).maybeSingle();",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 461,
+      "content": "if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 461,
+      "content": "if (!empireId) return res.status(404).json({ success: false, error: 'Empire not found' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 464,
+      "content": "if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 464,
+      "content": "if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 471,
+      "content": ".from('buildings')",
+      "type": "database_table",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 558,
+      "content": "if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });",
+      "type": "http_status",
+      "severity": "high"
+    },
+    {
+      "file": "routes\\game\\bases\\index.ts",
+      "line": 558,
+      "content": "if (!coord) return res.status(400).json({ success: false, error: 'Missing coord' });",
+      "type": "error_message",
+      "severity": "medium"
+    }
+  ]
+}
