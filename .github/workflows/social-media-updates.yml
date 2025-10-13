@@ -59,10 +59,15 @@ jobs:
     # Note: Removed legacy commit summary generation
     # Context-aware social media posting now handles intelligent content generation
     
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 8.15.0
+    
     - name: Install Dependencies
       run: |
         # Install dependencies for enhanced social media posting
-        npm install
+        pnpm install --frozen-lockfile
     
     - name: Context-Aware Social Media Post
       run: |
