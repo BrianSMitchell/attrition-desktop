@@ -1,9 +1,10 @@
-import * as React from "react";
+﻿import * as React from "react";
 import type { StructureKey as BuildingKey, StructureSpec as BuildingSpec } from "@game/shared";
 import { getStructureCreditCostForLevel } from "@game/shared";
 import type { StructuresStatusDTO } from "../../services/structuresService";
 import { useModalStore } from "../../stores/modalStore";
 import BuildTable, { type Column, type Eligibility } from "./BuildTable";
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 
 interface StructuresBuildTableProps {
   catalog: BuildingSpec[];
@@ -66,7 +67,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
   const [, forceTick] = React.useReducer((x: number) => x + 1, 0);
   React.useEffect(() => {
     if (!hasActive) return;
-    const id = window.setInterval(() => forceTick(), 1000);
+    const id = window.setInterval(() => forceTick(), TIMEOUTS.ONE_SECOND);
     return () => window.clearInterval(id);
   }, [hasActive, activeConstruction?.completionAt]);
 
@@ -131,7 +132,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
         if (s.energyDelta > 0) return `Increases base energy output by ${s.energyDelta}.`;
         if (s.energyDelta < 0) return `Consumes ${Math.abs(s.energyDelta)} energy.`;
         if (s.economy > 0) return `Increases economy by ${s.economy}.`;
-        return "—";
+        return "â€”";
     }
   };
 
@@ -154,7 +155,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
 
   const getRequiresText = (s: BuildingSpec): string => {
     return s.techPrereqs.length === 0
-      ? "—"
+      ? "â€”"
       : s.techPrereqs.map((p) => `${p.key.replace(/_/g, " ")} ${p.level}`).join(", ");
   };
 
@@ -173,7 +174,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
           // If no canonical table is defined yet: allow L1 fallback, block upgrades
           nextCost = currentLevel === 0 ? s.creditsCost : null;
         }
-        return typeof nextCost === "number" ? nextCost.toLocaleString() : "—";
+        return typeof nextCost === "number" ? nextCost.toLocaleString() : "â€”";
       },
     },
     {
@@ -237,7 +238,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
       header: "Time",
       align: "left",
       render: (s) => {
-        if (!(typeof constructionPerHour === "number" && constructionPerHour > 0)) return "—";
+        if (!(typeof constructionPerHour === "number" && constructionPerHour > 0)) return "â€”";
         const currentLevel = levels?.[s.key as BuildingKey] ?? 0;
         const nextLevel = currentLevel + 1;
         let nextCost: number | null = null;
@@ -246,7 +247,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
         } catch {
           nextCost = currentLevel === 0 ? s.creditsCost : null;
         }
-        if (typeof nextCost !== "number") return "—";
+        if (typeof nextCost !== "number") return "â€”";
         const text = formatDuration(nextCost, constructionPerHour);
         const tip = `ETA = Credits (${nextCost.toLocaleString()}) / Construction Capacity (${constructionPerHour.toLocaleString()} cred/h)`;
         return <span title={tip}>{text}</span>;
@@ -319,9 +320,9 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
             <div className="text-sm text-gray-300">
               <span className="text-gray-400">Area:</span>{" "}
               {(() => {
-                if (NO_AREA_KEYS.includes(s.key)) return "—";
+                if (NO_AREA_KEYS.includes(s.key)) return "â€”";
                 if (typeof s.areaRequired === "number") {
-                  return s.areaRequired === 0 ? "—" : `-${s.areaRequired} per level`;
+                  return s.areaRequired === 0 ? "â€”" : `-${s.areaRequired} per level`;
                 }
                 return "-1 per level";
               })()}
@@ -382,3 +383,4 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
 };
 
 export default StructuresBuildTable;
+

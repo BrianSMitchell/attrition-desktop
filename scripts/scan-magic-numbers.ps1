@@ -47,8 +47,8 @@ Get-ChildItem -Path $sourceDir -Recurse -Include "*.ts", "*.tsx", "*.js", "*.jsx
     
     $relativePath = $_.FullName.Replace("C:\Projects\Attrition\", "")
     
-    # Skip already processed constants files
-    if ($relativePath -match "constants|magic-numbers|configuration-keys|css-constants|color-constants") {
+    # Skip node_modules, build folders, and constants files
+    if ($relativePath -match "node_modules|dist|build|constants|magic-numbers|configuration-keys|css-constants|color-constants") {
         return
     }
     
@@ -70,15 +70,21 @@ Get-ChildItem -Path $sourceDir -Recurse -Include "*.ts", "*.tsx", "*.js", "*.jsx
     # Look for hardcoded retry limits and loop bounds
     $retryMatches = [regex]::Matches($content, '(?:retry|attempt|max).*?(\d+)', 'IgnoreCase')
     foreach ($match in $retryMatches) {
-        $retryValue = [int]$match.Groups[1].Value
-        if ($magicNumberPatterns.retryLimits -contains $retryValue) {
-            $scanResults.magicNumbers += @{
-                file = $relativePath
-                line = ($content.Substring(0, $match.Index) -split "`n").Count
-                value = $retryValue
-                context = $match.Value
-                type = "Retry/Attempt Limit"
+        try {
+            $retryValue = [int]$match.Groups[1].Value
+            if ($magicNumberPatterns.retryLimits -contains $retryValue) {
+                $scanResults.magicNumbers += @{
+                    file = $relativePath
+                    line = ($content.Substring(0, $match.Index) -split "`n").Count
+                    value = $retryValue
+                    context = $match.Value
+                    type = "Retry/Attempt Limit"
+                }
             }
+        }
+        catch {
+            # Skip values that are too large for int32
+            continue
         }
     }
     
@@ -155,8 +161,8 @@ Get-ChildItem -Path $sourceDir -Recurse -Include "*.ts", "*.tsx", "*.js", "*.jsx
     
     $relativePath = $_.FullName.Replace("C:\Projects\Attrition\", "")
     
-    # Skip constants files
-    if ($relativePath -match "constants|magic-numbers|configuration-keys") {
+    # Skip node_modules, build folders, and constants files
+    if ($relativePath -match "node_modules|dist|build|constants|magic-numbers|configuration-keys") {
         return
     }
     

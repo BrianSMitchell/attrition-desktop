@@ -1,0 +1,11 @@
+﻿{
+    "replacementsMade":  2,
+    "importsAdded":  [
+                         "TIMEOUTS",
+                         "TIMEOUTS"
+                     ],
+    "filesModified":  [
+                          "packages\\client\\src\\components\\game\\ResearchBuildTable.tsx",
+                          "packages\\client\\src\\components\\game\\StructuresBuildTable.tsx"
+                      ]
+}

@@ -1,10 +1,11 @@
-import * as React from "react";
+﻿import * as React from "react";
 import { useUIActions, useEnhancedAuth, useConnectionStatus } from '../../stores/enhancedAppStore';
 import type { TechnologyKey, TechnologySpec } from "@game/shared";
 import { getTechCreditCostForLevel } from "@game/shared";
 import type { TechStatusDTO } from "../../services/techService";
 import { useModalStore } from "../../stores/modalStore";
 import BuildTable, { type Column, type Eligibility } from "./BuildTable";
+import { TIMEOUTS } from '@shared/constants/magic-numbers';
 
 /**
  * ResearchBuildTable (Research)
@@ -85,7 +86,7 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
   const [, forceTick] = React.useReducer((x: number) => x + 1, 0);
   React.useEffect(() => {
     if (!hasActive) return;
-    const id = window.setInterval(() => forceTick(), 1000);
+    const id = window.setInterval(() => forceTick(), TIMEOUTS.ONE_SECOND);
     return () => window.clearInterval(id);
   }, [hasActive, activeResearch?.completesAt]);
 
@@ -100,7 +101,7 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
   };
 
   const formatRequires = (t: TechnologySpec): string => {
-    if (!t || !t.prerequisites || t.prerequisites.length === 0) return "—";
+    if (!t || !t.prerequisites || t.prerequisites.length === 0) return "â€”";
     return t.prerequisites.map((p) => `${p.key.replace(/_/g, " ")} ${p.level}`).join(", ");
   };
 
@@ -110,7 +111,7 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
       header: "Credits",
       align: "left",
       render: (t) => {
-        if (!t || !t.key) return "—";
+        if (!t || !t.key) return "â€”";
         const level = Math.max(0, status?.techLevels[t.key as TechnologyKey] ?? 0);
         const nextLevel = level + 1;
         const nextCost = getTechCreditCostForLevel(t.key as TechnologyKey, nextLevel);
@@ -121,14 +122,14 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
       key: "labs",
       header: "Labs",
       align: "left",
-      render: (t) => (t && t.requiredLabs) || "—",
+      render: (t) => (t && t.requiredLabs) || "â€”",
     },
     {
       key: "requires",
       header: "Requires",
       align: "left",
       render: (t) => {
-        if (!t) return <span className="text-gray-400">—</span>;
+        if (!t) return <span className="text-gray-400">â€”</span>;
         const text = formatRequires(t);
         const hasReq = !!t.prerequisites && t.prerequisites.length > 0;
         if (!hasReq) {
@@ -145,18 +146,18 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
       key: "effect",
       header: "Effect",
       align: "left",
-      render: (t) => (t && t.description ? "" : "—"),
+      render: (t) => (t && t.description ? "" : "â€”"),
     },
     {
       key: "time",
       header: "Time",
       align: "left",
       render: (t) => {
-        if (!t || !t.key) return "—";
+        if (!t || !t.key) return "â€”";
         const level = Math.max(0, status?.techLevels[t.key as TechnologyKey] ?? 0);
         const nextLevel = level + 1;
         const nextCost = getTechCreditCostForLevel(t.key as TechnologyKey, nextLevel);
-        if (!(typeof researchPerHour === "number" && researchPerHour > 0)) return "—";
+        if (!(typeof researchPerHour === "number" && researchPerHour > 0)) return "â€”";
         const text = formatDuration(nextCost, researchPerHour);
         const tip = `ETA = Credits (${nextCost.toLocaleString()}) / Research Capacity (${researchPerHour.toLocaleString()} cred/h)`;
         return <span title={tip}>{text}</span>;
@@ -208,7 +209,7 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
       </div>
     </div>
   ) : (
-    <div className="text-sm text-gray-300">Credits: — · Labs: —</div>
+    <div className="text-sm text-gray-300">Credits: â€” Â· Labs: â€”</div>
   );
 
   // Helper: determine if this row is credits-only blocked (eligible to queue even with no active)
@@ -257,3 +258,4 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
 };
 
 export default ResearchBuildTable;
+

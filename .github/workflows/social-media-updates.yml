@@ -14,9 +14,32 @@ on:
   workflow_dispatch:
     inputs:
       message:
-        description: 'Custom message to post'
+        description: 'Custom message to post (optional - will enhance with AI if provided)'
         required: false
         type: string
+      tone:
+        description: 'Content tone for AI generation'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+        - auto
+        - excited
+        - professional
+        - casual
+      platform:
+        description: 'Target platform'
+        required: false
+        default: 'twitter'
+        type: choice
+        options:
+        - twitter
+        - linkedin
+      dry_run:
+        description: 'Test mode - generate content but do not post'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   post-to-social:
@@ -33,73 +56,63 @@ jobs:
       with:
         node-version: '20'
     
-    - name: Generate commit summary
-      id: commit-info
-      run: |
-        # Get the latest commit info
-        COMMIT_MESSAGE=$(git log -1 --pretty=format:"%s")
-        COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an")
-        COMMIT_HASH=$(git log -1 --pretty=format:"%h")
-        
-        # Get changed files summary
-        CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | head -5)
-        FILES_COUNT=$(git diff --name-only HEAD~1 HEAD | wc -l)
-        
-        # Detect the type of changes
-        if echo "$CHANGED_FILES" | grep -q "packages/client"; then
-          CHANGE_TYPE="🎮 Client"
-        elif echo "$CHANGED_FILES" | grep -q "packages/server"; then
-          CHANGE_TYPE="⚙️ Server"
-        elif echo "$CHANGED_FILES" | grep -q "packages/desktop"; then
-          CHANGE_TYPE="🖥️ Desktop"
-        else
-          CHANGE_TYPE="🔧 Core"
-        fi
-        
-        # Create tweet content based on event type
-        if [ "${{ github.event_name }}" = "release" ]; then
-          TWEET_TEXT="🚀 New Attrition release ${{ github.event.release.tag_name }} is live! ${{ github.event.release.name }} - Play now and experience the latest improvements! 🎮 #GameDev #MMO #IndieGame #Gaming"
-        else
-          TWEET_TEXT="$CHANGE_TYPE update pushed to Attrition! 📝 $COMMIT_MESSAGE 🔧 $FILES_COUNT files updated 👨‍💻 by $COMMIT_AUTHOR - Development never stops! 💪 #GameDev #MMO #IndieGame #Coding"
-        fi
-        
-        echo "tweet_text<<EOF" >> $GITHUB_OUTPUT
-        echo "$TWEET_TEXT" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
-        
-        echo "commit_hash=$COMMIT_HASH" >> $GITHUB_OUTPUT
-        echo "files_count=$FILES_COUNT" >> $GITHUB_OUTPUT
-        echo "change_type=$CHANGE_TYPE" >> $GITHUB_OUTPUT
+    # Note: Removed legacy commit summary generation
+    # Context-aware social media posting now handles intelligent content generation
     
-    - name: Post to Twitter
+    - name: Install Dependencies
       run: |
-        # Use custom message if provided via manual trigger, otherwise use generated message
-        TWEET_TEXT="${{ github.event.inputs.message }}"
-        if [ -z "$TWEET_TEXT" ]; then
-          TWEET_TEXT="${{ steps.commit-info.outputs.tweet_text }}"
+        # Install dependencies for enhanced social media posting
+        npm install
+    
+    - name: Context-Aware Social Media Post
+      run: |
+        # Set up variables from workflow inputs or defaults
+        TONE="${{ github.event.inputs.tone || 'auto' }}"
+        PLATFORM="${{ github.event.inputs.platform || 'twitter' }}"
+        DRY_RUN="${{ github.event.inputs.dry_run || 'false' }}"
+        CUSTOM_MESSAGE="${{ github.event.inputs.message }}"
+        
+        # Override tone based on event type if not manually specified
+        if [ "${{ github.event.inputs.tone }}" = "" ] && [ "${{ github.event_name }}" = "release" ]; then
+          TONE="excited"
         fi
         
-        echo "📝 Posting tweet: $TWEET_TEXT"
+        # Build command arguments
+        ARGS="--tone $TONE --platform $PLATFORM"
         
-        # Post to Twitter using our custom script
-        node .github/scripts/post-to-twitter.js "$TWEET_TEXT"
+        if [ "$DRY_RUN" = "true" ]; then
+          ARGS="$ARGS --dry-run"
+        fi
+        
+        # Execute with or without custom message
+        if [ -n "$CUSTOM_MESSAGE" ]; then
+          echo "📝 Using custom message with AI enhancement"
+          echo "Message: $CUSTOM_MESSAGE"
+          echo "Tone: $TONE, Platform: $PLATFORM, Dry Run: $DRY_RUN"
+          node scripts/lib/context-aware-social-post.js $ARGS "$CUSTOM_MESSAGE"
+        else
+          echo "🤖 Using full AI-powered context-aware content generation"
+          echo "Tone: $TONE, Platform: $PLATFORM, Dry Run: $DRY_RUN"
+          node scripts/lib/context-aware-social-post.js $ARGS
+        fi
       env:
+        # Twitter API credentials
         TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
         TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
         TWITTER_API_KEY_SECRET: ${{ secrets.TWITTER_API_KEY_SECRET }}
         TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
         TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+        # AI service credentials for context-aware content generation
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     
     - name: Create commit comment
       if: github.event_name == 'push'
       uses: actions/github-script@v7
       with:
         script: |
-          const tweet_text = `${{ steps.commit-info.outputs.tweet_text }}`;
-          
           github.rest.repos.createCommitComment({
             owner: context.repo.owner,
             repo: context.repo.repo,
             commit_sha: context.sha,
-            body: `🐦 **Social Media Update Posted**\n\n${tweet_text}\n\n---\n*Automated by Social Media Workflow*`
+            body: `🤖 **Context-Aware Social Media Update Posted**\n\n🎨 AI-powered content generated and posted based on development activity\n\n✨ **Features used:**\n- Git commit analysis\n- Project structure analysis  \n- Intelligent tone selection\n- Context-aware content generation\n\n---\n*Powered by Context Analysis Engine*`
           });
