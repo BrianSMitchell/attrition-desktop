@@ -1,0 +1,168 @@
+/**
+ * Business Logic Thresholds Constants
+ * 
+ * Centralizes all hardcoded threshold values used in business logic comparisons
+ * across the Attrition game codebase. This ensures consistency and makes it easy
+ * to adjust game balance and business rules from a single location.
+ * 
+ * @fileoverview Business thresholds for game logic, validation, and UI states
+ * @version 1.0.0
+ */
+
+/**
+ * Quantity and Counter Thresholds
+ * Used for validating item quantities, counts, and numeric states
+ */
+export const BUSINESS_THRESHOLDS = {
+  /** Quantity validation thresholds */
+  QUANTITIES: {
+    /** Minimum valid quantity (0 - allows zero quantities) */
+    MIN_VALID_QUANTITY: 0,
+    /** Minimum positive quantity (1 - requires at least one item) */
+    MIN_POSITIVE_QUANTITY: 1,
+    /** Default quantity fallback value */
+    DEFAULT_QUANTITY: 0,
+  },
+
+  /** Counter and tracking thresholds */
+  COUNTERS: {
+    /** Zero count baseline */
+    ZERO_COUNT: 0,
+    /** First error threshold (used to show only the first error) */
+    FIRST_ERROR: 1,
+    /** Minimum success count to show success message */
+    MINIMUM_SUCCESS: 1,
+    /** Default retry attempt starting point */
+    DEFAULT_RETRY: 0,
+  },
+
+  /** Array and collection thresholds */
+  ARRAYS: {
+    /** Empty array length */
+    EMPTY_LENGTH: 0,
+    /** Minimum valid array length (has at least one item) */
+    MIN_VALID_LENGTH: 1,
+  },
+
+  /** Game-specific value thresholds */
+  GAME_VALUES: {
+    /** Minimum defense level (baseline) */
+    MIN_DEFENSE_LEVEL: 0,
+    /** Minimum building level (baseline) */
+    MIN_BUILDING_LEVEL: 0,
+    /** Base level zero (starting point) */
+    BASE_LEVEL_ZERO: 0,
+    /** Minimum resource value */
+    MIN_RESOURCE_VALUE: 0,
+  },
+
+  /** Time and duration thresholds */
+  TIME: {
+    /** Completion threshold (ms <= 0 means completed) */
+    COMPLETION_THRESHOLD: 0,
+    /** Minimum time value */
+    MIN_TIME_VALUE: 0,
+  },
+
+  /** Progress and performance thresholds */
+  PROGRESS: {
+    /** Animation progress completion (0-1 scale) */
+    ANIMATION_COMPLETE: 1,
+    /** Progress minimum value */
+    PROGRESS_MIN: 0,
+    /** Progress maximum value */
+    PROGRESS_MAX: 100,
+    /** Progress increment step */
+    PROGRESS_STEP: 10,
+    /** Near completion threshold for progress bars */
+    NEAR_COMPLETE: 90,
+  },
+
+  /** Text and content thresholds */
+  CONTENT: {
+    /** Minimum length for valid display names */
+    MIN_DISPLAY_NAME_LENGTH: 1,
+    /** Empty string length */
+    EMPTY_STRING_LENGTH: 0,
+    /** Minimum content length for validation */
+    MIN_CONTENT_LENGTH: 1,
+  },
+
+  /** System and performance thresholds */
+  SYSTEM: {
+    /** Maximum backoff time in milliseconds */
+    MAX_BACKOFF_MS: 8000,
+    /** Default backoff starting time */
+    DEFAULT_BACKOFF_MS: 1000,
+    /** Backoff multiplier */
+    BACKOFF_MULTIPLIER: 2,
+  },
+
+  /** UI and visual thresholds */
+  UI: {
+    /** Minimum size values for UI elements */
+    MIN_SIZE: 30,
+    /** Maximum size values for UI elements */
+    MAX_SIZE: 50,
+    /** Default size increment */
+    SIZE_INCREMENT: 2,
+  },
+} as const;
+
+/**
+ * Utility functions for common threshold checks
+ * These functions encapsulate common business logic patterns
+ */
+export const THRESHOLD_HELPERS = {
+  /** Check if a quantity is valid (>= 0) */
+  isValidQuantity: (quantity: number): boolean => 
+    quantity >= BUSINESS_THRESHOLDS.QUANTITIES.MIN_VALID_QUANTITY,
+
+  /** Check if a quantity is positive (> 0) */
+  isPositiveQuantity: (quantity: number): boolean => 
+    quantity > BUSINESS_THRESHOLDS.QUANTITIES.MIN_VALID_QUANTITY,
+
+  /** Check if an array has items */
+  hasItems: <T>(array: T[]): boolean => 
+    Array.isArray(array) && array.length > BUSINESS_THRESHOLDS.ARRAYS.EMPTY_LENGTH,
+
+  /** Check if a string has content after trimming */
+  hasContent: (text: string): boolean => 
+    Boolean(text && text.trim().length > BUSINESS_THRESHOLDS.CONTENT.EMPTY_STRING_LENGTH),
+
+  /** Check if a process is completed (time <= 0) */
+  isCompleted: (timeMs: number): boolean => 
+    timeMs <= BUSINESS_THRESHOLDS.TIME.COMPLETION_THRESHOLD,
+
+  /** Check if this is the first error */
+  isFirstError: (errorCount: number): boolean => 
+    errorCount === BUSINESS_THRESHOLDS.COUNTERS.FIRST_ERROR,
+
+  /** Check if we have successful operations */
+  hasSuccess: (successCount: number): boolean => 
+    successCount > BUSINESS_THRESHOLDS.COUNTERS.ZERO_COUNT,
+
+  /** Safe level parsing with minimum threshold */
+  safeLevel: (level: any): number => 
+    Math.max(BUSINESS_THRESHOLDS.GAME_VALUES.BASE_LEVEL_ZERO, Number(level || 0)),
+
+  /** Safe quantity parsing with fallback */
+  safeQuantity: (quantity: any): number => 
+    Number(quantity || BUSINESS_THRESHOLDS.QUANTITIES.DEFAULT_QUANTITY),
+
+  /** Clamp progress value between 0 and 1 */
+  clampProgress: (progress: number): number => 
+    Math.max(BUSINESS_THRESHOLDS.PROGRESS.PROGRESS_MIN / 100, 
+             Math.min(progress, BUSINESS_THRESHOLDS.PROGRESS.ANIMATION_COMPLETE)),
+};
+
+/**
+ * Type definitions for better TypeScript support
+ */
+export type BusinessThreshold = typeof BUSINESS_THRESHOLDS;
+export type ThresholdHelper = typeof THRESHOLD_HELPERS;
+
+/**
+ * Export default for convenience
+ */
+export default BUSINESS_THRESHOLDS;

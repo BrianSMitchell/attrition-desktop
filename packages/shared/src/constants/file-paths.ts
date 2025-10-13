@@ -119,7 +119,7 @@ export const FILE_PATHS = {
   DB_JS: 'db.js',
 } as const;
 
-export const URL_PATTERNS = {
+export const URL_PREFIXES = {
   // Protocol prefixes
   HTTP: 'http://',
   HTTPS: 'https://',

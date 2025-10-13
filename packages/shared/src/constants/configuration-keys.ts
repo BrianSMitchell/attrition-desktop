@@ -1,4 +1,4 @@
-import { DIRECTORY_PATHS } from './constants/file-paths';
+import { DIRECTORY_PATHS } from './file-paths';
 
 /**
  * Configuration Keys Constants
