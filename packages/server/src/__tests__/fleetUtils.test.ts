@@ -1,8 +1,8 @@
 import { getUnitSpec } from '@game/shared';
 
 // Mock getUnitSpec
-import { HTTP_STATUS } from '@shared/response-formats';
-import { STATUS_CODES } from '@shared/constants/magic-numbers';
+import { HTTP_STATUS } from '@game/shared';
+import { STATUS_CODES } from '@game/shared';
 jest.mock('@game/shared', () => ({
   getUnitSpec: jest.fn()
 }));

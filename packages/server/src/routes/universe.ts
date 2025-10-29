@@ -5,12 +5,11 @@ import { isValidCoordinate, parseCoord } from '@game/shared';
 import { ERROR_MESSAGES } from '../constants/response-formats';
 
 // Constants imports for eliminating hardcoded values
-import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
-import { ERROR_MESSAGES } from '../constants/response-formats';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 
-import { ERROR_MESSAGES } from '../constants/response-formats';
 
-import { HTTP_STATUS } from '@shared/response-formats';
+import { HTTP_STATUS } from '@game/shared';
+import { supabase } from '../config/supabase';
 const router: express.Router = express.Router();
 
 // Map Overhaul star kinds to display colors (used for galaxy/region coloring)

@@ -1,11 +1,9 @@
-import { 
 import { TIMEOUTS, STATUS_CODES } from '@shared/constants/magic-numbers';
   ISyncManager, 
   SyncState, 
   ServiceOptions, 
   ConnectionEventCallback 
 } from './types';
-import { CircuitBreaker } from './CircuitBreaker';
 import { AsyncMutex } from './AsyncMutex';
 
 /**

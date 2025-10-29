@@ -1,6 +1,6 @@
 import { FrictionIndicatorsTracker } from '../../monitoring/friction-metrics/friction-indicators';
 
-import { BUFFER_LIMITS } from '@shared/constants/magic-numbers';
+import { BUFFER_LIMITS } from '@game/shared';
 /**
  * Velocity ROI Calculator
  * Calculates ROI for refactoring decisions based on development velocity improvements

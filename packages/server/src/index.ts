@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
@@ -25,11 +25,9 @@ import { HTTP_STATUS } from './constants/response-formats';
 import { API_ENDPOINTS } from './constants/api-endpoints';
 import techRoutes from './routes/tech';
 import { Server } from 'socket.io';
-import { initLogger, isReverseProxySSL } from './utils/serverUtils';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VALUES } from '../../../shared/src/constants/configuration-keys';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
-import { ENV_VARS } from '@shared/constants/env-vars';
+import { initLogger } from './utils/logger';
+import { isReverseProxySSL } from './utils/runtimeEnv';
+import { ENV_VARS, ENV_VALUES } from '@game/shared';
 
 
 

@@ -1,6 +1,6 @@
 /**
 }
-import { STATUS_CODES } from '@shared/constants/magic-numbers';
+import { STATUS_CODES } from '@game/shared';
 /**
  * Correlation analysis engine for development friction monitoring
  * Identifies statistical relationships between code quality and development velocity
@@ -268,7 +268,7 @@ export class CorrelationEngine {
     const t = 1.0 / (1.0 + p * x);
     const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
 
-    return STATUS_CODES.SUCCESS.5 * (1.0 + sign * y);
+    return 0.5 * (1.0 + sign * y);
   }
 
   /**

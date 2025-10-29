@@ -1,11 +1,8 @@
-﻿import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import winston from 'winston';
 import { v4 as uuidv4 } from 'uuid';
 import { HTTP_STATUS, ERROR_MESSAGES } from '../constants/response-formats';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VALUES } from '../../../shared/src/constants/configuration-keys';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
-import { ENV_VARS } from '@shared/constants/env-vars';
+import { ENV_VARS, ENV_VALUES } from '@game/shared';
 
 
 // Create Winston logger instance

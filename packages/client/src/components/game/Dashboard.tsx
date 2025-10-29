@@ -2,6 +2,7 @@
 import { useGame, useGameActions, useServiceState } from '../../stores/enhancedAppStore';
 import ModalManager from './ModalManager';
 import { LAYOUT_CLASSES } from '../constants/css-constants';
+import { LOADING_MESSAGES, GAME_TEXT, ERROR_TEXT, PAGE_TEXT } from '@shared/constants/string-constants';
 
 
 const Dashboard: React.FC = () => {
@@ -33,7 +34,7 @@ const Dashboard: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Connecting to game services...</p>
+          <p className="text-gray-400">{LOADING_MESSAGES.CONNECTING}</p>
         </div>
       </div>
     );
@@ -86,7 +87,7 @@ const Dashboard: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="text-red-500 mb-4">
-            <p className="text-lg font-semibold">Error Loading Dashboard</p>
+            <p className="text-lg font-semibold">{ERROR_TEXT.ERROR} Loading {PAGE_TEXT.DASHBOARD}</p>
             <p className="text-sm">{error}</p>
           </div>
           <button 
@@ -106,7 +107,7 @@ const Dashboard: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Connecting to game services...</p>
+          <p className="text-gray-400">{LOADING_MESSAGES.CONNECTING}</p>
         </div>
       </div>
     );
@@ -118,7 +119,7 @@ const Dashboard: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading dashboard...</p>
+          <p className="text-gray-400">{LOADING_MESSAGES.DATA}</p>
         </div>
       </div>
     );
@@ -232,11 +233,11 @@ const Dashboard: React.FC = () => {
 
           {/* Empire Statistics */}
           <div className="game-card">
-            <h3 className="text-lg font-semibold text-empire-gold mb-4">ðŸ“Š Empire Statistics</h3>
+            <h3 className="text-lg font-semibold text-empire-gold mb-4">📊 {GAME_TEXT.EMPIRE} Statistics</h3>
 
             <div className="text-sm divide-y divide-gray-700/60">
               <div className="flex items-center justify-between py-1.5">
-                <span className="font-medium text-gray-300">Empire Name</span>
+                <span className="font-medium text-gray-300">{GAME_TEXT.EMPIRE} Name</span>
                 <span className="font-mono">{dashboardData.empire.name}</span>
               </div>
               <div className="flex items-center justify-between py-1.5">
@@ -258,7 +259,7 @@ const Dashboard: React.FC = () => {
                 <span className="font-mono">{dashboardData.profile ? Math.round(dashboardData.profile.economyPerHour) : '0'} cred./h</span>
               </div>
               <div className="flex items-center justify-between py-1.5">
-                <span className="font-medium text-gray-300">Fleet Size</span>
+                <span className="font-medium text-gray-300">{GAME_TEXT.FLEET} Size</span>
                 <span className="font-mono">{dashboardData.profile ? dashboardData.profile.fleetScore : '0'}</span>
               </div>
               <div className="flex items-center justify-between py-1.5">
@@ -282,7 +283,7 @@ const Dashboard: React.FC = () => {
         <h3 className="text-lg font-semibold mb-3 text-space-purple">Phase 3 Features - Now Available!</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
-            <h4 className="font-medium mb-2 text-green-400">ðŸ—ï¸ Building System</h4>
+            <h4 className="font-medium mb-2 text-green-400">🗟️ {GAME_TEXT.BUILDING} System</h4>
             <p className="text-gray-400">
               Construct mines, factories, research labs, and defense stations. Each building type provides unique benefits and can be upgraded.
             </p>
@@ -294,7 +295,7 @@ const Dashboard: React.FC = () => {
             </p>
           </div>
           <div>
-            <h4 className="font-medium mb-2 text-purple-400">ï¿½ Research System</h4>
+            <h4 className="font-medium mb-2 text-purple-400"> {GAME_TEXT.RESEARCH} System</h4>
             <p className="text-gray-400">
               Advance your empire through Military, Economic, and Exploration technologies for powerful bonuses.
             </p>

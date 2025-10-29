@@ -8,9 +8,9 @@ import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 import { supabase } from '../config/supabase';
 import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate, generateAccessToken, generateRefreshToken, AuthRequest, revokeToken, verifyTokenWithSecrets } from '../middleware/auth';
-import { HTTP_STATUS } from '@shared/response-formats';
-import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { HTTP_STATUS } from '@game/shared';
+import { GAME_CONSTANTS } from '@game/shared';
+import { ENV_VARS } from '@game/shared';
 import {
   authRateLimit, 
   loginRateLimit, 
@@ -22,7 +22,7 @@ import {
 } from '../middleware/rateLimiting';
 import { securityMonitor, SecurityEventType } from '../utils/securityMonitor';
 import { sessionInvalidationService } from '../middleware/sessionInvalidation';
-import { ERROR_MESSAGES } from '../constants/response-formats';
+import { register, login } from '../services/authService';
 
 const router: Router = Router();
 

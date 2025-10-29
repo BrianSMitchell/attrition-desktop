@@ -1,6 +1,6 @@
 import { RefactoringRequest, RiskAssessment as RiskAssessmentResult } from './refactoring-decision-matrix';
 
-import { STATUS_CODES } from '@shared/constants/magic-numbers';
+import { STATUS_CODES } from '@game/shared';
 /**
  * Advanced Risk Assessment Engine
  * Provides detailed risk analysis for refactoring decisions

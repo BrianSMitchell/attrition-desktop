@@ -2,7 +2,7 @@ import request from 'supertest';
 import { API_ENDPOINTS } from '../constants/api-endpoints';
 
 
-import { HTTP_STATUS } from '@shared/response-formats';
+import { HTTP_STATUS } from '@game/shared';
 const OLD_ENV = process.env;
 process.env = { ...OLD_ENV, NODE_ENV: 'test' };
 

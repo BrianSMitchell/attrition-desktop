@@ -1,13 +1,13 @@
-﻿import https from 'https';
+import https from 'https';
 import http from 'http';
 import { Request, Response } from 'express';
 import { HTTP_STATUS } from '../constants/response-formats';
 import { API_ENDPOINTS } from '../constants/api-endpoints';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VALUES } from '@game/shared';
 
 
-import { TIMEOUTS, GAME_CONSTANTS } from '@shared/constants/magic-numbers';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { TIMEOUTS, GAME_CONSTANTS } from '@game/shared';
+import { ENV_VARS } from '@game/shared';
 
 /**
  * HTTPS Health Check and Validation Utilities
@@ -346,7 +346,7 @@ export function httpsHealthCheckHandler(req: Request, res: Response) {
       });
     })
     .catch((error) => {
-      console.error('� HTTPS health check endpoint error:', error);
+      console.error('? HTTPS health check endpoint error:', error);
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         error: 'HTTPS health check failed',

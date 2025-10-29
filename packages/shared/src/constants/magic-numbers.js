@@ -1,0 +1,172 @@
+"use strict";
+/**
+ * Magic Numbers and Constants
+ *
+ * Centralized definition of all numeric constants to prevent hardcoding.
+ * Following Constants Workflow methodology.
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.NETWORK = exports.STATUS = exports.GAME = exports.BUFFER = exports.RETRY = exports.TIMEOUT = exports.MAGIC_NUMBERS = exports.NETWORK_CONSTANTS = exports.STATUS_CODES = exports.GAME_CONSTANTS = exports.BUFFER_LIMITS = exports.RETRY_LIMITS = exports.TIMEOUTS = void 0;
+/**
+ * Timeout and delay constants (in milliseconds)
+ */
+exports.TIMEOUTS = {
+    // Short delays
+    ULTRA_SHORT: 100, // 100ms - minimal delay
+    VERY_SHORT: 200, // 200ms - brief pause
+    SHORT: 500, // 500ms - short delay
+    // Standard delays  
+    ONE_SECOND: 1000, // 1 second - standard timeout
+    TWO_SECONDS: 2000, // 2 seconds - moderate delay
+    THREE_SECONDS: 3000, // 3 seconds - user feedback
+    FIVE_SECONDS: 5000, // 5 seconds - longer timeout
+    // Extended delays
+    TEN_SECONDS: 10000, // 10 seconds - extended timeout
+    FIFTEEN_SECONDS: 15000, // 15 seconds - long operation
+    THIRTY_SECONDS: 30000, // 30 seconds - sync operations
+    ONE_MINUTE: 60000, // 60 seconds - background tasks
+    ONE_HOUR: 3600000, // 1 hour - cleanup intervals
+    // API and network timeouts
+    API_REQUEST: 10000, // 10 seconds for API requests
+    WEBSOCKET_PING: 30000, // 30 seconds for WebSocket ping
+    CONNECTION_TIMEOUT: 15000, // 15 seconds for connection attempts
+    // UI feedback timeouts
+    TOAST_MESSAGE: 5000, // 5 seconds for toast messages
+    ERROR_DISPLAY: 3000, // 3 seconds for error messages
+    SUCCESS_DISPLAY: 2000, // 2 seconds for success messages
+    // Polling and refresh intervals
+    STATUS_POLLING: 30000, // 30 seconds for status checks
+    DATA_REFRESH: 60000, // 1 minute for data refresh
+    HEALTH_CHECK: 30000, // 30 seconds for health checks
+    // Development and testing
+    TEST_SHORT: 100, // 100ms for test delays
+    TEST_MEDIUM: 1000, // 1 second for test timeouts
+    TEST_LONG: 5000, // 5 seconds for long tests
+};
+exports.TIMEOUT = exports.TIMEOUTS;
+/**
+ * Retry and attempt constants
+ */
+exports.RETRY_LIMITS = {
+    // Connection retries
+    CONNECTION_ATTEMPTS: 3, // Maximum connection attempts
+    API_RETRIES: 3, // Maximum API call retries
+    WEBSOCKET_RETRIES: 5, // WebSocket reconnection attempts
+    // Operation retries
+    TRANSACTION_RETRIES: 2, // Database transaction retries
+    FILE_OPERATION_RETRIES: 3, // File system operation retries
+    NETWORK_RETRIES: 3, // Network operation retries
+    // Test retries
+    TEST_RETRIES: 1, // Test case retry limit
+    E2E_TEST_RETRIES: 2, // End-to-end test retries
+    // Loop limits
+    MAX_ITERATIONS: 100, // Maximum loop iterations
+    BATCH_PROCESSING_LIMIT: 50, // Batch processing limit
+};
+exports.RETRY = exports.RETRY_LIMITS;
+/**
+ * Buffer sizes and limits
+ */
+exports.BUFFER_LIMITS = {
+    // Memory buffers
+    SMALL_BUFFER: 1024, // 1KB buffer
+    MEDIUM_BUFFER: 4096, // 4KB buffer  
+    LARGE_BUFFER: 8192, // 8KB buffer
+    // Processing limits
+    BATCH_SIZE_SMALL: 10, // Small batch processing
+    BATCH_SIZE_MEDIUM: 50, // Medium batch processing
+    BATCH_SIZE_LARGE: 100, // Large batch processing
+    // UI limits
+    MAX_VISIBLE_ITEMS: 20, // Maximum items to show in lists
+    PAGINATION_SIZE: 25, // Default pagination size
+    MAX_SEARCH_RESULTS: 100, // Maximum search results
+    // String limits
+    MAX_MESSAGE_LENGTH: 500, // Maximum message length
+    MAX_NAME_LENGTH: 50, // Maximum name length
+    MAX_DESCRIPTION_LENGTH: 200, // Maximum description length
+};
+exports.BUFFER = exports.BUFFER_LIMITS;
+/**
+ * Game-specific numeric constants
+ */
+exports.GAME_CONSTANTS = {
+    // Starting resources
+    STARTING_CREDITS: 100, // Credits when starting game
+    STARTING_ENERGY: 100, // Energy when starting game
+    STARTING_POPULATION: 750, // Starting population
+    // Credit amounts
+    CREDITS_SMALL: 100, // Small credit amount
+    CREDITS_MEDIUM: 1000, // Medium credit amount  
+    CREDITS_LARGE: 10000, // Large credit amount
+    CREDITS_MASSIVE: 100000, // Massive credit amount
+    // Energy values
+    ENERGY_SMALL: 50, // Small energy amount
+    ENERGY_MEDIUM: 100, // Medium energy amount
+    ENERGY_LARGE: 1000, // Large energy amount
+    ENERGY_MASSIVE: 5000, // Massive energy amount
+    // Time multipliers
+    SECONDS_PER_MINUTE: 60, // Seconds in a minute
+    MILLISECONDS_PER_SECOND: 1000, // Milliseconds in a second
+    MINUTES_PER_HOUR: 60, // Minutes in an hour
+    // Percentage calculations
+    PERCENTAGE_BASE: 100, // Base for percentage calculations
+    FULL_PERCENTAGE: 100, // 100% value
+    HALF_PERCENTAGE: 50, // 50% value
+    QUARTER_PERCENTAGE: 25, // 25% value
+};
+exports.GAME = exports.GAME_CONSTANTS;
+/**
+ * Status and state constants
+ */
+exports.STATUS_CODES = {
+    // Generic status codes (not HTTP)
+    SUCCESS: 0, // Operation successful
+    ERROR: 1, // Generic error
+    WARNING: 2, // Warning state
+    INFO: 3, // Informational
+    CRITICAL: 4, // Critical state
+    // Processing states
+    PENDING: 0, // Operation pending
+    IN_PROGRESS: 1, // Operation in progress
+    COMPLETED: 2, // Operation completed
+    FAILED: 3, // Operation failed
+    CANCELLED: 4, // Operation cancelled
+    // Quality/Score constants
+    QUALITY_EXCELLENT: 100, // Excellent quality score
+    QUALITY_GOOD: 85, // Good quality score
+    QUALITY_AVERAGE: 70, // Average quality score
+    QUALITY_POOR: 50, // Poor quality score
+    QUALITY_MINIMUM: 25, // Minimum acceptable quality
+};
+exports.STATUS = exports.STATUS_CODES;
+/**
+ * Network and port constants
+ */
+exports.NETWORK_CONSTANTS = {
+    // Common ports
+    HTTP_PORT: 80, // Standard HTTP port
+    HTTPS_PORT: 443, // Standard HTTPS port
+    DEV_SERVER_PORT: 3000, // Development server port
+    API_SERVER_PORT: 8000, // API server port
+    WEBSOCKET_PORT: 8080, // WebSocket server port
+    // Connection limits
+    MAX_CONNECTIONS: 100, // Maximum concurrent connections
+    CONNECTION_POOL_SIZE: 10, // Database connection pool size
+    KEEP_ALIVE_CONNECTIONS: 50, // Keep-alive connection limit
+    // Request limits
+    MAX_REQUEST_SIZE: 1048576, // 1MB maximum request size
+    MAX_HEADER_SIZE: 8192, // 8KB maximum header size
+    MAX_URL_LENGTH: 2048, // 2KB maximum URL length
+};
+exports.NETWORK = exports.NETWORK_CONSTANTS;
+/**
+ * Combined exports for convenience
+ */
+exports.MAGIC_NUMBERS = {
+    TIMEOUTS: exports.TIMEOUTS,
+    RETRY_LIMITS: exports.RETRY_LIMITS,
+    BUFFER_LIMITS: exports.BUFFER_LIMITS,
+    GAME_CONSTANTS: exports.GAME_CONSTANTS,
+    STATUS_CODES: exports.STATUS_CODES,
+    NETWORK_CONSTANTS: exports.NETWORK_CONSTANTS
+};

@@ -1,10 +1,9 @@
-﻿import express from 'express';
+import express from 'express';
 import request from 'supertest';
 import { httpsHealthCheckHandler } from '../httpsHealthCheck';
-import { ENV_VARS } from '@shared/constants/env-vars';
+import { ENV_VARS } from '@game/shared';
 
-import { HTTP_STATUS } from '@shared/response-formats';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { HTTP_STATUS } from '@game/shared';
 
 /**
  * Validates that /api/https-health short-circuits in reverse proxy mode.

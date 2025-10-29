@@ -3,6 +3,7 @@ import { CapacityService } from '../bases/CapacityService';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
 
 import { DB_FIELDS } from '../../../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 export class TechService {
   static async getTechLevels(empireId: string): Promise<Record<string, number>> {
     const { data } = await supabase
@@ -205,7 +206,7 @@ export class TechService {
     } else {
       // Log credit transaction (best effort)
       try {
-        const { CreditLedgerService } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
+        const { CreditLedgerService } = await import('../../constants/response-formats')
         await CreditLedgerService.logTransaction({
           empireId,
           amount: -cost,
@@ -229,7 +230,7 @@ export class TechService {
   static async getRefundCredits(spec: any, level: number): Promise<number> {
     // Calculate refund amount for cancelled research
     // Typically would be a percentage of the full cost
-    const { getTechCreditCostForLevel } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
+    const { getTechCreditCostForLevel } = await import('../../constants/response-formats')
     const fullCost = getTechCreditCostForLevel(spec, level);
     // Return 80% refund for cancelled research
     return Math.floor(fullCost * 0.8);

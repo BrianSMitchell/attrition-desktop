@@ -1,4 +1,5 @@
 import { Empire, ResourceCost } from '@game/shared';
+import { ResourceService } from '../services/resources/ResourceService';
 
 /**
  * Service for managing empire resources

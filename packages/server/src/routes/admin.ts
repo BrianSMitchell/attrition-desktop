@@ -1,17 +1,12 @@
-﻿import { Router, Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
 import { ERROR_MESSAGES } from '../constants/response-formats';
-import { ENV_VARS } from '@shared/constants/env-vars';
-
-// Constants imports for eliminating hardcoded values
-import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
-import { ERROR_MESSAGES } from '../constants/response-formats';
-
+import { ENV_VARS } from '@game/shared';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 import { supabase } from '../config/supabase';
-import { ERROR_MESSAGES } from '../constants/response-formats';
 
-import { HTTP_STATUS } from '@shared/response-formats';
-import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
+import { HTTP_STATUS } from '@game/shared';
+import { GAME_CONSTANTS } from '@game/shared';
 const router = Router();
 
 function requireAdminSecret(req: Request, res: Response): boolean {
@@ -27,9 +22,6 @@ function requireAdminSecret(req: Request, res: Response): boolean {
 // Seed a small universe of unowned planets in Supabase
 router.post('/seed-supabase', asyncHandler(async (req: Request, res: Response) => {
   if (!requireAdminSecret(req, res)) return;
-  if (getDatabaseType() !== 'supabase') {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'DB_TYPE is not supabase' });
-  }
 
   const count = Math.min(Number(req.body?.count || 100), 2000);
   const serverId = 'A';
@@ -60,9 +52,6 @@ router.post('/seed-supabase', asyncHandler(async (req: Request, res: Response) =
 // Backfill starter empire/colony/building for users without empire_id
 router.post('/backfill-starters', asyncHandler(async (req: Request, res: Response) => {
   if (!requireAdminSecret(req, res)) return;
-  if (getDatabaseType() !== 'supabase') {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'DB_TYPE is not supabase' });
-  }
 
   // Fetch users with missing empire_id
   const { data: users, error: usersErr } = await supabase

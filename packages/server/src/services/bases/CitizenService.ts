@@ -2,7 +2,8 @@ import { supabase } from '../../config/supabase';
 import { CapacityService } from './CapacityService';
 
 import { DB_FIELDS } from '../../../constants/database-fields';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VARS } from '@game/shared';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 
 /**
  * CitizenService - maintains citizen accrual per base.

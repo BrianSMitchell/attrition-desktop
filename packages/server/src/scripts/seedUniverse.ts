@@ -1,6 +1,4 @@
 import { DB_TABLES } from '../constants/database-fields';
-import { DB_TABLES } from '../constants/database-fields';
-import { DB_TABLES } from '../constants/database-fields';
 
 // Simple CLI arg parsing: --count=NUMBER
 function parseArgs() {
@@ -16,10 +14,6 @@ function parseArgs() {
 }
 
 async function main() {
-  if (getDatabaseType() !== 'supabase') {
-    console.error('ERROR: DB_TYPE is not supabase. Aborting.');
-    process.exit(1);
-  }
 
   const { count } = parseArgs();
   const target = Math.min(count ?? 100, 2000);

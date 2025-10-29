@@ -1,9 +1,8 @@
-﻿import express from 'express';
+import express from 'express';
 import request from 'supertest';
 import { httpsRedirectMiddleware } from '../httpsRedirect';
 import { API_ENDPOINTS } from '../constants/api-endpoints';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VARS } from '@shared/constants/env-vars';
+import { ENV_VARS } from '@game/shared';
 
 
 

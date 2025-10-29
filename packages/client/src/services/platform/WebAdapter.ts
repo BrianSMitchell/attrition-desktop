@@ -1,4 +1,3 @@
-﻿import { 
 import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
 import { ENV_VARS } from '@shared/constants/env-vars';
 
@@ -297,7 +296,7 @@ export class WebAdapter implements PlatformAdapter {
           timestamp: Date.now(),
         };
         
-        console.log('📊 WebAdapter Performance Metric:', metric);
+        console.log('?? WebAdapter Performance Metric:', metric);
         
         // Simple localStorage persistence without class method dependency
         const stored = localStorage.getItem('attrition-performance-metrics');
@@ -319,7 +318,7 @@ export class WebAdapter implements PlatformAdapter {
   };
 
   cleanup(): void {
-    console.log('🧹 WebAdapter: Cleaning up...');
+    console.log('?? WebAdapter: Cleaning up...');
     // Web adapter doesn't need extensive cleanup
   }
 

@@ -4,7 +4,7 @@ import { supabase } from '../config/supabase';
 // Constants imports for eliminating hardcoded values
 import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 
-import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
+import { GAME_CONSTANTS } from '@game/shared';
 /**
  * UserManagementService - Handles user creation, validation, and profile management
  * Eliminates feature envy by centralizing user-related database operations

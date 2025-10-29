@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Integration test: energy parity between structures list and construct route
  *
  * Ensures that when GET /bases/:coord/structures shows a positive raw balance that
@@ -8,7 +8,7 @@
 
 import request from 'supertest';
 import { HTTP_STATUS } from '../constants/response-formats';
-import { ENV_VARS } from '@shared/constants/env-vars';
+import { ENV_VARS } from '@game/shared';
 
 // Minimal scaffolding helpers; in real test env these would be real fakes/mocks or seeded DB
 async function loginAsAdmin() {
@@ -17,7 +17,7 @@ async function loginAsAdmin() {
   return { token: process.env[ENV_VARS.TEST_ADMIN_TOKEN] || '' };
 }
 
-describe('Energy parity — structures list vs. construct (integration)', () => {
+describe('Energy parity � structures list vs. construct (integration)', () => {
   const coord = 'A00:00:12:02';
 
   it('construct allows when raw balance permits a -1 consumer', async () => {
@@ -52,7 +52,7 @@ describe('Energy parity — structures list vs. construct (integration)', () => 
         .post(`/api/game/bases/${encodeURIComponent(coord)}/structures/research_labs/construct`)
         .set('Authorization', `Bearer ${token}`);
 
-      // Either success, or conflict if something else raced in — both mean parity and gating are healthy
+      // Either success, or conflict if something else raced in � both mean parity and gating are healthy
       expect([HTTP_STATUS.OK, 409]).toContain(constructRes.status);
     }
   });

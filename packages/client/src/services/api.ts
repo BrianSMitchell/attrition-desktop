@@ -1,15 +1,12 @@
-﻿import axios, {
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import axios, {
 import { ENV_VALUES } from '@shared/constants/configuration-keys';
 
-import { HTTP_STATUS } from '@shared/response-formats';
 import { TIMEOUTS } from '@shared/constants/magic-numbers';
   AxiosError,
   AxiosInstance,
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
-import { attachMetrics } from "./httpInstrumentation";
 import { getToken, setToken, clearToken } from "./tokenProvider";
 import { getCurrentApiConfig } from "../utils/apiConfig";
 

@@ -1,7 +1,6 @@
-﻿import { DB_TABLES } from '../constants/database-fields';
 import { DB_TABLES } from '../constants/database-fields';
 import { HTTP_STATUS } from '../constants/response-formats';
-import { ENV_VARS } from '@shared/constants/env-vars';
+import { ENV_VARS } from '@game/shared';
 
 // Mock Supabase
 import { DB_FIELDS } from '../../../constants/database-fields';

@@ -1,8 +1,8 @@
-﻿import dotenv from 'dotenv';
+import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import { DB_TABLES } from '../constants/database-fields';
-import { ENV_VARS } from '@shared/constants/env-vars';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VARS } from '@game/shared';
+import { ENV_VALUES } from '@game/shared';
 
 dotenv.config();
 
@@ -11,8 +11,6 @@ const supabaseUrl = process.env[ENV_VARS.SUPABASE_URL]!;
 const supabaseKey = process.env[ENV_VARS.SUPABASE_ANON_KEY]!;
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-const isProduction = process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION;
-const isDevelopment = process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.DEVELOPMENT;
 const isProduction = process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION;
 const isDevelopment = process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.DEVELOPMENT;
 
@@ -28,11 +26,11 @@ export const dbConfig = {
  * Initialize database connection
  */
 export async function connectDatabase(): Promise<void> {
-  console.log('\n═══════════════════════════════════════');
+  console.log('\n---------------------------------------');
   console.log('  DATABASE CONFIGURATION');
-  console.log('═══════════════════════════════════════');
+  console.log('---------------------------------------');
   console.log(`  Environment:     ${process.env[ENV_VARS.NODE_ENV] || 'development'}`);
-  console.log('═══════════════════════════════════════\n');
+  console.log('---------------------------------------\n');
 
   await verifyDatabaseConnection();
 }
@@ -49,9 +47,9 @@ async function verifyDatabaseConnection(): Promise<void> {
       throw error;
     }
 
-    console.log('✅ Database connected');
+    console.log('? Database connected');
   } catch (error) {
-    console.error('❌ Database connection error:', error);
+    console.error('? Database connection error:', error);
     throw error;
   }
 }
@@ -61,6 +59,6 @@ async function verifyDatabaseConnection(): Promise<void> {
  */
 export async function disconnectDatabase(): Promise<void> {
   // Database client handles cleanup automatically
-  console.log('✅ Database session closed');
+  console.log('? Database session closed');
 }
 

@@ -1,10 +1,8 @@
-﻿import { FILE_EXTENSIONS, FILE_PATHS } from '../../../shared/src/constants/file-paths';
-import { ENV_VARS } from '@shared/constants/env-vars';
-
 #!/usr/bin/env node
 
+import { FILE_EXTENSIONS, FILE_PATHS } from '@game/shared';
+import { ENV_VARS } from '@game/shared';
 import { DB_FIELDS } from '../../../constants/database-fields';
-#!/usr/bin/env node
 
 /**
  * Testing Dashboard CLI Tool
@@ -91,7 +89,7 @@ dashboardCommand
   .option('--main-only', 'Generate only the main dashboard')
   .action(async (options) => {
     try {
-      console.log('🎨 Generating testing dashboards...');
+      console.log('?? Generating testing dashboards...');
       
       // Ensure output directory exists
       if (!existsSync(options.output)) {
@@ -102,14 +100,14 @@ dashboardCommand
       
       if (options.mainOnly) {
         const path = generator.generateMainDashboard();
-        console.log(`✅ Main dashboard generated: ${path}`);
+        console.log(`? Main dashboard generated: ${path}`);
       } else {
         const paths = generator.generateAllDashboards();
-        console.log('✅ All dashboards generated:');
-        paths.forEach(path => console.log(`   📄 ${path}`));
+        console.log('? All dashboards generated:');
+        paths.forEach(path => console.log(`   ?? ${path}`));
       }
     } catch (error) {
-      console.error('❌ Failed to generate dashboards:', error);
+      console.error('? Failed to generate dashboards:', error);
       process.exit(1);
     }
   });
@@ -125,8 +123,8 @@ dashboardCommand
       const generator = new DashboardGenerator(metricsCollector, options.dir);
       generator.generateAllDashboards();
       
-      console.log(`🚀 Starting dashboard server on port ${options.port}...`);
-      console.log(`📊 Dashboard available at: http://localhost:${options.port}`);
+      console.log(`?? Starting dashboard server on port ${options.port}...`);
+      console.log(`?? Dashboard available at: http://localhost:${options.port}`);
       
       // Simple static file server (in production, use proper web server)
       const http = require('http');
@@ -144,10 +142,10 @@ dashboardCommand
         
         const ext = path.extname(filePath);
         const mimeTypes: Record<string, string> = {
-          FILE_EXTENSIONS.HTML: 'text/html',
-          FILE_EXTENSIONS.CSS: 'text/css',
-          FILE_EXTENSIONS.JAVASCRIPT: 'text/javascript',
-          FILE_EXTENSIONS.JSON: 'application/json'
+          [FILE_EXTENSIONS.HTML]: 'text/html',
+          [FILE_EXTENSIONS.CSS]: 'text/css',
+          [FILE_EXTENSIONS.JAVASCRIPT]: 'text/javascript',
+          [FILE_EXTENSIONS.JSON]: 'application/json'
         };
         
         res.writeHead(HTTP_STATUS.OK, { 'Content-Type': mimeTypes[ext] || 'text/plain' });
@@ -158,13 +156,13 @@ dashboardCommand
       
       // Keep server running
       process.on('SIGINT', () => {
-        console.log('\n👋 Shutting down dashboard server...');
+        console.log('\n?? Shutting down dashboard server...');
         server.close();
         process.exit(0);
       });
       
     } catch (error) {
-      console.error('❌ Failed to start dashboard server:', error);
+      console.error('? Failed to start dashboard server:', error);
       process.exit(1);
     }
   });
@@ -182,10 +180,10 @@ metricsCommand
   .description('Show current testing health metrics')
   .action(async () => {
     try {
-      console.log('📊 Calculating current testing health...');
+      console.log('?? Calculating current testing health...');
       const health = metricsCollector.calculateHealthMetrics();
       
-      console.log('\n🏥 Testing Health Report');
+      console.log('\n?? Testing Health Report');
       console.log('========================');
       console.log(`Overall Health Score: ${health.overallHealthScore}% ${getHealthEmoji(health.overallHealthScore)}`);
       console.log(`Coverage Score: ${health.coverageScore}%`);
@@ -193,12 +191,12 @@ metricsCommand
       console.log(`Reliability Score: ${health.reliabilityScore}%`);
       console.log('');
       console.log(`Total Tests: ${health.totalTests}`);
-      console.log(`Passed: ${health.passedTests} ✅`);
-      console.log(`Failed: ${health.failedTests} ❌`);
-      console.log(`Skipped: ${health.skippedTests} ⏭️`);
+      console.log(`Passed: ${health.passedTests} ?`);
+      console.log(`Failed: ${health.failedTests} ?`);
+      console.log(`Skipped: ${health.skippedTests} ??`);
       
       if (health.flakyTests.length > 0) {
-        console.log(`\n🔄 Flaky Tests (${health.flakyTests.length}):`);
+        console.log(`\n?? Flaky Tests (${health.flakyTests.length}):`);
         health.flakyTests.slice(0, 5).forEach(test => console.log(`  - ${test}`));
         if (health.flakyTests.length > 5) {
           console.log(`  ... and ${health.flakyTests.length - 5} more`);
@@ -206,14 +204,14 @@ metricsCommand
       }
       
       if (health.slowTests.length > 0) {
-        console.log(`\n🐌 Slow Tests (${health.slowTests.length}):`);
+        console.log(`\n?? Slow Tests (${health.slowTests.length}):`);
         health.slowTests.slice(0, 5).forEach(test => 
           console.log(`  - ${test.name} (${(test.avgDuration / 1000).toFixed(1)}s)`)
         );
       }
       
     } catch (error) {
-      console.error('❌ Failed to get health metrics:', error);
+      console.error('? Failed to get health metrics:', error);
       process.exit(1);
     }
   });
@@ -224,10 +222,10 @@ metricsCommand
   .option('-p, --period <period>', 'Time period (daily, weekly, monthly)', 'daily')
   .action(async (options) => {
     try {
-      console.log(`📈 Generating ${options.period} testing trends...`);
+      console.log(`?? Generating ${options.period} testing trends...`);
       const trends = metricsCollector.generateTestTrends(options.period as 'daily' | 'weekly' | 'monthly');
       
-      console.log('\n📊 Testing Trends');
+      console.log('\n?? Testing Trends');
       console.log('=================');
       
       const latest = {
@@ -243,7 +241,7 @@ metricsCommand
       console.log(`Reliability Trend: ${latest.reliability.toFixed(1)}% ${getTrendEmoji(trends.metrics.reliability)}`);
       
       if (trends.alerts.length > 0) {
-        console.log(`\n🚨 Active Alerts (${trends.alerts.length}):`);
+        console.log(`\n?? Active Alerts (${trends.alerts.length}):`);
         trends.alerts.slice(0, 5).forEach(alert => {
           const emoji = getSeverityEmoji(alert.severity);
           console.log(`  ${emoji} ${alert.message}`);
@@ -251,7 +249,7 @@ metricsCommand
       }
       
     } catch (error) {
-      console.error('❌ Failed to get trends:', error);
+      console.error('? Failed to get trends:', error);
       process.exit(1);
     }
   });
@@ -263,19 +261,19 @@ metricsCommand
   .option('-o, --output <file>', 'Output file path')
   .action(async (options) => {
     try {
-      console.log(`📤 Exporting metrics in ${options.format} format...`);
+      console.log(`?? Exporting metrics in ${options.format} format...`);
       const data = metricsCollector.exportMetrics(options.format as 'json' | 'csv' | 'prometheus');
       
       if (options.output) {
         require('fs').writeFileSync(options.output, data);
-        console.log(`✅ Metrics exported to: ${options.output}`);
+        console.log(`? Metrics exported to: ${options.output}`);
       } else {
-        console.log('\n📊 Exported Metrics:');
+        console.log('\n?? Exported Metrics:');
         console.log(data);
       }
       
     } catch (error) {
-      console.error('❌ Failed to export metrics:', error);
+      console.error('? Failed to export metrics:', error);
       process.exit(1);
     }
   });
@@ -293,11 +291,11 @@ reportCommand
   .description('Generate and send daily report')
   .action(async () => {
     try {
-      console.log('📊 Generating daily testing report...');
+      console.log('?? Generating daily testing report...');
       await reportingSystem.generateDailyReport();
-      console.log('✅ Daily report generated and sent successfully');
+      console.log('? Daily report generated and sent successfully');
     } catch (error) {
-      console.error('❌ Failed to generate daily report:', error);
+      console.error('? Failed to generate daily report:', error);
       process.exit(1);
     }
   });
@@ -307,11 +305,11 @@ reportCommand
   .description('Generate and send weekly report')
   .action(async () => {
     try {
-      console.log('📊 Generating weekly testing report...');
+      console.log('?? Generating weekly testing report...');
       await reportingSystem.generateWeeklyReport();
-      console.log('✅ Weekly report generated and sent successfully');
+      console.log('? Weekly report generated and sent successfully');
     } catch (error) {
-      console.error('❌ Failed to generate weekly report:', error);
+      console.error('? Failed to generate weekly report:', error);
       process.exit(1);
     }
   });
@@ -323,7 +321,7 @@ reportCommand
   .option('-m, --message <message>', 'Alert message', 'Test alert from CLI')
   .action(async (options) => {
     try {
-      console.log('🚨 Sending test alert...');
+      console.log('?? Sending test alert...');
       
       const alert = {
         id: `test-${Date.now()}`,
@@ -336,9 +334,9 @@ reportCommand
       };
       
       await reportingSystem.sendAlertNotification(alert);
-      console.log('✅ Test alert sent successfully');
+      console.log('? Test alert sent successfully');
     } catch (error) {
-      console.error('❌ Failed to send test alert:', error);
+      console.error('? Failed to send test alert:', error);
       process.exit(1);
     }
   });
@@ -352,28 +350,28 @@ program
   .description('Show overall testing system status')
   .action(async () => {
     try {
-      console.log('🔍 Checking testing system status...\n');
+      console.log('?? Checking testing system status...\n');
       
       const dashboardData = metricsCollector.generateDashboardData();
       const health = dashboardData.health;
       const summary = dashboardData.summary;
       
-      console.log('🧪 Attrition MMO Testing System Status');
+      console.log('?? Attrition MMO Testing System Status');
       console.log('=====================================');
       console.log(`Overall Health: ${health.overallHealthScore}% ${getHealthEmoji(health.overallHealthScore)}`);
       console.log(`Tests Today: ${summary.testsToday}`);
       console.log(`Success Rate: ${summary.successRateToday.toFixed(1)}%`);
-      console.log(`Critical Alerts: ${summary.criticalAlerts} ${summary.criticalAlerts > 0 ? '🚨' : '✅'}`);
+      console.log(`Critical Alerts: ${summary.criticalAlerts} ${summary.criticalAlerts > 0 ? '??' : '?'}`);
       console.log('');
       
-      console.log('📊 Health Breakdown:');
+      console.log('?? Health Breakdown:');
       console.log(`  Coverage: ${health.coverageScore}% ${getScoreEmoji(health.coverageScore)}`);
       console.log(`  Performance: ${health.performanceScore}% ${getScoreEmoji(health.performanceScore)}`);
       console.log(`  Reliability: ${health.reliabilityScore}% ${getScoreEmoji(health.reliabilityScore)}`);
       console.log('');
       
       if (dashboardData.alerts.length > 0) {
-        console.log(`🚨 Recent Alerts (${dashboardData.alerts.length}):`);
+        console.log(`?? Recent Alerts (${dashboardData.alerts.length}):`);
         dashboardData.alerts.slice(0, 3).forEach(alert => {
           const emoji = getSeverityEmoji(alert.severity);
           console.log(`  ${emoji} ${alert.message}`);
@@ -384,7 +382,7 @@ program
       }
       
     } catch (error) {
-      console.error('❌ Failed to get system status:', error);
+      console.error('? Failed to get system status:', error);
       process.exit(1);
     }
   });
@@ -394,7 +392,7 @@ program
   .description('Initialize testing metrics and dashboard directories')
   .action(async () => {
     try {
-      console.log('🚀 Initializing testing metrics system...');
+      console.log('?? Initializing testing metrics system...');
       
       const directories = [
         'test-metrics',
@@ -410,20 +408,20 @@ program
       directories.forEach(dir => {
         if (!existsSync(dir)) {
           mkdirSync(dir, { recursive: true });
-          console.log(`📁 Created directory: ${dir}`);
+          console.log(`?? Created directory: ${dir}`);
         }
       });
       
       // Generate initial dashboards
       dashboardGenerator.generateAllDashboards();
-      console.log('🎨 Generated initial dashboards');
+      console.log('?? Generated initial dashboards');
       
-      console.log('\n✅ Testing metrics system initialized successfully!');
-      console.log('💡 Run `testing-dashboard-cli status` to check system status');
-      console.log('📊 Run `testing-dashboard-cli dashboard serve` to view dashboards');
+      console.log('\n? Testing metrics system initialized successfully!');
+      console.log('?? Run `testing-dashboard-cli status` to check system status');
+      console.log('?? Run `testing-dashboard-cli dashboard serve` to view dashboards');
       
     } catch (error) {
-      console.error('❌ Failed to initialize system:', error);
+      console.error('? Failed to initialize system:', error);
       process.exit(1);
     }
   });
@@ -433,38 +431,38 @@ program
 // ============================
 
 function getHealthEmoji(score: number): string {
-  if (score >= 90) return '💚';
-  if (score >= 80) return '✅';
-  if (score >= 70) return '🟡';
-  if (score >= 60) return '⚠️';
-  return '❌';
+  if (score >= 90) return '??';
+  if (score >= 80) return '?';
+  if (score >= 70) return '??';
+  if (score >= 60) return '??';
+  return '?';
 }
 
 function getScoreEmoji(score: number): string {
-  if (score >= 80) return '✅';
-  if (score >= 60) return '⚠️';
-  return '❌';
+  if (score >= 80) return '?';
+  if (score >= 60) return '??';
+  return '?';
 }
 
 function getSeverityEmoji(severity: string): string {
   const emojis = {
-    critical: '💥',
-    error: '❌',
-    warning: '⚠️',
-    info: 'ℹ️'
+    critical: '??',
+    error: '?',
+    warning: '??',
+    info: '??'
   };
-  return emojis[severity as keyof typeof emojis] || 'ℹ️';
+  return emojis[severity as keyof typeof emojis] || '??';
 }
 
 function getTrendEmoji(data: Array<{ date: string; value: number }>): string {
-  if (data.length < 2) return '➡️';
+  if (data.length < 2) return '??';
   
   const recent = data.slice(-2);
   const change = recent[1].value - recent[0].value;
   const threshold = recent[0].value * 0.05;
   
-  if (Math.abs(change) < threshold) return '➡️';
-  return change > 0 ? '📈' : '📉';
+  if (Math.abs(change) < threshold) return '??';
+  return change > 0 ? '??' : '??';
 }
 
 // ============================
@@ -472,12 +470,12 @@ function getTrendEmoji(data: Array<{ date: string; value: number }>): string {
 // ============================
 
 process.on('uncaughtException', (error) => {
-  console.error('💥 Uncaught Exception:', error);
+  console.error('?? Uncaught Exception:', error);
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason) => {
-  console.error('💥 Unhandled Rejection:', reason);
+  console.error('?? Unhandled Rejection:', reason);
   process.exit(1);
 });
 

@@ -1,5 +1,4 @@
 import { DB_TABLES } from '../constants/database-fields';
-import { DB_TABLES } from '../constants/database-fields';
 import { HTTP_STATUS } from '../constants/response-formats';
 
 import { DB_FIELDS } from '../../../constants/database-fields';

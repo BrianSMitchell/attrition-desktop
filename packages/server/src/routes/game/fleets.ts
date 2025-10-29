@@ -4,10 +4,10 @@ import { ERROR_MESSAGES } from '../../constants/response-formats';
 
 // Constants imports for eliminating hardcoded values
 import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
-import { HTTP_STATUS } from '@shared/response-formats';
-import { STATUS_CODES } from '@shared/constants/magic-numbers';
-import { asyncHandler } from '../../middleware/errorHandler';
-import { authenticate, AuthRequest } from '../../middleware/auth';
+import { HTTP_STATUS } from '@game/shared';
+import { STATUS_CODES } from '@game/shared';
+import { asyncHandler } from '../../../middleware/errorHandler';
+import { authenticate, AuthRequest } from '../../../middleware/auth';
 import { getUnitSpec } from '@game/shared';
 import { EmpireResolutionService } from '../../services/empire/EmpireResolutionService';
 import { FleetMovementService } from '../../services/fleets/FleetMovementService';

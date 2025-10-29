@@ -6,8 +6,8 @@
 import React from 'react';
 import { useModalStore } from '../../../stores/modalStore';
 import { gameApi } from '../../../stores/services/gameApi';
-import { 
 import { LAYOUT_CLASSES } from '../constants/css-constants';
+import { 
   getStructuresList as getBuildingsList, 
   getDefensesList,
   computeEnergyBalance,

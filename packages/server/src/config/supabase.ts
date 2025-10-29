@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import { ENV_VARS } from '@shared/constants/env-vars';
+import { ENV_VARS } from '@game/shared';
 
 // Load environment variables
 dotenv.config();

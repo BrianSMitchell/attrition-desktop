@@ -4,11 +4,8 @@ import https from 'https';
 import crypto from 'crypto';
 import express, { Express } from 'express';
 import tls from 'tls';
-import { ENV_VARS } from '@shared/constants/env-vars';
-
-import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VALUES } from '../../../shared/src/constants/configuration-keys';
+import { ENV_VARS, ENV_VALUES } from '@game/shared';
+import { GAME_CONSTANTS } from '@game/shared';
 
 /**
  * SSL Certificate Configuration Management

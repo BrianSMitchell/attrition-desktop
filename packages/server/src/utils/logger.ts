@@ -1,5 +1,4 @@
-﻿import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VARS } from '@shared/constants/env-vars';
+import { ENV_VARS } from '@game/shared';
 
 // Lightweight logger that respects DEBUG_RESOURCES
 // Usage:

@@ -1,7 +1,8 @@
 import { supabase } from '../../config/supabase';
 import type { BaseCapacitiesDTO, CapacityResult } from '@game/shared';
 
-import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { CapacityService } from '../services/bases/CapacityService';
 export class CapacityService {
   static async getBaseCapacities(empireId: string, coord: string): Promise<BaseCapacitiesDTO> {
     // Load active buildings for this base/empire

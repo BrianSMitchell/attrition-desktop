@@ -1,11 +1,11 @@
-﻿import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { isReverseProxySSL } from '../utils/runtimeEnv';
 import { API_ENDPOINTS } from '../constants/api-endpoints';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VALUES } from '@game/shared';
 
 
-import { HTTP_STATUS } from '@shared/response-formats';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { HTTP_STATUS } from '@game/shared';
+import { ENV_VARS } from '@game/shared';
 
 /**
  * HTTPS Enforcement Middleware
@@ -146,7 +146,7 @@ export function createHttpsRedirectMiddleware(config: HttpsRedirectConfig = {}) 
       
       // In production, fail securely - don't allow HTTP fallback
       if (process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION) {
-        res.status(426) // Upgrade Required
+        res.status(HTTP_STATUS.UPGRADE_REQUIRED)
           .set({
             'Content-Type': 'application/json',
             'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',

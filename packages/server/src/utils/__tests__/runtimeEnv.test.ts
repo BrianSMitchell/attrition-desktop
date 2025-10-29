@@ -1,5 +1,5 @@
-﻿import { isReverseProxySSL } from '../runtimeEnv';
-import { ENV_VARS } from '@shared/constants/env-vars';
+import { isReverseProxySSL } from '../runtimeEnv';
+import { ENV_VARS } from '@game/shared';
 
 describe('isReverseProxySSL', () => {
   const OLD_ENV = process.env;

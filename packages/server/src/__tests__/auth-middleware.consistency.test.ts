@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Authentication Middleware Consistency Test Suite
  * 
  * Validates that authentication middleware behaves consistently across all game routes.
@@ -12,7 +12,6 @@ import { API_ENDPOINTS } from '../constants/api-endpoints';
 
 
 // Import without mocking to test actual middleware behavior
-import { HTTP_STATUS } from '../constants/response-formats';
 
 describe('Authentication Middleware Consistency', () => {
   
@@ -93,7 +92,7 @@ describe('Authentication Middleware Consistency', () => {
         expect(response.body).not.toHaveProperty('message');
         expect(response.body).not.toHaveProperty('details');
 
-        console.log(`✅ ${route.method} ${route.path}: Returns 401 when unauthenticated`);
+        console.log(`? ${route.method} ${route.path}: Returns 401 when unauthenticated`);
       }
     });
 
@@ -162,7 +161,7 @@ describe('Authentication Middleware Consistency', () => {
             error: expect.any(String)
           });
 
-          console.log(`✅ ${path} with "${token}": Returns consistent 401`);
+          console.log(`? ${path} with "${token}": Returns consistent 401`);
         }
       }
     });
@@ -206,7 +205,7 @@ describe('Authentication Middleware Consistency', () => {
       expect(authenticate).toBeDefined();
       expect(typeof authenticate).toBe('function');
       
-      console.log('✅ Authentication middleware is properly defined');
+      console.log('? Authentication middleware is properly defined');
     });
 
     it('should maintain consistent response times for authentication failures', async () => {
@@ -235,7 +234,7 @@ describe('Authentication Middleware Consistency', () => {
 
       expect(timeVariance).toBeLessThan(100); // 100ms variance is acceptable
       
-      console.log(`✅ Authentication response times consistent (variance: ${timeVariance}ms)`);
+      console.log(`? Authentication response times consistent (variance: ${timeVariance}ms)`);
     });
 
   });
@@ -281,7 +280,7 @@ describe('Authentication Middleware Consistency', () => {
       // This test can be expanded based on your security header requirements
       expect(response.headers).toBeDefined();
       
-      console.log('✅ Security headers validated');
+      console.log('? Security headers validated');
     });
 
   });
@@ -310,7 +309,7 @@ describe('Authentication Middleware Consistency', () => {
           error: expect.any(String)
         });
 
-        console.log(`✅ Malformed header "${header}": Handled gracefully`);
+        console.log(`? Malformed header "${header}": Handled gracefully`);
       }
     });
 

@@ -1,6 +1,4 @@
-﻿import { io, Socket } from 'socket.io-client';
 import { 
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
 import { ENV_VARS } from '../../../shared/src/constants/env-vars';
 import { ENV_VALUES } from '@shared/constants/configuration-keys';
 
@@ -9,11 +7,8 @@ import { ENV_VALUES } from '@shared/constants/configuration-keys';
   ServiceOptions, 
   ConnectionEventCallback 
 } from './types';
-import { CircuitBreaker } from './CircuitBreaker';
 import { AsyncMutex } from './AsyncMutex';
-import { getCurrentApiConfig } from '../../utils/apiConfig';
 import { createMessageRouter, createHealthMonitor, MessageRouter, ConnectionHealthMonitor } from '../realtime';
-import { desktopBridge } from '../platform';
 import { getToken } from '../tokenProvider';
 
 /**
@@ -69,12 +64,12 @@ export class SocketManager implements ISocketManager {
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
-    console.log('🔌 SocketManager: Initializing...');
+    console.log('?? SocketManager: Initializing...');
     this.isInitialized = true;
   }
 
   cleanup(): void {
-    console.log('🔌 SocketManager: Cleaning up...');
+    console.log('?? SocketManager: Cleaning up...');
     
     this.isDestroyed = true;
     this.clearReconnectTimer();
@@ -115,7 +110,7 @@ export class SocketManager implements ISocketManager {
     return this.connectionMutex.execute(async () => {
       // Check if already connected
       if (this.socket?.connected) {
-        console.log('🔌 SocketManager: Already connected');
+        console.log('?? SocketManager: Already connected');
         return;
       }
 
@@ -126,7 +121,7 @@ export class SocketManager implements ISocketManager {
       }
 
       try {
-        console.log('🔌 SocketManager: Attempting connection...');
+        console.log('?? SocketManager: Attempting connection...');
         await this.performConnection();
         this.circuitBreaker.recordSuccess();
         
@@ -138,7 +133,7 @@ export class SocketManager implements ISocketManager {
           reconnectAttempts: 0,
         });
 
-        console.log('🔌 SocketManager: Connected successfully');
+        console.log('?? SocketManager: Connected successfully');
       } catch (error) {
         this.circuitBreaker.recordFailure();
         this.updateState({
@@ -151,7 +146,7 @@ export class SocketManager implements ISocketManager {
   }
 
   async disconnect(): Promise<void> {
-    console.log('🔌 SocketManager: Disconnecting...');
+    console.log('?? SocketManager: Disconnecting...');
     
     this.clearReconnectTimer();
     
@@ -170,7 +165,7 @@ export class SocketManager implements ISocketManager {
 
   emit(event: string, data?: any): void {
     if (!this.socket || !this.socket.connected) {
-      console.warn('🔌 SocketManager: Cannot emit - socket not connected');
+      console.warn('?? SocketManager: Cannot emit - socket not connected');
       return;
     }
 
@@ -188,7 +183,7 @@ export class SocketManager implements ISocketManager {
       ).catch(() => {});
       
     } catch (error) {
-      console.error('🔌 SocketManager: Error emitting event:', event, error);
+      console.error('?? SocketManager: Error emitting event:', event, error);
       
       // Record error metric
       const duration = Date.now() - startTime;
@@ -215,7 +210,7 @@ export class SocketManager implements ISocketManager {
         source: 'websocket',
         timestamp: Date.now(),
       }).catch((error) => {
-        console.error('🔌 SocketManager: Error routing message:', event, error);
+        console.error('?? SocketManager: Error routing message:', event, error);
       });
       
       // Still directly call the callback for backward compatibility
@@ -289,8 +284,8 @@ export class SocketManager implements ISocketManager {
       }
     }
 
-    console.log('🔌 SocketManager: Creating socket connection to:', socketUrl);
-    console.log('🔌 SocketManager: Socket options:', {
+    console.log('?? SocketManager: Creating socket connection to:', socketUrl);
+    console.log('?? SocketManager: Socket options:', {
       ...socketOptions,
       auth: { token: token ? '[PRESENT]' : '[MISSING]' }
     });
@@ -328,7 +323,7 @@ export class SocketManager implements ISocketManager {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('✅ Socket connected, ID:', this.socket?.id);
+      console.log('? Socket connected, ID:', this.socket?.id);
       this.clearReconnectTimer();
       
       // Update state
@@ -359,7 +354,7 @@ export class SocketManager implements ISocketManager {
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('❌ Socket disconnected, reason:', reason);
+      console.log('? Socket disconnected, reason:', reason);
       
       // Stop health monitoring
       this.healthMonitor.stopMonitoring();
@@ -385,7 +380,7 @@ export class SocketManager implements ISocketManager {
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('🔥 Socket connection error:', error);
+      console.error('?? Socket connection error:', error);
       
       // Update state
       this.updateState({
@@ -410,7 +405,7 @@ export class SocketManager implements ISocketManager {
     
     // Special handler for server-side errors
     this.socket.on('error', (error) => {
-      console.error('🔥 Socket server error:', error);
+      console.error('?? Socket server error:', error);
       
       // Record server error
       desktopBridge.recordPerformanceMetric(
@@ -438,7 +433,7 @@ export class SocketManager implements ISocketManager {
       try {
         callback(this.getState());
       } catch (error) {
-        console.error('🔌 SocketManager: Error in state change callback:', error);
+        console.error('?? SocketManager: Error in state change callback:', error);
       }
     });
   }
@@ -501,19 +496,19 @@ export class SocketManager implements ISocketManager {
     
     // Listen for reconnect requests from health monitor
     this.healthMonitor.on('reconnect-required', () => {
-      console.log('🔄 SocketManager: Reconnection required by health monitor');
+      console.log('?? SocketManager: Reconnection required by health monitor');
       
       // Only reconnect if not already connected
       if (!this.socket?.connected) {
         this.connect().catch((error) => {
-          console.error('🔥 SocketManager: Reconnection failed:', error);
+          console.error('?? SocketManager: Reconnection failed:', error);
         });
       }
     });
     
     // Listen for health degradation
     this.healthMonitor.on('health-degraded', ({ error }: any) => {
-      console.warn('⚠️ SocketManager: Connection health degraded:', error);
+      console.warn('?? SocketManager: Connection health degraded:', error);
       
       // Update state to reflect health issue
       this.updateState({
@@ -523,7 +518,7 @@ export class SocketManager implements ISocketManager {
     
     // Listen for health restoration
     this.healthMonitor.on('health-restored', () => {
-      console.log('✅ SocketManager: Connection health restored');
+      console.log('? SocketManager: Connection health restored');
       
       // Update state to clear health issue
       this.updateState({
@@ -540,12 +535,12 @@ export class SocketManager implements ISocketManager {
         return accessToken;
       }
     } catch (error) {
-      console.warn('🔌 SocketManager: Failed to get access token:', error);
+      console.warn('?? SocketManager: Failed to get access token:', error);
     }
     
     // If no access token, we can't authenticate the socket connection
     // The authentication should be handled at a higher level
-    console.warn('🔌 SocketManager: No access token available for socket authentication');
+    console.warn('?? SocketManager: No access token available for socket authentication');
     return null;
   }
 }

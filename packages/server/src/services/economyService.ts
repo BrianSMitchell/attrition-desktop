@@ -1,8 +1,9 @@
 import { supabase } from '../config/supabase';
 import { ERROR_MESSAGES } from '../constants/response-formats';
 import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
-import { STATUS_CODES } from '@shared/constants/magic-numbers';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { STATUS_CODES } from '@game/shared';
+import { ENV_VARS } from '@game/shared';
+import { EconomyService } from '../services/economy/EconomyService';
 import {
   getBuildingSpec,
   BuildingKey,

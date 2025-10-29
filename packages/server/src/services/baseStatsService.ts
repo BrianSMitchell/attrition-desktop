@@ -8,6 +8,7 @@ import {
 
 // Constants imports for eliminating hardcoded values
 import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { CapacityService } from '../services/bases/CapacityService';
 
 /**
  * Population capacity per Urban Structures level equals the planet's fertility.

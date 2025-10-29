@@ -1,16 +1,16 @@
 import express from 'express';
-import { authenticate } from '../middleware/auth';
-import { Request, Response, NextFunction } from 'express';
+import { authenticate, AuthRequest } from '../middleware/auth';
+import { Request, Response, NextFunction, Router } from 'express';
 
 interface AuthRequest extends Request {
   user?: any;
 }
 import { asyncHandler } from '../middleware/errorHandler';
-import { supabase } from '../../config/supabase';
+import { supabase } from '../config/supabase';
 
 // Constants imports for eliminating hardcoded values
-import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
-import { HTTP_STATUS, RESPONSE_FORMAT } from '../../constants/response-formats';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { HTTP_STATUS, RESPONSE_FORMAT } from '../constants/response-formats';
 
 import { supabase } from '../config/supabase';
 

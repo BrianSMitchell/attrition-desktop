@@ -2,11 +2,11 @@ import { Router, Response } from 'express';
 import { supabase } from '../../config/supabase';
 import { asyncHandler } from '../../../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../../../middleware/auth';
-import { ERROR_MESSAGES } from '../../../constants/response-formats';
+import { ERROR_MESSAGES } from '../../constants/response-formats';
 import { ENV_VALUES } from '@game/shared';
 
 // Constants imports for eliminating hardcoded values
-import { DB_TABLES, DB_FIELDS } from '../../../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { HTTP_STATUS } from '@game/shared';
 import { ENV_VARS } from '@game/shared';
 import { 

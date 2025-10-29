@@ -5,6 +5,8 @@ import type { StructuresStatusDTO } from "../../services/structuresService";
 import { useModalStore } from "../../stores/modalStore";
 import BuildTable, { type Column, type Eligibility } from "./BuildTable";
 import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { BUTTON_TEXT, DISPLAY_TEXT } from '@game/shared';
+import { GAME_TEXT, STATUS_TEXT } from '@shared/constants/string-constants';
 
 interface StructuresBuildTableProps {
   catalog: BuildingSpec[];
@@ -162,7 +164,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
   const columns: Column<BuildingSpec>[] = [
     {
       key: "credits",
-      header: "Credits",
+      header: GAME_TEXT.CREDITS,
       align: "left",
       render: (s) => {
         const currentLevel = levels?.[s.key as BuildingKey] ?? 0;
@@ -179,7 +181,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
     },
     {
       key: "energy",
-      header: "Energy",
+      header: GAME_TEXT.ENERGY,
       align: "left",
       render: (s) =>
         s.key === "solar_plants" || s.key === "gas_plants"
@@ -293,7 +295,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
         onClick={() => setExpandedKey(expandedKey === s.key ? null : s.key)}
       >
         {s.name}
-        {lvl > 0 ? ` (Level ${lvl})` : ""}
+        {lvl > 0 ? ` (${GAME_TEXT.LEVEL} ${lvl})` : ""}
         {typeof hintValue === "number" && hintLabel && (
           <span className="ml-2 text-xs text-gray-400">{`(+${hintValue.toLocaleString()} ${hintLabel} here)`}</span>
         )}
@@ -356,9 +358,9 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
 
   return (
     <BuildTable<BuildingSpec>
-      title="Structures"
-      firstColumnHeader="Structure"
-      actionHeader="Start"
+      title={GAME_TEXT.BUILDINGS}
+      firstColumnHeader={GAME_TEXT.BUILDING}
+      actionHeader={BUTTON_TEXT.START}
       summary={undefined}
       loading={loading}
       onRefresh={onRefresh}
@@ -371,8 +373,8 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
       onAction={(s) => onStart(s.key as BuildingKey)}
       actionLabel={(_, eligible, isLoading) => {
         if (isLoading) return "...";
-        if (hasActive) return "Construction Underway";
-        return eligible ? "Start" : "Unavailable";
+        if (hasActive) return `${GAME_TEXT.CONSTRUCTION} ${STATUS_TEXT.IN_PROGRESS}`;
+        return eligible ? BUTTON_TEXT.START : DISPLAY_TEXT.UNAVAILABLE;
       }}
       actionTestIdPrefix="start"
       nameTestIdPrefix="name"

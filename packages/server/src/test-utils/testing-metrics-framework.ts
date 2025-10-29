@@ -1,10 +1,10 @@
 /**
 
-import { STATUS_CODES } from '@shared/constants/magic-numbers';
+import { STATUS_CODES } from '@game/shared';
 /**
 
 import { DB_FIELDS } from '../../../constants/database-fields';
-import { DIRECTORY_PATHS } from '../../../shared/src/constants/file-paths';
+import { DIRECTORY_PATHS } from '@game/shared';
 
 /**
  * Testing Metrics Collection Framework

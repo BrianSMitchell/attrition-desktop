@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { 
 import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import {
   useEnhancedAuth, 
   useEnhancedAuthActions,
   useEnhancedNetwork,
@@ -12,6 +11,7 @@ import { TIMEOUTS } from '@shared/constants/magic-numbers';
   useUIActions,
   useConnectionStatus
 } from '../stores/enhancedAppStore';
+import { useCallback, useState } from 'react';
 
 /**
  * Hook for service-aware authentication

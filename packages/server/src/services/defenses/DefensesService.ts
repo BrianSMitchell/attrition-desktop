@@ -1,7 +1,8 @@
 import { supabase } from '../../config/supabase';
 import { CapacityService } from '../bases/CapacityService';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
-import { DB_FIELDS } from '../../../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import {
   getDefensesList,
   DefenseKey,
   TechnologyKey,

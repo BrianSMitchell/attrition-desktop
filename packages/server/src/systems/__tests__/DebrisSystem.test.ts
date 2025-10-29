@@ -1,7 +1,7 @@
 import { DebrisSystem } from '../DebrisSystem';
 import { Location, Empire } from '../../../../shared/src/types';
 
-import { TIMEOUTS, GAME_CONSTANTS } from '@shared/constants/magic-numbers';
+import { TIMEOUTS, GAME_CONSTANTS } from '@game/shared';
 describe('DebrisSystem', () => {
   let debrisSystem: DebrisSystem;
   let locations: Map<string, Location>;

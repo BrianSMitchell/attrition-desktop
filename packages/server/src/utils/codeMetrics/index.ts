@@ -1,6 +1,6 @@
 /**
 export const analyzer = new AttritionMetricsAnalyzer();
-import { STATUS_CODES } from '@shared/constants/magic-numbers';
+import { STATUS_CODES } from '@game/shared';
 /**
  * Main entry point for Code Metrics and Threshold Management System
  *

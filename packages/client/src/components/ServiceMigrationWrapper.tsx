@@ -1,7 +1,6 @@
 import React, { Component, ComponentType, ReactNode, useEffect, useState } from 'react';
-import { 
 import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-
+import {
   useServiceHealth,
   useCompatibilityLayer 
 } from '../hooks/useServiceIntegration';

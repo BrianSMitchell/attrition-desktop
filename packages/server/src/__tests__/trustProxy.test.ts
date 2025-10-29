@@ -3,7 +3,7 @@ import { API_ENDPOINTS } from '../constants/api-endpoints';
 
 
 // Important: set NODE_ENV=test before importing app so server doesn't start
-import { HTTP_STATUS } from '@shared/response-formats';
+import { HTTP_STATUS } from '@game/shared';
 const OLD_ENV = process.env;
 process.env = { ...OLD_ENV, NODE_ENV: 'test' };
 

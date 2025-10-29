@@ -91,6 +91,7 @@ export const API_ENDPOINTS = {
   
   // Universe/Location endpoints
   UNIVERSE: {
+    BASE: '/api/universe',
     COORD: '/api/universe/coord/:coord'
   },
   

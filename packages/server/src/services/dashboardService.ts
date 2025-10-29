@@ -2,6 +2,7 @@ import { Empire } from '../../models/Empire';
 import { EconomyService } from './economyService';
 import { ResourceService } from './resourceService';
 import { ERROR_MESSAGES } from '../constants/response-formats';
+import { CapacityService } from '../services/bases/CapacityService';
 
 /**
  * Service for aggregating and returning dashboard data

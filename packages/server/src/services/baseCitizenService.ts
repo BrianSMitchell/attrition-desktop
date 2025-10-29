@@ -4,7 +4,7 @@ import { CapacityService } from './bases/CapacityService';
 // Constants imports for eliminating hardcoded values
 import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { TIMEOUTS } from '@game/shared';
 /**
  * BaseCitizenService - Production-ready citizen accrual service for Supabase.
  * Uses batch operations and optimized queries to prevent production timeouts.

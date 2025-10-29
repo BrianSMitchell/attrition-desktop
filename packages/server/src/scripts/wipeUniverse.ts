@@ -1,8 +1,4 @@
 import { DB_TABLES } from '../constants/database-fields';
-import { DB_TABLES } from '../constants/database-fields';
-import { DB_TABLES } from '../constants/database-fields';
-import { DB_TABLES } from '../constants/database-fields';
-import { DB_TABLES } from '../constants/database-fields';
 
 // Ensure we load env from packages/server/.env when run directly
 dotenvConfig({ path: path.resolve(__dirname, '../../.env') });
@@ -19,9 +15,6 @@ function parseArgs() {
 }
 
 async function main() {
-  if (getDatabaseType() !== 'supabase') {
-    throw new Error('DB_TYPE must be supabase to run this script.');
-  }
 
   const { server } = parseArgs();
   const serverName = (server || 'A').toUpperCase();

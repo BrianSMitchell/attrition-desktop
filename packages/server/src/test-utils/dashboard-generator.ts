@@ -1,4 +1,4 @@
-import { FILE_PATHS, DIRECTORY_PATHS } from '../../../shared/src/constants/file-paths';
+import { FILE_PATHS, DIRECTORY_PATHS } from '@game/shared';
 
 /**
  * Testing Dashboard Generator

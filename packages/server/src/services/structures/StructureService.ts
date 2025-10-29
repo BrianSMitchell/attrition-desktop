@@ -1,13 +1,14 @@
 import { supabase } from '../../config/supabase';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
-import { DB_FIELDS } from '../../../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { 
   getBuildingSpec, 
   BuildingKey, 
   computeEnergyBalance, 
   getStructureCreditCostForLevel 
 } from '@game/shared';
 import { StatsService } from '../bases/StatsService';
-import { ERROR_MESSAGES } from '../../constants/response-formats';
+import { CapacityService } from '../services/bases/CapacityService';
 
 export interface Structure {
   catalogKey: string;
@@ -38,7 +39,7 @@ export class StructureService {
    */
   static async getCatalog(): Promise<{ data: any; error: string | null }> {
     try {
-      const { getStructuresCatalog } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
+      const { getStructuresCatalog } = await import('../../services/structures/structures.data');
       const catalog = getStructuresCatalog();
       return { data: catalog, error: null };
     } catch (e: any) {

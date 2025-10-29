@@ -1,7 +1,7 @@
-﻿import rateLimit from 'express-rate-limit';
+import rateLimit from 'express-rate-limit';
+import { Request, Response, NextFunction } from 'express';
 import { HTTP_STATUS } from '../constants/response-formats';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VARS, ENV_VALUES } from '@game/shared';
 
 
 // Store for tracking failed login attempts per IP
@@ -45,8 +45,8 @@ export const loginRateLimit = rateLimit({
 });
 
 // Account lockout middleware
-export const accountLockout = (req: Request, res: Response, next: Function) => {
-  const ip = req.ip || req.connection.remoteAddress || 'unknown';
+export const accountLockout = (req: Request, res: Response, next: NextFunction) => {
+  const ip = req.ip || (req.socket && req.socket.remoteAddress) || 'unknown';
   const now = Date.now();
   const attempt = loginAttempts.get(ip);
 
@@ -69,7 +69,7 @@ export const accountLockout = (req: Request, res: Response, next: Function) => {
 
 // Track failed login attempts
 export const trackFailedLogin = (req: Request) => {
-  const ip = req.ip || req.connection.remoteAddress || 'unknown';
+  const ip = req.ip || (req.socket && req.socket.remoteAddress) || 'unknown';
   const now = Date.now();
   const attempt = loginAttempts.get(ip) || { count: 0, lastAttempt: 0 };
 
@@ -87,7 +87,7 @@ export const trackFailedLogin = (req: Request) => {
 
 // Clear failed attempts on successful login
 export const clearFailedAttempts = (req: Request) => {
-  const ip = req.ip || req.connection.remoteAddress || 'unknown';
+  const ip = req.ip || (req.socket && req.socket.remoteAddress) || 'unknown';
   loginAttempts.delete(ip);
 };
 

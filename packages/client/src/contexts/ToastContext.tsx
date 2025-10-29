@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ERROR_TEXT, SUCCESS_TEXT, NOTIFICATION_TEXT } from '@game/shared';
 
 type ToastType = "success" | "info" | "error" | "warning";
 
@@ -79,7 +80,7 @@ export const ToastViewport: React.FC = () => {
         const dotColor =
           t.type === "error" ? "bg-red-400" : t.type === "success" ? "bg-green-400" : t.type === "warning" ? "bg-yellow-400" : "bg-blue-400";
         const title =
-          t.type === "error" ? "Error" : t.type === "success" ? "Success" : t.type === "warning" ? "Warning" : "Notice";
+          t.type === "error" ? ERROR_TEXT.ERROR : t.type === "success" ? SUCCESS_TEXT.SUCCESS : t.type === "warning" ? NOTIFICATION_TEXT.WARNING : NOTIFICATION_TEXT.NOTICE;
 
         return (
           <div

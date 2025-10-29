@@ -1,10 +1,9 @@
 import 'dotenv/config';
 import { supabase } from '../config/supabase';
-import { getDatabaseType } from '../config/database';
 import { DB_TABLES } from '../constants/database-fields';
 
 import { DB_FIELDS } from '../../../constants/database-fields';
-import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
+import { GAME_CONSTANTS } from '@game/shared';
 interface UserRow {
   id: string;
   email?: string | null;
@@ -110,10 +109,6 @@ async function claimStarterForUser(u: UserRow): Promise<boolean> {
 }
 
 async function main() {
-  if (getDatabaseType() !== 'supabase') {
-    console.error('ERROR: DB_TYPE is not supabase. Aborting.');
-    process.exit(1);
-  }
 
   const { limit } = parseArgs();
   const max = Math.min(limit ?? 200, 2000);

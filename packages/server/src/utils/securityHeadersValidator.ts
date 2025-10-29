@@ -1,6 +1,6 @@
-﻿import { Request, Response } from 'express';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { Request, Response } from 'express';
+import { ENV_VARS } from '@game/shared';
+import { ENV_VALUES } from '@game/shared';
 
 
 /**
@@ -331,7 +331,7 @@ export function securityHeadersValidationMiddleware(req: Request, res: Response,
     
     // Log security compliance
     if (!report.isCompliant || report.score < 90) {
-      console.warn('🔒 Security Headers Validation:', {
+      console.warn('?? Security Headers Validation:', {
         url: req.originalUrl,
         score: report.score,
         missingHeaders: report.missingHeaders,
@@ -353,39 +353,39 @@ export function securityHeadersValidationMiddleware(req: Request, res: Response,
 export function generateSecurityReport(headers: Record<string, string>): string {
   const report = validateSecurityHeaders(headers);
   
-  let output = `\n🔒 SECURITY HEADERS REPORT\n`;
-  output += `Score: ${report.score}/100 ${report.isCompliant ? '✅' : '❌'}\n`;
+  let output = `\n?? SECURITY HEADERS REPORT\n`;
+  output += `Score: ${report.score}/100 ${report.isCompliant ? '?' : '?'}\n`;
   output += `Status: ${report.isCompliant ? 'COMPLIANT' : 'NON-COMPLIANT'}\n\n`;
   
   if (report.compliantHeaders.length > 0) {
-    output += `✅ Compliant Headers (${report.compliantHeaders.length}):\n`;
+    output += `? Compliant Headers (${report.compliantHeaders.length}):\n`;
     report.compliantHeaders.forEach(header => {
-      output += `   • ${header}\n`;
+      output += `   � ${header}\n`;
     });
     output += `\n`;
   }
   
   if (report.missingHeaders.length > 0) {
-    output += `❌ Missing Headers (${report.missingHeaders.length}):\n`;
+    output += `? Missing Headers (${report.missingHeaders.length}):\n`;
     report.missingHeaders.forEach(header => {
-      output += `   • ${header}\n`;
+      output += `   � ${header}\n`;
     });
     output += `\n`;
   }
   
   if (report.misconfiguredHeaders.length > 0) {
-    output += `⚠️ Misconfigured Headers (${report.misconfiguredHeaders.length}):\n`;
+    output += `?? Misconfigured Headers (${report.misconfiguredHeaders.length}):\n`;
     report.misconfiguredHeaders.forEach(config => {
-      output += `   • ${config.header}: ${config.issue}\n`;
+      output += `   � ${config.header}: ${config.issue}\n`;
       output += `     Recommendation: ${config.recommendation}\n`;
     });
     output += `\n`;
   }
   
   if (report.recommendations.length > 0) {
-    output += `💡 Recommendations:\n`;
+    output += `?? Recommendations:\n`;
     report.recommendations.forEach(rec => {
-      output += `   • ${rec}\n`;
+      output += `   � ${rec}\n`;
     });
   }
   

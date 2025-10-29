@@ -1,8 +1,7 @@
-﻿import helmet from 'helmet';
+import helmet from 'helmet';
+import { Request, Response, NextFunction } from 'express';
 import { HTTP_STATUS } from '../constants/response-formats';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
-import { ENV_VARS } from '@shared/constants/env-vars';
+import { ENV_VARS, ENV_VALUES } from '@game/shared';
 
 
 /**
@@ -152,7 +151,7 @@ export function createSecurityHeadersMiddleware(isDevelopment = false) {
         };
       } catch {
         // Fallback if permissions policy is not supported
-        console.warn('⚠️ Permissions Policy not supported in this Helmet version');
+        console.warn('?? Permissions Policy not supported in this Helmet version');
         return {};
       }
     })(),
@@ -271,7 +270,7 @@ export function securityLoggingMiddleware(req: Request, res: Response, next: Nex
   );
 
   if (isSuspicious) {
-    console.warn(`🚨 Suspicious request detected:`, {
+    console.warn(`?? Suspicious request detected:`, {
       ip: req.ip,
       method: req.method,
       url: req.url,

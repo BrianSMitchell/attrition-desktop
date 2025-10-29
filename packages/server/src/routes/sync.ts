@@ -4,18 +4,18 @@ import { API_ENDPOINTS } from '../constants/api-endpoints';
 
 
 // Constants imports for eliminating hardcoded values
-import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
-import { ERROR_MESSAGES } from '../constants/response-formats';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 
 import { supabase } from '../config/supabase';
 import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { ResourceService } from '../services/resources/ResourceService';
 import { EconomyService } from '../services/economy/EconomyService';
-import { ERROR_MESSAGES } from '../constants/response-formats';
 
-import { HTTP_STATUS } from '@shared/response-formats';
-import { STATUS_CODES } from '@shared/constants/magic-numbers';
+import { HTTP_STATUS } from '@game/shared';
+import { STATUS_CODES } from '@game/shared';
+import { getTechSpec, getTechnologyList } from '@game/shared';
+import { getBuildingsList, getDefensesList, getUnitsList } from '@game/shared';
 const router: Router = Router();
 
 // All sync routes require authentication

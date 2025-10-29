@@ -1,6 +1,6 @@
 /**
 }
-import { STATUS_CODES } from '@shared/constants/magic-numbers';
+import { STATUS_CODES } from '@game/shared';
 /**
 }
 import { DB_FIELDS } from '../../../constants/database-fields';

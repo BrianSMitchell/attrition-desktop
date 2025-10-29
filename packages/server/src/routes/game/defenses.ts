@@ -3,7 +3,7 @@ import { supabase } from '../../config/supabase';
 import { asyncHandler } from '../../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../../middleware/auth';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
-import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { HTTP_STATUS } from '@game/shared';
 import { DefenseKey, getDefensesList } from '@game/shared';
 import { EmpireResolutionService } from '../../services/empire/EmpireResolutionService';

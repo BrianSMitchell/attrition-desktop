@@ -8,7 +8,7 @@ import { HTTP_STATUS, ERROR_MESSAGES } from '../constants/response-formats';
 
 // Mock dependencies
 import { DB_FIELDS } from '../../../constants/database-fields';
-import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
+import { GAME_CONSTANTS } from '@game/shared';
 jest.mock('../config/supabase');
 jest.mock('../services/empire/EmpireResolutionService');
 jest.mock('../services/fleets/FleetMovementService');

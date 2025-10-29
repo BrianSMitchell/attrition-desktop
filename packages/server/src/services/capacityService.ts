@@ -1,4 +1,5 @@
 import { Empire, ResourceCost } from '@game/shared';
+import { CapacityService } from '../services/bases/CapacityService';
 
 /**
  * Service for managing and calculating empire resource capacities

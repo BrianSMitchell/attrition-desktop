@@ -11,6 +11,7 @@ import { getBuildingSpec } from '@game/shared';
 import { useFleetSocketEvents } from '../../hooks/useFleetSocketEvents';
 import { FleetDebug } from '../debug/FleetDebug';
 import { LAYOUT_CLASSES } from '../constants/css-constants';
+import { LOADING_MESSAGES, GAME_TEXT, STATUS_TEXT, ERROR_TEXT } from '@shared/constants/string-constants';
 
 // Type definitions for API data
 type BaseStatsDTO = any;
@@ -217,7 +218,7 @@ const BasePage: React.FC = () => {
   if (loading) {
     return (
       <div className="game-card">
-        <div className="py-10 text-center text-gray-300">Loading base...</div>
+        <div className="py-10 text-center text-gray-300">{LOADING_MESSAGES.DATA}</div>
       </div>
     );
   }
@@ -415,7 +416,7 @@ const BasePage: React.FC = () => {
 
       {/* Fleets */}
       <div className="game-card">
-        <h3 className="text-lg font-semibold text-empire-gold mb-3">Fleets</h3>
+        <h3 className="text-lg font-semibold text-empire-gold mb-3">{GAME_TEXT.FLEETS}</h3>
         {(coord && gameState?.fleets?.errorByCoord?.[coord]) && (
           <div className="p-3 bg-red-900/50 border border-red-700 rounded-md text-red-200 mb-3">
             {coord && gameState?.fleets?.errorByCoord?.[coord]}
@@ -425,10 +426,10 @@ const BasePage: React.FC = () => {
           <table className="min-w-full text-sm">
             <thead className="text-gray-300">
               <tr className="border-b border-gray-700">
-                <th className="text-left py-1 pr-4">Fleet</th>
+                <th className="text-left py-1 pr-4">{GAME_TEXT.FLEET}</th>
                 <th className="text-left py-1 pr-4">Player</th>
                 <th className="text-left py-1 pr-4">Arrival</th>
-                <th className="text-left py-1 pr-4">Status</th>
+                <th className="text-left py-1 pr-4">{GAME_TEXT.STATUS}</th>
                 <th className="text-right py-1">Size</th>
               </tr>
             </thead>
@@ -458,7 +459,7 @@ const BasePage: React.FC = () => {
 
       {/* Structures */}
       <div className="game-card">
-        <h3 className="text-lg font-semibold text-empire-gold mb-3">Structures</h3>
+        <h3 className="text-lg font-semibold text-empire-gold mb-3">{GAME_TEXT.BUILDINGS}</h3>
         {publicBuildingsError && (
           <div className="p-3 bg-red-900/50 border border-red-700 rounded-md text-red-200 mb-3">
             {publicBuildingsError}
@@ -470,8 +471,8 @@ const BasePage: React.FC = () => {
             <table className="min-w-full text-sm">
               <thead className="text-gray-300">
                 <tr className="border-b border-gray-700">
-                  <th className="text-left py-1 pr-4">Structures</th>
-                  <th className="text-right py-1">Level</th>
+                  <th className="text-left py-1 pr-4">{GAME_TEXT.BUILDINGS}</th>
+                  <th className="text-right py-1">{GAME_TEXT.LEVEL}</th>
                 </tr>
               </thead>
               <tbody className="text-white">
@@ -499,8 +500,8 @@ const BasePage: React.FC = () => {
               <table className="min-w-full text-sm">
                 <thead className="text-gray-300">
                   <tr className="border-b border-gray-700">
-                    <th className="text-left py-1 pr-4">Structures</th>
-                    <th className="text-right py-1">Level</th>
+                    <th className="text-left py-1 pr-4">{GAME_TEXT.BUILDINGS}</th>
+                    <th className="text-right py-1">{GAME_TEXT.LEVEL}</th>
                   </tr>
                 </thead>
                 <tbody className="text-white">
@@ -522,7 +523,7 @@ const BasePage: React.FC = () => {
                 <thead className="text-gray-300">
                   <tr className="border-b border-gray-700">
                     <th className="text-left py-1 pr-4">Defenses</th>
-                    <th className="text-right py-1">Level</th>
+                    <th className="text-right py-1">{GAME_TEXT.LEVEL}</th>
                   </tr>
                 </thead>
                 <tbody className="text-white">

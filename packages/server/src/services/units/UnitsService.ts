@@ -4,6 +4,7 @@ import { getUnitsList, getUnitSpec, type UnitKey } from '@game/shared';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
 
 import { DB_FIELDS } from '../../../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 function evaluateUnitTechPrereqs(
   techLevels: Record<string, number>,
   prereqs: Array<{ key: string; level: number }>
@@ -210,7 +211,7 @@ const caps = await CapacityService.getBaseCapacities(empireId, baseCoord);
 
     // Log credit transaction (best effort)
     try {
-const { CreditLedgerService } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
+const { CreditLedgerService } = await import('../../constants/response-formats')
 await CreditLedgerService.logTransaction({
         empireId,
         amount: -cost,

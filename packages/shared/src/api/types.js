@@ -1,0 +1,70 @@
+"use strict";
+// Standardized API response patterns with consistent error handling
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ApiErrorCode = exports.HttpStatusCode = void 0;
+/**
+ * HTTP status codes used throughout the API
+ */
+var HttpStatusCode;
+(function (HttpStatusCode) {
+    // Success
+    HttpStatusCode[HttpStatusCode["OK"] = 200] = "OK";
+    HttpStatusCode[HttpStatusCode["CREATED"] = 201] = "CREATED";
+    HttpStatusCode[HttpStatusCode["ACCEPTED"] = 202] = "ACCEPTED";
+    HttpStatusCode[HttpStatusCode["NO_CONTENT"] = 204] = "NO_CONTENT";
+    // Client Error
+    HttpStatusCode[HttpStatusCode["BAD_REQUEST"] = 400] = "BAD_REQUEST";
+    HttpStatusCode[HttpStatusCode["UNAUTHORIZED"] = 401] = "UNAUTHORIZED";
+    HttpStatusCode[HttpStatusCode["FORBIDDEN"] = 403] = "FORBIDDEN";
+    HttpStatusCode[HttpStatusCode["NOT_FOUND"] = 404] = "NOT_FOUND";
+    HttpStatusCode[HttpStatusCode["METHOD_NOT_ALLOWED"] = 405] = "METHOD_NOT_ALLOWED";
+    HttpStatusCode[HttpStatusCode["CONFLICT"] = 409] = "CONFLICT";
+    HttpStatusCode[HttpStatusCode["UNPROCESSABLE_ENTITY"] = 422] = "UNPROCESSABLE_ENTITY";
+    HttpStatusCode[HttpStatusCode["TOO_MANY_REQUESTS"] = 429] = "TOO_MANY_REQUESTS";
+    // Server Error
+    HttpStatusCode[HttpStatusCode["INTERNAL_SERVER_ERROR"] = 500] = "INTERNAL_SERVER_ERROR";
+    HttpStatusCode[HttpStatusCode["NOT_IMPLEMENTED"] = 501] = "NOT_IMPLEMENTED";
+    HttpStatusCode[HttpStatusCode["BAD_GATEWAY"] = 502] = "BAD_GATEWAY";
+    HttpStatusCode[HttpStatusCode["SERVICE_UNAVAILABLE"] = 503] = "SERVICE_UNAVAILABLE";
+    HttpStatusCode[HttpStatusCode["GATEWAY_TIMEOUT"] = 504] = "GATEWAY_TIMEOUT";
+})(HttpStatusCode || (exports.HttpStatusCode = HttpStatusCode = {}));
+/**
+ * Standard error codes for consistent error handling across the application
+ */
+var ApiErrorCode;
+(function (ApiErrorCode) {
+    // Authentication & Authorization
+    ApiErrorCode["INVALID_CREDENTIALS"] = "INVALID_CREDENTIALS";
+    ApiErrorCode["TOKEN_EXPIRED"] = "TOKEN_EXPIRED";
+    ApiErrorCode["TOKEN_INVALID"] = "TOKEN_INVALID";
+    ApiErrorCode["ACCESS_DENIED"] = "ACCESS_DENIED";
+    ApiErrorCode["ACCOUNT_LOCKED"] = "ACCOUNT_LOCKED";
+    ApiErrorCode["EMAIL_NOT_VERIFIED"] = "EMAIL_NOT_VERIFIED";
+    // Validation
+    ApiErrorCode["VALIDATION_FAILED"] = "VALIDATION_FAILED";
+    ApiErrorCode["MISSING_REQUIRED_FIELD"] = "MISSING_REQUIRED_FIELD";
+    ApiErrorCode["INVALID_FORMAT"] = "INVALID_FORMAT";
+    ApiErrorCode["VALUE_OUT_OF_RANGE"] = "VALUE_OUT_OF_RANGE";
+    ApiErrorCode["DUPLICATE_VALUE"] = "DUPLICATE_VALUE";
+    // Game Logic
+    ApiErrorCode["INSUFFICIENT_RESOURCES"] = "INSUFFICIENT_RESOURCES";
+    ApiErrorCode["EMPIRE_NOT_FOUND"] = "EMPIRE_NOT_FOUND";
+    ApiErrorCode["LOCATION_OCCUPIED"] = "LOCATION_OCCUPIED";
+    ApiErrorCode["LOCATION_INVALID"] = "LOCATION_INVALID";
+    ApiErrorCode["BUILDING_LIMIT_REACHED"] = "BUILDING_LIMIT_REACHED";
+    ApiErrorCode["TECH_REQUIREMENTS_NOT_MET"] = "TECH_REQUIREMENTS_NOT_MET";
+    ApiErrorCode["FLEET_IN_TRANSIT"] = "FLEET_IN_TRANSIT";
+    ApiErrorCode["COMBAT_IN_PROGRESS"] = "COMBAT_IN_PROGRESS";
+    ApiErrorCode["COOLDOWN_ACTIVE"] = "COOLDOWN_ACTIVE";
+    // System
+    ApiErrorCode["DATABASE_ERROR"] = "DATABASE_ERROR";
+    ApiErrorCode["NETWORK_ERROR"] = "NETWORK_ERROR";
+    ApiErrorCode["SERVICE_UNAVAILABLE"] = "SERVICE_UNAVAILABLE";
+    ApiErrorCode["RATE_LIMIT_EXCEEDED"] = "RATE_LIMIT_EXCEEDED";
+    ApiErrorCode["MAINTENANCE_MODE"] = "MAINTENANCE_MODE";
+    // Generic
+    ApiErrorCode["UNKNOWN_ERROR"] = "UNKNOWN_ERROR";
+    ApiErrorCode["OPERATION_FAILED"] = "OPERATION_FAILED";
+    ApiErrorCode["RESOURCE_NOT_FOUND"] = "RESOURCE_NOT_FOUND";
+    ApiErrorCode["INVALID_REQUEST"] = "INVALID_REQUEST";
+})(ApiErrorCode || (exports.ApiErrorCode = ApiErrorCode = {}));

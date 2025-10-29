@@ -4,15 +4,15 @@ import { supabase } from '../config/supabase';
 import { asyncHandler } from './errorHandler';
 import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 import { HTTP_STATUS } from '../constants/response-formats';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
-import { ENV_VARS } from '@shared/constants/env-vars';
+import { ENV_VALUES } from '@game/shared';
+import { ENV_VARS } from '@game/shared';
 import { 
   DeviceFingerprint,
   generateDeviceFingerprint,
   compareDeviceFingerprints,
   sanitizeFingerprint,
   isSuspiciousFingerprint
-} from '../utils/deviceFingerprinting';
+} from '../utils/deviceFingerprint';
 
 export interface SupabaseUser {
   _id: string;

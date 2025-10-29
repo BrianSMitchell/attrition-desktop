@@ -5,10 +5,10 @@ import { getUnitsList, UnitKey, TechnologyKey } from '@game/shared';
 import { ERROR_MESSAGES } from '../constants/response-formats';
 
 // Constants imports for eliminating hardcoded values
-import { ERROR_MESSAGES } from '../constants/response-formats';
 
 import { DB_FIELDS } from '../../../constants/database-fields';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VARS } from '@game/shared';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 
 function mapFromEmpireTechLevels(empire: any): Partial<Record<string, number>> {
   const mapVal = (empire as any).techLevels as Map<string, number> | undefined;

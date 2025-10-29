@@ -1,4 +1,4 @@
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VARS } from '@game/shared';
 
 /**
  * Configuration system for code metrics collection and threshold management
@@ -6,6 +6,7 @@ import { ENV_VARS } from '../../../shared/src/constants/env-vars';
  */
 
 import { HTTP_STATUS } from '../../constants/response-formats';
+import {
   MetricsConfig,
   ConfigValidation,
   MetricsThresholds,

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { 
 import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import {
   useServiceNetwork, 
   useServiceSync, 
   useServiceHealth, 

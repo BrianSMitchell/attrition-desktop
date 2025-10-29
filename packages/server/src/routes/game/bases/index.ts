@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { supabase } from '../../../config/supabase';
 import { asyncHandler } from '../../../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../../../middleware/auth';
@@ -19,6 +19,8 @@ import {
   getBuildingSpec 
 } from '@game/shared';
 import { EmpireResolutionService } from '../../../services/EmpireResolutionService';
+import { getTechSpec, getTechnologyList } from '@game/shared';
+import { getBuildingsList, getDefensesList, getUnitsList } from '@game/shared';
 
 const router = Router();
 

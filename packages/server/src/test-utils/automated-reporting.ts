@@ -1,4 +1,4 @@
-import { DIRECTORY_PATHS } from '../../../shared/src/constants/file-paths';
+import { DIRECTORY_PATHS } from '@game/shared';
 
 /**
  * Automated Testing Reporting System

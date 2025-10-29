@@ -1,5 +1,5 @@
-﻿import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VARS } from '@game/shared';
+import { ENV_VALUES } from '@game/shared';
 
 /**
  * TLS Session Management Utilities
@@ -107,7 +107,7 @@ export class TLSSessionManager extends EventEmitter {
     this.emit('sessionCreated', session);
 
     if (this.config.enableMetrics) {
-      console.log(`🔐 TLS session created: ${sessionId} (${securityLevel} security)`);
+      console.log(`?? TLS session created: ${sessionId} (${securityLevel} security)`);
     }
 
     return session;
@@ -192,7 +192,7 @@ export class TLSSessionManager extends EventEmitter {
     this.emit('sessionInvalidated', { sessionId, reason, session });
 
     if (this.config.enableMetrics) {
-      console.log(`🔒 TLS session invalidated: ${sessionId} (${reason || 'No reason provided'})`);
+      console.log(`?? TLS session invalidated: ${sessionId} (${reason || 'No reason provided'})`);
     }
 
     return true;
@@ -239,7 +239,7 @@ export class TLSSessionManager extends EventEmitter {
     this.metrics.activeSessions = this.sessions.size;
 
     if (cleanedCount > 0 && this.config.enableMetrics) {
-      console.log(`🧹 Cleaned up ${cleanedCount} expired TLS sessions`);
+      console.log(`?? Cleaned up ${cleanedCount} expired TLS sessions`);
     }
 
     return cleanedCount;
@@ -255,7 +255,7 @@ export class TLSSessionManager extends EventEmitter {
     this.emit('allSessionsCleared', { sessionCount });
 
     if (this.config.enableMetrics) {
-      console.log(`🗑️  Cleared all ${sessionCount} TLS sessions`);
+      console.log(`???  Cleared all ${sessionCount} TLS sessions`);
     }
   }
 
@@ -271,7 +271,7 @@ export class TLSSessionManager extends EventEmitter {
     this.clearAllSessions();
     this.removeAllListeners();
 
-    console.log('🛑 TLS session manager shutdown complete');
+    console.log('?? TLS session manager shutdown complete');
   }
 
   /**
@@ -381,7 +381,7 @@ export function createTLSSessionMiddleware(sessionManager: TLSSessionManager) {
       // Validate existing session
       const validation = sessionManager.validateSession(sessionId, clientIP);
       if (!validation.isValid) {
-        console.warn(`⚠️  Invalid TLS session rejected: ${validation.reason}`);
+        console.warn(`??  Invalid TLS session rejected: ${validation.reason}`);
         return res.status(HTTP_STATUS.FORBIDDEN).json({ 
           error: 'Invalid TLS session',
           reason: validation.reason 

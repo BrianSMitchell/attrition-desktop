@@ -1,16 +1,14 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
-import { getDatabaseType } from '../config/database';
 import { ERROR_MESSAGES } from '../constants/response-formats';
 
 // Constants imports for eliminating hardcoded values
-import { ERROR_MESSAGES } from '../constants/response-formats';
 
 import { supabase } from '../config/supabase';
-import { ERROR_MESSAGES } from '../constants/response-formats';
 
 import { DB_FIELDS } from '../../../constants/database-fields';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VARS } from '@game/shared';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 
 const onlineUserSocketCounts = new Map<string, number>();
 
@@ -31,28 +29,24 @@ export function setupSocketIO(io: Server): void {
       const decoded = jwt.verify(token, process.env[ENV_VARS.JWT_SECRET]!) as { userId: string };
 
       let user: any = null;
-      if (getDatabaseType() === 'supabase') {
-        const { data, error } = await supabase
-          .from(DB_TABLES.USERS)
-          .select('id, email, username, empire_id, starting_coordinate')
-          .eq(DB_FIELDS.BUILDINGS.ID, decoded.userId)
-          .single();
-        if (error || !data) {
-          return next(new Error(ERROR_MESSAGES.USER_NOT_FOUND));
-        }
-        user = {
-          _id: data.id,
-          id: data.id,
-          email: data.email,
-          username: data.username,
-          gameProfile: {
-            startingCoordinate: data.starting_coordinate || null,
-            empireId: data.empire_id || null,
-          },
-        };
-      } else {
-        return next(new Error('Unsupported authentication method'));
+      const { data, error } = await supabase
+        .from(DB_TABLES.USERS)
+        .select('id, email, username, empire_id, starting_coordinate')
+        .eq(DB_FIELDS.BUILDINGS.ID, decoded.userId)
+        .single();
+      if (error || !data) {
+        return next(new Error(ERROR_MESSAGES.USER_NOT_FOUND));
       }
+      user = {
+        _id: data.id,
+        id: data.id,
+        email: data.email,
+        username: data.username,
+        gameProfile: {
+          startingCoordinate: data.starting_coordinate || null,
+          empireId: data.empire_id || null,
+        },
+      };
 
       socket.data.user = user;
       next();

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ERROR_TEXT, DISPLAY_TEXT } from '@game/shared';
 
 type SyncState = "idle" | "syncing" | "error" | "online" | "offline" | "degraded" | "loading";
 
@@ -24,9 +25,9 @@ const StatusDot: React.FC<Props> = ({
   const getLabel = () => {
     switch (state) {
       case "syncing": return "Syncing…";
-      case "error": return "Error";
-      case "online": return "Online";
-      case "offline": return "Offline";
+      case "error": return ERROR_TEXT.ERROR;
+      case "online": return DISPLAY_TEXT.ONLINE;
+      case "offline": return DISPLAY_TEXT.OFFLINE;
       case "degraded": return "Limited";
       case "loading": return "Loading…";
       default: return "Synced";
@@ -75,9 +76,9 @@ const StatusDot: React.FC<Props> = ({
   const getAriaLabel = () => {
     switch (state) {
       case "syncing": return "Syncing";
-      case "error": return "Error";
-      case "online": return "Online";
-      case "offline": return "Offline";
+      case "error": return ERROR_TEXT.ERROR;
+      case "online": return DISPLAY_TEXT.ONLINE;
+      case "offline": return DISPLAY_TEXT.OFFLINE;
       case "degraded": return "Limited";
       case "loading": return "Loading";
       default: return "Synced";

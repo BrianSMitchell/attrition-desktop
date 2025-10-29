@@ -1,8 +1,8 @@
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VARS } from '@game/shared';
 
 /**
 }
-import { STATUS_CODES } from '@shared/constants/magic-numbers';
+import { STATUS_CODES } from '@game/shared';
 /**
 }
 import { DB_FIELDS } from '../../../constants/database-fields';

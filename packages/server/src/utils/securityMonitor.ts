@@ -1,7 +1,7 @@
-﻿/**
+/**
 
 import { DB_FIELDS } from '../../../constants/database-fields';
-import { ENV_VARS } from '@shared/constants/env-vars';
+import { ENV_VARS } from '@game/shared';
 /**
  * Advanced Security Monitoring and Session Invalidation System
  * 
@@ -491,7 +491,7 @@ export class SecurityMonitor extends EventEmitter {
     const loginHours = history.map(e => e.timestamp.getHours());
     const averageHour = loginHours.reduce((a, b) => a + b, 0) / loginHours.length;
     
-    // Allow ±3 hours from average
+    // Allow �3 hours from average
     return Math.abs(hour - averageHour) <= 3;
   }
 

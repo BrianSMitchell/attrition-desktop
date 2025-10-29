@@ -2,9 +2,8 @@ import { supabase } from '../../config/supabase';
 import { CapacityService } from '../bases/CapacityService';
 import { StatsService } from '../bases/StatsService';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
-import { DB_FIELDS } from '../../../constants/database-fields';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import {
   getBuildingsList,
   getBuildingSpec,
   canStartBuildingByTech,
@@ -12,7 +11,6 @@ import { ENV_VARS } from '../../../shared/src/constants/env-vars';
   getStructureCreditCostForLevel,
   computeEnergyBalance,
 } from '@game/shared';
-import { ERROR_MESSAGES } from '../../constants/response-formats';
 
 /**
  * Helper to map tech levels from Supabase empire
@@ -531,7 +529,7 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
 
       // Broadcast queue addition
       try {
-        const { getIO } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
+        const { getIO } = await import('../../constants/response-formats')
         const io = getIO();
         (io as any)?.broadcastQueueUpdate?.(empireId, locationCoord, 'queue:item_queued', {
           locationCoord,
@@ -573,7 +571,7 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
 
       // Broadcast queue addition for upgrade
       try {
-        const { getIO } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
+        const { getIO } = await import('../../constants/response-formats')
         const io = getIO();
         (io as any)?.broadcastQueueUpdate?.(empireId, locationCoord, 'queue:item_queued', {
           locationCoord,
@@ -595,7 +593,7 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
 
     // Attempt to schedule the top-of-queue item immediately (non-blocking)
     try {
-      const { BuildingService } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
+      const { BuildingService } = await import('../../constants/response-formats')
       await BuildingService.scheduleNextQueuedForBase(empireId, locationCoord);
     } catch (e) {
       console.warn('[SupabaseStructuresService.start] scheduleNextQueuedForBase failed', e);
@@ -751,7 +749,7 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
 
         // Log transaction (best effort)
         try {
-          const { CreditLedgerService } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
+          const { CreditLedgerService } = await import('../../constants/response-formats')
           CreditLedgerService.logTransaction({
             empireId: empireId as any,
             amount: refundedCredits,
@@ -765,7 +763,7 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
 
     // Broadcast cancellation
     try {
-      const { getIO } = await import { ERROR_MESSAGES } from '../../constants/response-formats';
+      const { getIO } = await import('../../constants/response-formats')
       const io = getIO();
       (io as any)?.broadcastQueueUpdate?.(empireId, locationCoord, 'queue:item_cancelled', {
         locationCoord,

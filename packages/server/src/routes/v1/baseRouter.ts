@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { authenticate, AuthRequest } from '../../middleware/auth';
-import { asyncHandler } from '../../middleware/errorHandler';
+import { authenticate, AuthRequest } from '../../../middleware/auth';
+import { asyncHandler } from '../../../middleware/errorHandler';
 
 // Create base router with authentication
 const createBaseRouter = () => {

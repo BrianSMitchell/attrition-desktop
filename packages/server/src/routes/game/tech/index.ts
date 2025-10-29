@@ -1,9 +1,15 @@
+import { AuthRequest } from '../../../middleware/auth';
+import { asyncHandler } from '../../../middleware/errorHandler';
+import { Router } from 'express';
 import { HTTP_STATUS, ERROR_MESSAGES } from '../../../constants/response-formats';
-import { API_ENDPOINTS } from '../constants/api-endpoints';
+import { API_ENDPOINTS } from '../../../constants/api-endpoints';
 
 
 // Placeholder types to prevent compilation errors
 import { DB_FIELDS } from '../../../constants/database-fields';
+import { supabase } from '../config/supabase';
+import { EmpireResolutionService } from '../services/empire/EmpireResolutionService';
+import { getTechSpec, getTechnologyList } from '@game/shared';
 interface AuthRequest extends Request {
   user?: any;
 }

@@ -3,9 +3,8 @@ import { CapacityService } from './bases/CapacityService';
 import { BaseStatsService } from './baseStatsService';
 import { EconomyService } from './economyService';
 import { ERROR_MESSAGES } from '../constants/response-formats';
-import { DB_FIELDS } from '../../../constants/database-fields';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import {
   getBuildingsList,
   getBuildingSpec,
   canStartBuildingByTech,
@@ -13,11 +12,8 @@ import { ENV_VARS } from '../../../shared/src/constants/env-vars';
   getStructureCreditCostForLevel,
   computeEnergyBalance,
 } from '@game/shared';
-import { formatAlreadyInProgress } from './utils/idempotency';
-import { ERROR_MESSAGES } from '../constants/response-formats';
 
 // Constants imports for eliminating hardcoded values
-import { ERROR_MESSAGES } from '../constants/response-formats';
 
 function mapFromEmpireTechLevels(techLevelsJson: any): Partial<Record<string, number>> {
    const out: Record<string, number> = {};
@@ -581,7 +577,7 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
 
       // Broadcast queue addition
       try {
-        const { getIO } = await import { ERROR_MESSAGES } from '../constants/response-formats';
+        const { getIO } = await import('../constants/response-formats')
         const io = getIO();
         (io as any)?.broadcastQueueUpdate?.(empireId, locationCoord, 'queue:item_queued', {
           locationCoord,
@@ -617,7 +613,7 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
 
       // Broadcast queue addition for upgrade
       try {
-        const { getIO } = await import { ERROR_MESSAGES } from '../constants/response-formats';
+        const { getIO } = await import('../constants/response-formats')
         const io = getIO();
         (io as any)?.broadcastQueueUpdate?.(empireId, locationCoord, 'queue:item_queued', {
           locationCoord,
