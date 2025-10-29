@@ -30,6 +30,7 @@ import baseRoutes from './bases';
 import structureRoutes from './structures';
 import techRoutes from './tech';
 import defensesRoutes from './defenses';
+import unitsRoutes from './units';
 import fleetRoutes from './fleets';
 import territoriesRoutes from './territories';
 import testSeedsRoutes from './test-seeds';
@@ -48,6 +49,7 @@ router.use('/bases', baseRoutes);
 router.use('/structures', structureRoutes);
 router.use('/tech', techRoutes);  // Mount consolidated tech routes
 router.use('/defenses', defensesRoutes); // Mount defenses routes
+router.use('/units', unitsRoutes); // Mount units routes
 router.use('/fleets', fleetRoutes); // Mount fleet routes
 router.use('/territories', territoriesRoutes); // Mount territories routes
 router.use('/test', testSeedsRoutes); // Mount test seeding routes
@@ -278,220 +280,7 @@ router.post('/tech/start', asyncHandler(async (req: AuthRequest, res: Response) 
 
 // Structures routes moved to ./structures.ts (mounted at /structures)
 // Defenses routes moved to ./defenses.ts (mounted at /defenses)
-
-/**
- * Units Routes (Phase A)
- * Tech-only gating; start is not implemented yet (friendly error after validation).
- */
-router.get('/units/catalog', asyncHandler(async (_req: AuthRequest, res: Response) => {
-  const catalog = getUnitsList();
-  res.json({ success: true, data: { catalog } });
-}));
-
-router.get('/units/status', asyncHandler(async (req: AuthRequest, res: Response) => {
-  // Resolve user -> empire id
-  const user = req.user! as any;
-  const userId = user?._id || user?.id;
-
-  const { data: userRow } = await supabase
-    .from(DB_TABLES.USERS)
-    .select('id, empire_id')
-    .eq(DB_FIELDS.BUILDINGS.ID, userId)
-    .maybeSingle();
-
-  let { data: empireRow } = await supabase
-    .from(DB_TABLES.EMPIRES)
-    .select(DB_FIELDS.BUILDINGS.ID)
-    .eq(DB_FIELDS.EMPIRES.USER_ID, userId)
-    .maybeSingle();
-
-  if (!empireRow && (userRow as any)?.empire_id) {
-    const byId = await supabase
-      .from(DB_TABLES.EMPIRES)
-      .select(DB_FIELDS.BUILDINGS.ID)
-      .eq(DB_FIELDS.BUILDINGS.ID, (userRow as any).empire_id)
-      .maybeSingle();
-    empireRow = byId.data as any;
-  }
-
-  if (!empireRow) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
-
-const { UnitsService } = await import('../../services/units/UnitsService');
-  const locationCoord = String(req.query.locationCoord || '').trim() || undefined;
-const status = await UnitsService.getStatus((empireRow as any).id, locationCoord);
-  return res.json({ success: true, data: { status } });
-}));
-
-router.post('/units/start', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user! as any;
-  const userId = user?._id || user?.id;
-
-  const { data: userRow } = await supabase
-    .from(DB_TABLES.USERS)
-    .select('id, empire_id')
-    .eq(DB_FIELDS.BUILDINGS.ID, userId)
-    .maybeSingle();
-
-  let { data: empireRow } = await supabase
-    .from(DB_TABLES.EMPIRES)
-    .select(DB_FIELDS.BUILDINGS.ID)
-    .eq(DB_FIELDS.EMPIRES.USER_ID, userId)
-    .maybeSingle();
-
-  if (!empireRow && (userRow as any)?.empire_id) {
-    const byId = await supabase
-      .from(DB_TABLES.EMPIRES)
-      .select(DB_FIELDS.BUILDINGS.ID)
-      .eq(DB_FIELDS.BUILDINGS.ID, (userRow as any).empire_id)
-      .maybeSingle();
-    empireRow = byId.data as any;
-  }
-
-  if (!empireRow) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
-
-  const { locationCoord, unitKey } = req.body as { locationCoord?: string; unitKey?: UnitKey };
-  if (!locationCoord || !unitKey) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'locationCoord and unitKey are required' });
-  }
-
-const { UnitsService } = await import('../../services/units/UnitsService');
-const result = await UnitsService.start(userId, (empireRow as any).id, locationCoord, unitKey);
-  if (!(result as any).success) {
-    const errorResponse: any = {
-      success: false,
-      error: (result as any).error ?? (result as any).message,
-      message: (result as any).message ?? (result as any).error,
-    };
-    if ((result as any).code) errorResponse.code = (result as any).code;
-    if ((result as any).details) errorResponse.details = (result as any).details;
-    if ((result as any).reasons) errorResponse.reasons = (result as any).reasons;
-    const statusCode = (result as any).code === 'ALREADY_IN_PROGRESS' ? 409 : HTTP_STATUS.BAD_REQUEST;
-    return res.status(statusCode).json(errorResponse);
-  }
-
-  return res.json({ success: true, data: (result as any).data, message: (result as any).message });
-}));
-
-/**
- * Units Production Queue
- * Lists active unit production (capacity-driven) for the authenticated empire.
- * Optional ?base=A00:10:22:10 to filter by a specific base coord.
- */
-router.get('/units/queue', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user! as any;
-  const userId = user?._id || user?.id;
-
-  const { data: userRow } = await supabase
-    .from(DB_TABLES.USERS)
-    .select('id, empire_id')
-    .eq(DB_FIELDS.BUILDINGS.ID, userId)
-    .maybeSingle();
-
-  let { data: empireRow } = await supabase
-    .from(DB_TABLES.EMPIRES)
-    .select(DB_FIELDS.BUILDINGS.ID)
-    .eq(DB_FIELDS.EMPIRES.USER_ID, userId)
-    .maybeSingle();
-
-  if (!empireRow && (userRow as any)?.empire_id) {
-    const byId = await supabase
-      .from(DB_TABLES.EMPIRES)
-      .select(DB_FIELDS.BUILDINGS.ID)
-      .eq(DB_FIELDS.BUILDINGS.ID, (userRow as any).empire_id)
-      .maybeSingle();
-    empireRow = byId.data as any;
-  }
-
-  if (!empireRow) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
-
-  const base = String(req.query.base || '').trim() || undefined;
-const { UnitsService } = await import('../../services/units/UnitsService');
-const queue = await UnitsService.getQueue((empireRow as any).id, base);
-
-  const transformed = (queue || []).map((item: any) => {
-    const key = String(item.unit_key || '');
-    let unitName = key;
-    let creditsCost = 0;
-    try {
-      const spec = getUnitSpec(key as UnitKey);
-      unitName = spec?.name || key;
-      creditsCost = Math.max(0, Number(spec?.creditsCost || 0));
-    } catch {}
-    return {
-      id: String(item.id || ''),
-      unitKey: key,
-      unitName,
-      quantity: 1,
-      totalQuantity: 1,
-      startedAt: String(item.started_at || new Date().toISOString()),
-      completesAt: String(item.completes_at || new Date().toISOString()),
-      creditsCost,
-      baseCoord: String(item.location_coord || ''),
-    };
-  });
-
-  return res.json({ success: true, data: { queue: transformed } });
-}));
-
-// Cancel a pending unit production queue item
-router.delete('/units/queue/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
-  
-    const user = req.user! as any;
-    const userId = user?._id || user?.id;
-
-    const { data: userRow } = await supabase
-      .from(DB_TABLES.USERS)
-      .select('id, empire_id')
-      .eq(DB_FIELDS.BUILDINGS.ID, userId)
-      .maybeSingle();
-
-    let { data: empireRow } = await supabase
-      .from(DB_TABLES.EMPIRES)
-      .select('id, credits')
-      .eq(DB_FIELDS.EMPIRES.USER_ID, userId)
-      .maybeSingle();
-
-    if (!empireRow && (userRow as any)?.empire_id) {
-      const byId = await supabase
-        .from(DB_TABLES.EMPIRES)
-        .select('id, credits')
-        .eq(DB_FIELDS.BUILDINGS.ID, (userRow as any).empire_id)
-        .maybeSingle();
-      empireRow = byId.data as any;
-    }
-
-    if (!empireRow) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
-
-    const id = String(req.params.id || '').trim();
-    if (!id) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Invalid queue item id' });
-
-    const { data: qItem } = await supabase
-      .from(DB_TABLES.UNIT_QUEUE)
-      .select('id, empire_id, unit_key, status, completes_at')
-      .eq(DB_FIELDS.BUILDINGS.ID, id)
-      .maybeSingle();
-
-    if (!qItem || String((qItem as any).empire_id) !== String((empireRow as any).id)) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.QUEUE_ITEM_NOT_FOUND });
-    }
-
-    if (String((qItem as any).status || '') !== 'pending') {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Only pending items can be cancelled' });
-    }
-
-    // Optional refund like Mongo path
-    let refundedCredits: number | null = null;
-    try {
-      const spec = getUnitSpec(String((qItem as any).unit_key) as UnitKey);
-      refundedCredits = Math.max(0, Number(spec?.creditsCost || 0));
-      const currentCredits = Math.max(0, Number((empireRow as any).credits || 0));
-      await supabase.from(DB_TABLES.EMPIRES).update({ credits: currentCredits + refundedCredits }).eq(DB_FIELDS.BUILDINGS.ID, (empireRow as any).id);
-    } catch {}
-
-    await supabase.from(DB_TABLES.UNIT_QUEUE).update({ status: 'cancelled' }).eq(DB_FIELDS.BUILDINGS.ID, id);
-
-    return res.json({ success: true, data: { cancelledId: id, refundedCredits }, message: 'Unit production cancelled' });
-}));
+// Units routes moved to ./units.ts (mounted at /units)
 
 
 
