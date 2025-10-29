@@ -6,7 +6,7 @@ import { ERROR_MESSAGES } from '../../constants/response-formats';
 import { ENV_VALUES } from '@game/shared';
 
 // Constants imports for eliminating hardcoded values
-import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { HTTP_STATUS } from '@game/shared';
 import { ENV_VARS } from '@game/shared';
 import { 
@@ -272,81 +272,7 @@ router.post('/tech/start', asyncHandler(async (req: AuthRequest, res: Response) 
   return res.json({ success: true, data: (result as any).data, message: (result as any).message });
 }));
 
-/**
- * Structures (Buildings Phase A) Routes
- * Tech-only gating; maps to existing Building types and cost model.
- */
-
-// Catalog
-router.get('/structures/catalog', asyncHandler(async (_req: AuthRequest, res: Response) => {
-  const catalog = getBuildingsList();
-  res.json({
-    success: true,
-    data: { catalog }
-  });
-}));
-
-// Get structures queue
-router.get('/structures/queue', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user! as any;
-  const userId = user?._id || user?.id;
-
-  // Resolve empire id
-  let empireId: string | null = null;
-  const userRow = await supabase.from(DB_TABLES.USERS).select('id, empire_id').eq(DB_FIELDS.BUILDINGS.ID, userId).maybeSingle();
-  if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
-  if (!empireId) {
-    const e = await supabase.from(DB_TABLES.EMPIRES).select(DB_FIELDS.BUILDINGS.ID).eq(DB_FIELDS.EMPIRES.USER_ID, userId).maybeSingle();
-    if (e.data?.id) empireId = String(e.data.id);
-  }
-  if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
-
-  const locationCoord = String(req.query.base || '').trim() || undefined;
-const { StructuresService } = await import('../../services/structures/StructuresService');
-const queue = await StructuresService.getQueue(empireId, locationCoord);
-  return res.json({ success: true, data: { queue } });
-}));
-
-// Cancel structures construction
-router.delete('/structures/cancel/:coord', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = req.user! as any;
-  const userId = user?._id || user?.id;
-
-  // Resolve empire id
-  let empireId: string | null = null;
-  const userRow = await supabase.from(DB_TABLES.USERS).select('id, empire_id').eq(DB_FIELDS.BUILDINGS.ID, userId).maybeSingle();
-  if (userRow.data?.empire_id) empireId = String(userRow.data.empire_id);
-  if (!empireId) {
-    const e = await supabase.from(DB_TABLES.EMPIRES).select(DB_FIELDS.BUILDINGS.ID).eq(DB_FIELDS.EMPIRES.USER_ID, userId).maybeSingle();
-    if (e.data?.id) empireId = String(e.data.id);
-  }
-  if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
-
-  const { coord } = req.params;
-  if (!coord) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.COORDINATE_PARAMETER_REQUIRED });
-
-  // Validate location ownership
-  const { data: location } = await supabase
-    .from(DB_TABLES.LOCATIONS)
-    .select('coord, owner')
-    .eq('coord', coord)
-    .maybeSingle();
-
-  if (!location) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.LOCATION_NOT_FOUND });
-  if (location.owner !== userId) {
-    return res.status(HTTP_STATUS.FORBIDDEN).json({ success: false, error: 'You do not own this location' });
-  }
-
-const { StructuresService } = await import('../../services/structures/StructuresService');
-const result = await StructuresService.cancel(empireId, coord);
-
-  if (!result.success) {
-    const statusCode = (result as any).code === 'NO_ACTIVE_CONSTRUCTION' ? HTTP_STATUS.NOT_FOUND : HTTP_STATUS.BAD_REQUEST;
-    return res.status(statusCode).json(result);
-  }
-
-  return res.json(result);
-}));
+// Structures routes moved to ./structures.ts (mounted at /structures)
 
 /**
  * Defenses Routes (Citizen capacity driven)
