@@ -1,17 +1,14 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { supabase } from '../../config/supabase';
 import { asyncHandler } from '../../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../../middleware/auth';
-import { ERROR_MESSAGES } from '../constants/response-formats';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
-
+import { ERROR_MESSAGES } from '../../constants/response-formats';
+import { ENV_VALUES } from '@game/shared';
 
 // Constants imports for eliminating hardcoded values
-import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
-import { HTTP_STATUS } from '@shared/response-formats';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-
-, ERROR_MESSAGES };
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { HTTP_STATUS } from '@game/shared';
+import { ENV_VARS } from '@game/shared';
 import { 
   BuildingKey,
   DefenseKey,
@@ -34,6 +31,7 @@ import structureRoutes from './structures';
 import techRoutes from './tech';
 import fleetRoutes from './fleets';
 import territoriesRoutes from './territories';
+import testSeedsRoutes from './test-seeds';
 
 const router: Router = Router();
 
@@ -48,6 +46,7 @@ router.use('/structures', structureRoutes);
 router.use('/tech', techRoutes);  // Mount consolidated tech routes
 router.use('/fleets', fleetRoutes); // Mount fleet routes
 router.use('/territories', territoriesRoutes); // Mount territories routes
+router.use('/test', testSeedsRoutes); // Mount test seeding routes
 
 // Capacities route - direct capacity lookup by coordinate
 router.get('/capacities/:coord', asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -159,17 +158,6 @@ router.get('/buildings/location/:coord', asyncHandler(async (req: AuthRequest, r
  *   "message": "Seeded test research lab and credits"
  * }
  */
-router.post('/test/seed-research', asyncHandler(async (req: AuthRequest, res: Response) => {
-  if (process.env[ENV_VARS.NODE_ENV] !== 'test') {
-    return res.status(HTTP_STATUS.FORBIDDEN).json({
-      success: false,
-      error: ERROR_MESSAGES.FEATURE_DISABLED
-    });
-  }
-
-  // Test seed research endpoint now uses only Supabase implementation above
-}));
-
 /**
  * Test-only seeding endpoint to make Defenses Start deterministic in E2E.
  * - Tops up credits
@@ -177,17 +165,6 @@ router.post('/test/seed-research', asyncHandler(async (req: AuthRequest, res: Re
  * - Ensures positive energy projection by adding active solar plants at the base
  * Guarded by NODE_ENV === ENV_VALUES.TEST
  */
-router.post('/test/seed-defenses', asyncHandler(async (req: AuthRequest, res: Response) => {
-  if (process.env[ENV_VARS.NODE_ENV] !== 'test') {
-    return res.status(HTTP_STATUS.FORBIDDEN).json({
-      success: false,
-      error: ERROR_MESSAGES.FEATURE_DISABLED
-    });
-  }
-
-  // Test seed defenses endpoint now uses only Supabase implementation above
-}));
-
 /**
  * Test-only seeding endpoint to make Structures Start deterministic in E2E.
  * - Tops up credits
@@ -195,174 +172,10 @@ router.post('/test/seed-defenses', asyncHandler(async (req: AuthRequest, res: Re
  * - Ensures positive energy projection and construction capacity (solar + robotics)
  * Guarded by NODE_ENV === ENV_VALUES.TEST
  */
-router.post('/test/seed-structures', asyncHandler(async (req: AuthRequest, res: Response) => {
-  if (process.env[ENV_VARS.NODE_ENV] !== 'test') {
-    return res.status(HTTP_STATUS.FORBIDDEN).json({
-      success: false,
-      error: ERROR_MESSAGES.FEATURE_DISABLED
-    });
-  }
-
-  // Test seeding endpoint now uses Supabase implementation
-  const user = req.user! as any;
-
-  // Resolve empire using the service
-  const empireRow = await EmpireResolutionService.resolveEmpireByUserObject(user);
-  if (!empireRow) {
-    return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
-  }
-
-  const empireId = String(empireRow.id);
-
-  // Determine target base coordinate
-  let baseCoord = '';
-  try {
-    baseCoord = String((req.body?.baseCoord ?? '')).trim();
-  } catch { baseCoord = ''; }
-  if (!baseCoord) {
-    const emp = await supabase.from(DB_TABLES.EMPIRES).select(DB_FIELDS.EMPIRES.TERRITORIES).eq(DB_FIELDS.BUILDINGS.ID, empireId).maybeSingle();
-    const territories: string[] = Array.isArray(emp.data?.territories) ? emp.data!.territories : [];
-    if (territories.length > 0) baseCoord = territories[0];
-  }
-  if (!baseCoord) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      error: 'No base coordinate available to seed (provide baseCoord or colonize first)'
-    });
-  }
-
-  // Top up credits
-  const creditsTargetRaw = (req.body && typeof req.body.credits !== 'undefined') ? Number(req.body.credits) : 100000;
-  const creditsTarget = Number.isFinite(creditsTargetRaw) ? creditsTargetRaw : 100000;
-
-  const eRow = await supabase.from(DB_TABLES.EMPIRES).select(DB_FIELDS.EMPIRES.CREDITS).eq(DB_FIELDS.BUILDINGS.ID, empireId).maybeSingle();
-  const currentCredits = Math.max(0, Number((eRow.data as any)?.credits || 0));
-  if (currentCredits < creditsTarget) {
-    await supabase.from(DB_TABLES.EMPIRES).update({ credits: creditsTarget }).eq(DB_FIELDS.BUILDINGS.ID, empireId);
-  }
-
-  // Broadly raise tech levels to make structures eligible
-  const levelTargetRaw = (req.body && typeof req.body.level === 'number') ? Number(req.body.level) : 10;
-  const levelTarget = Number.isFinite(levelTargetRaw) ? levelTargetRaw : 10;
-
-  // Update tech levels in empire record (this would need to be implemented in the empire schema)
-  // For now, we'll use a placeholder implementation
-
-  // Ensure positive energy projection with active solar plants
-  const existingSolar = await supabase
-    .from(DB_TABLES.BUILDINGS)
-    .select('id, level')
-    .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
-    .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, baseCoord)
-    .eq(DB_FIELDS.BUILDINGS.CATALOG_KEY, 'solar_plants')
-    .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, true)
-    .maybeSingle();
-
-  if (!existingSolar.data) {
-    await supabase
-      .from(DB_TABLES.BUILDINGS)
-      .insert({
-        empire_id: empireId,
-        location_coord: baseCoord,
-        catalog_key: 'solar_plants',
-        level: 30,
-        is_active: true,
-        construction_completed: new Date().toISOString(),
-        credits_cost: 0,
-      });
-  } else {
-    await supabase
-      .from(DB_TABLES.BUILDINGS)
-      .update({ level: Math.max(30, Number((existingSolar.data as any).level || 1)) })
-      .eq(DB_FIELDS.BUILDINGS.ID, (existingSolar.data as any).id);
-  }
-
-  // Ensure construction capacity with active robotic factories
-  const existingRobo = await supabase
-    .from(DB_TABLES.BUILDINGS)
-    .select('id, level')
-    .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
-    .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, baseCoord)
-    .eq(DB_FIELDS.BUILDINGS.CATALOG_KEY, 'robotic_factories')
-    .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, true)
-    .maybeSingle();
-
-  if (!existingRobo.data) {
-    await supabase
-      .from(DB_TABLES.BUILDINGS)
-      .insert({
-        empire_id: empireId,
-        location_coord: baseCoord,
-        catalog_key: 'robotic_factories',
-        level: 10,
-        is_active: true,
-        construction_completed: new Date().toISOString(),
-        credits_cost: 0,
-      });
-  } else {
-    await supabase
-      .from(DB_TABLES.BUILDINGS)
-      .update({ level: Math.max(10, Number((existingRobo.data as any).level || 1)) })
-      .eq(DB_FIELDS.BUILDINGS.ID, (existingRobo.data as any).id);
-  }
-
-  return res.json({
-    success: true,
-    data: { baseCoord, credits: creditsTarget, levelTarget },
-    message: 'Seeded test structures prerequisites (credits, tech, energy, capacity)'
-  });
-}));
-
 /**
  * Test-only cleanup endpoint to remove queued buildings for idempotency testing.
  * Guarded by NODE_ENV === ENV_VALUES.TEST
  */
-router.delete('/test/buildings/queued/:catalogKey', asyncHandler(async (req: AuthRequest, res: Response) => {
-  if (process.env[ENV_VARS.NODE_ENV] !== 'test') {
-    return res.status(HTTP_STATUS.FORBIDDEN).json({
-      success: false,
-      error: ERROR_MESSAGES.FEATURE_DISABLED
-    });
-  }
-
-  const user = req.user! as any;
-
-  // Resolve empire using the service
-  const empireRow = await EmpireResolutionService.resolveEmpireByUserObject(user);
-  if (!empireRow) {
-    return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
-  }
-
-  const empireId = String(empireRow.id);
-
-  const { catalogKey } = req.params;
-  if (!catalogKey) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'catalogKey required' });
-  }
-
-  // Remove any inactive (queued) buildings with this catalogKey for this empire
-  const { data, error } = await supabase
-    .from(DB_TABLES.BUILDINGS)
-    .delete()
-    .eq(DB_FIELDS.BUILDINGS.EMPIRE_ID, empireId)
-    .eq(DB_FIELDS.BUILDINGS.CATALOG_KEY, catalogKey)
-    .eq(DB_FIELDS.BUILDINGS.IS_ACTIVE, false)
-    .select(DB_FIELDS.BUILDINGS.ID);
-
-  if (error) {
-    console.error('Error cleaning up queued buildings:', error);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: 'Failed to cleanup queued buildings' });
-  }
-
-  const deletedCount = data?.length || 0;
-
-  return res.json({
-    success: true,
-    data: { deletedCount, catalogKey },
-    message: `Cleaned up ${deletedCount} queued ${catalogKey} buildings`
-  });
-}));
-
 // Research Management Routes
 
 // Get empire research projects
@@ -903,7 +716,7 @@ router.delete('/units/queue/:id', asyncHandler(async (req: AuthRequest, res: Res
 
 
 /**
- * Fleets Overview � public view for a base
+ * Fleets Overview ? public view for a base
  * Returns all stationed fleets at the base (any empire) and any inbound movements to that base.
  * Query: ?base=COORD
  * DTO: { success, data: { fleets: [{ _id, name, ownerName, arrival, sizeCredits }] } }
