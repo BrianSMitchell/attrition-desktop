@@ -5,8 +5,8 @@ import { ERROR_MESSAGES } from '../../constants/response-formats';
 // Constants imports for eliminating hardcoded values
 import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { HTTP_STATUS } from '@game/shared';
-import { asyncHandler } from '../../../middleware/errorHandler';
-import { authenticate, AuthRequest } from '../../../middleware/auth';
+import { asyncHandler } from '../../middleware/errorHandler';
+import { authenticate, AuthRequest } from '../../middleware/auth';
 import { EmpireResolutionService } from '../../services/empire/EmpireResolutionService';
 
 const router = Router();

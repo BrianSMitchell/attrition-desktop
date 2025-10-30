@@ -1,9 +1,8 @@
 import { supabase } from '../../config/supabase';
 import { getIO } from '../../index';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
-
-import { DB_FIELDS } from '../../../constants/database-fields';
-import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
+import { getUnitSpec } from '@game/shared';
 export interface CoordinateParsed {
   server: string;
   galaxy: number;

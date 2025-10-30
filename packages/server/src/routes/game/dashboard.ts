@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
-import { asyncHandler } from '../../../middleware/errorHandler';
-import { authenticate, AuthRequest } from '../../../middleware/auth';
+import { asyncHandler } from '../../middleware/errorHandler';
+import { authenticate, AuthRequest } from '../../middleware/auth';
 
 const router = Router();
 

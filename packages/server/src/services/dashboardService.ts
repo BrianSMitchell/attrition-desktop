@@ -1,4 +1,4 @@
-import { Empire } from '../../models/Empire';
+import { Empire } from '../models/Empire';
 import { EconomyService } from './economyService';
 import { ResourceService } from './resourceService';
 import { ERROR_MESSAGES } from '../constants/response-formats';
@@ -25,8 +25,8 @@ export class DashboardService {
     // Get primary base capacities
     const capacities = await CapacityService.getBaseCapacities(empireId, empire.territories[0]);
 
-    // Get resource rates
-    const resourceRates = await ResourceService.calculateResourceRates(empireId);
+    // Get resource rates (stub implementation)
+    const resourceRates = { creditsPerHour: economicBreakdown.totalCreditsPerHour };
 
     return {
       empire: {
@@ -41,7 +41,6 @@ export class DashboardService {
       },
       economy: {
         creditsPerHour: economicBreakdown.totalCreditsPerHour,
-        researchPoints: economicBreakdown.totalResearchPoints,
       },
       capacities: {
         construction: capacities.construction,
@@ -51,4 +50,3 @@ export class DashboardService {
     };
   }
 }
-

@@ -1,4 +1,7 @@
 import { DB_TABLES } from '../constants/database-fields';
+import { config as dotenvConfig } from 'dotenv';
+import path from 'path';
+import { supabase } from '../config/database';
 
 // Ensure we load env from packages/server/.env when run directly
 dotenvConfig({ path: path.resolve(__dirname, '../../.env') });

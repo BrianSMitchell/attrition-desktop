@@ -7,8 +7,8 @@
 
 import { Router, Response } from 'express';
 import { supabase } from '../../config/supabase';
-import { asyncHandler } from '../../../middleware/errorHandler';
-import { AuthRequest } from '../../../middleware/auth';
+import { asyncHandler } from '../../middleware/errorHandler';
+import { authenticate, AuthRequest } from '../../middleware/auth';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
 import { ENV_VALUES } from '@game/shared';
 import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';

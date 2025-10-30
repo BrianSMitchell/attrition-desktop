@@ -1,8 +1,7 @@
-import { DB_TABLES } from '../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
-
-import { DB_FIELDS } from '../../../constants/database-fields';
-import { supabase } from '../config/supabase';
+import { supabase } from '../../config/supabase';
+import { EmpireResolutionService } from './EmpireResolutionService';
 interface CreditTransaction {
   _id: string;
   amount: number;

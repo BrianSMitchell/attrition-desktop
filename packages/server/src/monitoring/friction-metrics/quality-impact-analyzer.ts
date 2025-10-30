@@ -1,13 +1,10 @@
 /**
-}
-import { STATUS_CODES } from '@game/shared';
-/**
-}
-import { DB_FIELDS } from '../../../constants/database-fields';
-/**
  * Quality impact analyzer for development friction monitoring
  * Tracks how code quality issues affect development velocity and team productivity
  */
+
+import { STATUS_CODES } from '@game/shared';
+import { DB_FIELDS } from '../../constants/database-fields';
 
 import {
   QualityImpactMetrics,
@@ -290,10 +287,14 @@ export class QualityImpactAnalyzer {
   /**
    * Record development events for correlation analysis
    */
-  recordDevelopmentEvent(event: Omit<DevelopmentEvent, DB_FIELDS.BUILDINGS.ID>): void {
+  recordDevelopmentEvent(event: Omit<DevelopmentEvent, 'id'>): void {
     const fullEvent: DevelopmentEvent = {
-      ...event,
-      id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: event.type,
+      timestamp: new Date(),
+      description: event.description,
+      impact: event.impact,
+      metadata: event.metadata
     };
 
     this.events.push(fullEvent);

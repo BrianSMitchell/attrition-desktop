@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { supabase } from '../../config/supabase';
-import { asyncHandler } from '../../../middleware/errorHandler';
-import { authenticate, AuthRequest } from '../../../middleware/auth';
+import { asyncHandler } from '../../middleware/errorHandler';
+import { authenticate, AuthRequest } from '../../middleware/auth';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
 import { ENV_VALUES } from '@game/shared';
 
@@ -34,8 +34,6 @@ import unitsRoutes from './units';
 import fleetRoutes from './fleets';
 import territoriesRoutes from './territories';
 import testSeedsRoutes from './test-seeds';
-import { getTechSpec, getTechnologyList } from '@game/shared';
-import { getBuildingsList, getDefensesList, getUnitsList } from '@game/shared';
 
 const router: Router = Router();
 

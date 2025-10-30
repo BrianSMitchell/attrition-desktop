@@ -6,8 +6,8 @@ import { ERROR_MESSAGES } from '../../constants/response-formats';
 import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { HTTP_STATUS } from '@game/shared';
 import { STATUS_CODES } from '@game/shared';
-import { asyncHandler } from '../../../middleware/errorHandler';
-import { authenticate, AuthRequest } from '../../../middleware/auth';
+import { asyncHandler } from '../../middleware/errorHandler';
+import { authenticate, AuthRequest } from '../../middleware/auth';
 import { getUnitSpec } from '@game/shared';
 import { EmpireResolutionService } from '../../services/empire/EmpireResolutionService';
 import { FleetMovementService } from '../../services/fleets/FleetMovementService';
@@ -339,7 +339,7 @@ router.post('/:id/move', asyncHandler(async (req: AuthRequest, res: Response) =>
 
     if (!result.success) {
       // Map service error codes to appropriate HTTP status codes (FR-15)
-      let statusCode = HTTP_STATUS.BAD_REQUEST; // Default to bad request
+      let statusCode: number = HTTP_STATUS.BAD_REQUEST; // Default to bad request
       switch (result.code) {
         case 'FLEET_NOT_FOUND':
           statusCode = HTTP_STATUS.NOT_FOUND;

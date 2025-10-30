@@ -144,3 +144,107 @@ export interface PaginatedResponse<T> {
     };
   };
 }
+
+/**
+ * API Error Code enum
+ */
+export const ApiErrorCode = {
+  // Authentication errors
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  FORBIDDEN: 'FORBIDDEN',
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+
+  // Resource errors
+  NOT_FOUND: 'NOT_FOUND',
+  ALREADY_EXISTS: 'ALREADY_EXISTS',
+  INSUFFICIENT_RESOURCES: 'INSUFFICIENT_RESOURCES',
+  INSUFFICIENT_ENERGY: 'INSUFFICIENT_ENERGY',
+  INSUFFICIENT_POPULATION: 'INSUFFICIENT_POPULATION',
+  INSUFFICIENT_AREA: 'INSUFFICIENT_AREA',
+  ALREADY_IN_PROGRESS: 'ALREADY_IN_PROGRESS',
+  NOT_OWNER: 'NOT_OWNER',
+
+  // Validation errors
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  INVALID_REQUEST: 'INVALID_REQUEST',
+  MISSING_REQUIRED_FIELD: 'MISSING_REQUIRED_FIELD',
+  INVALID_FORMAT: 'INVALID_FORMAT',
+
+  // Server errors
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  DATABASE_ERROR: 'DATABASE_ERROR',
+
+  // Game-specific errors
+  TECH_REQUIREMENTS: 'TECH_REQUIREMENTS',
+  NO_CAPACITY: 'NO_CAPACITY'
+} as const;
+
+export type ApiErrorCodeType = typeof ApiErrorCode[keyof typeof ApiErrorCode];
+
+/**
+ * Helper function to create success responses
+ */
+export function createSuccessResponse<T = any>(data: T, message?: string): ApiResponse<T> {
+  return {
+    success: true,
+    data,
+    ...(message && { message })
+  };
+}
+
+/**
+ * Helper function to create error responses
+ */
+export function createErrorResponse(error: string, code?: ApiErrorCodeType, details?: any): ApiResponse {
+  return {
+    success: false,
+    error,
+    ...(code && { code }),
+    ...(details && { details })
+  };
+}
+
+/**
+ * Send standardized API response (utility for Express handlers)
+ */
+export function sendApiResponse<T = any>(
+  res: any,
+  data: T,
+  message?: string,
+  statusCode: number = HTTP_STATUS.OK
+): void {
+  res.status(statusCode).json(createSuccessResponse(data, message));
+}
+
+/**
+ * Send standardized error response
+ */
+export function sendApiErrorResponse(
+  res: any,
+  error: string,
+  code?: ApiErrorCodeType,
+  statusCode: number = HTTP_STATUS.BAD_REQUEST,
+  details?: any
+): void {
+  res.status(statusCode).json(createErrorResponse(error, code, details));
+}
+
+/**
+ * Standardize error objects for consistent error responses
+ */
+export function standardizeError(error: unknown): { message: string; code?: ApiErrorCodeType } {
+  if (typeof error === 'string') {
+    return { message: error };
+  }
+
+  if (error instanceof Error) {
+    return { message: error.message };
+  }
+
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return { message: (error as any).message };
+  }
+
+  return { message: 'An unknown error occurred' };
+}

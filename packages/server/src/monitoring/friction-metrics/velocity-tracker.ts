@@ -4,6 +4,11 @@
  */
 
 import { HTTP_STATUS } from '../../constants/response-formats';
+import {
+  FrictionConfig,
+  GitAnalytics,
+  DevelopmentVelocity
+} from './types';
 
 export class VelocityTracker {
   private config: FrictionConfig;

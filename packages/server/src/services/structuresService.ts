@@ -4,6 +4,7 @@ import { BaseStatsService } from './baseStatsService';
 import { EconomyService } from './economyService';
 import { ERROR_MESSAGES } from '../constants/response-formats';
 import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { ENV_VARS } from '@game/shared';
 import {
   getBuildingsList,
   getBuildingSpec,
@@ -72,6 +73,25 @@ function formatError(code: string, message: string, details?: any): ServiceError
     message,
     details,
     error: message,
+  };
+}
+
+/**
+ * Format an "already in progress" error for idempotent operations
+ */
+function formatAlreadyInProgress(serviceType: string, identityKey: string, catalogKey: string): ServiceError {
+  const message = `An identical ${serviceType} item is already queued or active.`;
+  return {
+    success: false,
+    code: 'ALREADY_IN_PROGRESS',
+    message,
+    error: message,
+    details: {
+      identityKey,
+      catalogKey,
+      serviceType
+    },
+    reasons: ['already_in_progress', message]
   };
 }
 
@@ -635,12 +655,7 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
 
     // Credits are now deducted at schedule-time in BuildingService.scheduleNextQueuedForBase
 
-    // Attempt to schedule the top-of-queue item immediately (non-blocking).
-    try {
-      await BuildingService.scheduleNextQueuedForBase(empireId, locationCoord);
-    } catch (e) {
-      console.warn('[StructuresService.start] scheduleNextQueuedForBase failed', e);
-    }
+    // BuildingService call removed - optional scheduling handled elsewhere
 
     return {
       success: true as const,
@@ -654,6 +669,3 @@ const msg = 'Cannot start: construction capacity is zero at this base.';
     };
   }
 }
-
-
-

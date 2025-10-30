@@ -1,5 +1,6 @@
 import https from 'https';
 import tls from 'tls';
+import { Request, Response, NextFunction } from 'express';
 import { HTTP_STATUS } from '../constants/response-formats';
 
 /**
@@ -384,7 +385,7 @@ export const tlsMonitor = new TLSHandshakeMonitor();
 /**
  * Express middleware to monitor TLS connections
  */
-export function tlsMonitoringMiddleware(req: Request, res: Response, next: Function) {
+export function tlsMonitoringMiddleware(req: Request, res: Response, next: NextFunction) {
   // Only monitor HTTPS connections
   if (!req.secure && req.get('X-Forwarded-Proto') !== 'https') {
     return next();

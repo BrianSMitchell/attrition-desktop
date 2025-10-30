@@ -1,9 +1,5 @@
 import { supabase } from '../config/supabase';
-
-// Constants imports for eliminating hardcoded values
 import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
-
-import { supabase } from '../config/supabase';
 import {
   getBuildingSpec,
   type BuildingKey,

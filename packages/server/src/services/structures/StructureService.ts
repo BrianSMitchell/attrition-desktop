@@ -1,6 +1,6 @@
 import { supabase } from '../../config/supabase';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
-import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { 
   getBuildingSpec, 
   BuildingKey, 
@@ -8,7 +8,7 @@ import {
   getStructureCreditCostForLevel 
 } from '@game/shared';
 import { StatsService } from '../bases/StatsService';
-import { CapacityService } from '../services/bases/CapacityService';
+import { CapacityService } from '../bases/CapacityService';
 
 export interface Structure {
   catalogKey: string;

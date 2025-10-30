@@ -1,10 +1,10 @@
-import { AuthRequest } from '../../../middleware/auth';
+import { AuthRequest } from '../../middleware/auth';
 import { Response, Router } from 'express';
 import { supabase } from '../../config/supabase';
 
 // Constants imports for eliminating hardcoded values
-import { DB_TABLES, DB_FIELDS } from '../../../constants/database-fields';
-import { ERROR_MESSAGES, HTTP_STATUS } from '../../../constants/response-formats';
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
+import { HTTP_STATUS, ERROR_MESSAGES } from '../../constants/response-formats';
 import { createBaseRouter, asyncHandler } from './baseRouter';
 import {
   getBuildingsList,

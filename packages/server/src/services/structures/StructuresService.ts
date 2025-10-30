@@ -2,7 +2,8 @@ import { supabase } from '../../config/supabase';
 import { CapacityService } from '../bases/CapacityService';
 import { StatsService } from '../bases/StatsService';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
-import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
+import { ENV_VARS } from '@game/shared';
 import {
   getBuildingsList,
   getBuildingSpec,
@@ -71,6 +72,25 @@ function formatError(code: string, message: string, details?: any): ServiceError
     message,
     details,
     error: message,
+  };
+}
+
+/**
+ * Format an "already in progress" error for idempotent operations
+ */
+function formatAlreadyInProgress(serviceType: string, identityKey: string, catalogKey: string): ServiceError {
+  const message = `An identical ${serviceType} item is already queued or active.`;
+  return {
+    success: false,
+    code: 'ALREADY_IN_PROGRESS',
+    message,
+    error: message,
+    details: {
+      identityKey,
+      catalogKey,
+      serviceType
+    },
+    reasons: ['already_in_progress', message]
   };
 }
 
@@ -780,6 +800,3 @@ const baseStats = await StatsService.getBaseStats(empireId, locationCoord);
     );
   }
 }
-
-
-

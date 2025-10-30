@@ -1,8 +1,6 @@
 import { Empire, Location } from '@game/shared';
 import { supabase } from '../../config/supabase';
-import { DB_TABLES } from '../constants/database-fields';
-
-import { DB_FIELDS } from '../../../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 /**
  * Service for resolving empire-related operations and validations
  */

@@ -380,3 +380,6 @@ export interface FrictionHistory {
     impact: string;
   }>;
 }
+
+// Re-export types imported from utils/codeMetrics/types for local consumption
+export type { CodeLocation, SeverityLevel };

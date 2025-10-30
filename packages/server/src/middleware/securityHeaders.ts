@@ -214,7 +214,7 @@ export function csrfProtectionMiddleware(req: Request, res: Response, next: Next
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     const origin = req.get('Origin') || req.get('Referer');
     const allowedOrigins = process.env[ENV_VARS.CORS_ORIGIN]
-      ? process.env[ENV_VARS.CORS_ORIGIN].split(',').map(o => o.trim()).filter(Boolean)
+      ? process.env[ENV_VARS.CORS_ORIGIN]!.split(',').map(o => o.trim()).filter(Boolean)
       : ['http://localhost:5173', 'http://localhost:5174'];
 
     if (origin) {

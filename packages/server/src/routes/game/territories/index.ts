@@ -1,12 +1,12 @@
 import { AuthRequest } from '../../../middleware/auth';
 import { asyncHandler } from '../../../middleware/errorHandler';
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { DB_TABLES } from '../../../constants/database-fields';
 import { HTTP_STATUS, ERROR_MESSAGES } from '../../../constants/response-formats';
 
 import { DB_FIELDS } from '../../../constants/database-fields';
-import { supabase } from '../config/supabase';
-import { EmpireResolutionService } from '../services/empire/EmpireResolutionService';
+import { supabase } from '../../../config/supabase';
+import { EmpireResolutionService } from '../../../services/empire/EmpireResolutionService';
 const router: Router = Router();
 
 /**

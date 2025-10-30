@@ -38,7 +38,7 @@ dotenv.config();
 initLogger();
 
 const allowedOrigins = process.env[ENV_VARS.CORS_ORIGIN]
-  ? process.env[ENV_VARS.CORS_ORIGIN].split(',').map(o => o.trim()).filter(Boolean)
+  ? process.env[ENV_VARS.CORS_ORIGIN]!.split(',').map(o => o.trim()).filter(Boolean)
   : ["http://localhost:5173", "http://localhost:5174", "null", "file://"];
 
 const app: express.Application = express();
@@ -70,7 +70,7 @@ app.use(...securityHeadersStack(isDevelopment));
 app.use(httpsSecurityHeadersMiddleware);
 
 // TLS connection monitoring (for HTTPS connections)
-app.use(tlsMonitoringMiddleware);
+app.use(tlsMonitoringMiddleware as any);
 
 // CORS configuration (after security headers)
 app.use(cors({
@@ -184,8 +184,8 @@ app.get(API_ENDPOINTS.SYSTEM.STATUS, (req, res) => {
 
 // Security monitoring endpoints (production only)
 if (process.env[ENV_VARS.NODE_ENV] === ENV_VALUES.PRODUCTION) {
-  app.get('/api/https-health', httpsHealthCheckHandler);
-  app.get('/api/tls-security', tlsSecurityStatusHandler);
+  app.get('/api/https-health', httpsHealthCheckHandler as any);
+  app.get('/api/tls-security', tlsSecurityStatusHandler as any);
 }
 
 // Session invalidation middleware for authenticated routes

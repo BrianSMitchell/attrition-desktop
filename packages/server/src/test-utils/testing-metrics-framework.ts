@@ -1,18 +1,12 @@
 /**
-
-import { STATUS_CODES } from '@game/shared';
-/**
-
-import { DB_FIELDS } from '../../../constants/database-fields';
-import { DIRECTORY_PATHS } from '@game/shared';
-
-/**
  * Testing Metrics Collection Framework
  * 
  * This framework provides comprehensive metrics collection, analysis, and reporting
  * for all aspects of the testing infrastructure including coverage, performance,
  * reliability, and trend analysis for the Attrition MMO testing pipeline.
  */
+
+import { DB_FIELDS, DIRECTORY_PATHS, STATUS_CODES } from '@game/shared';
 
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
@@ -173,7 +167,7 @@ export class TestingMetricsCollector {
   /**
    * Record a test execution
    */
-  recordTestExecution(execution: Omit<TestExecution, DB_FIELDS.BUILDINGS.ID | 'timestamp'>): void {
+  recordTestExecution(execution: Omit<TestExecution, 'id' | 'timestamp'>): void {
     const testExecution: TestExecution = {
       ...execution,
       id: this.generateId(),
@@ -427,7 +421,7 @@ export class TestingMetricsCollector {
     }
   }
 
-  private createAlert(alert: Omit<TestAlert, DB_FIELDS.BUILDINGS.ID | 'timestamp' | 'acknowledged'>): void {
+  private createAlert(alert: Omit<TestAlert, 'id' | 'timestamp' | 'acknowledged'>): void {
     const newAlert: TestAlert = {
       ...alert,
       id: this.generateId(),

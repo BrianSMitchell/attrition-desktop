@@ -1,15 +1,10 @@
-import { ENV_VARS } from '@game/shared';
-
-/**
-}
-import { STATUS_CODES } from '@game/shared';
-/**
-}
-import { DB_FIELDS } from '../../../constants/database-fields';
 /**
  * Friction indicators tracking system
  * Monitors specific development friction points that impact team productivity
  */
+
+import { ENV_VARS, STATUS_CODES } from '@game/shared';
+import { DB_FIELDS } from '../../constants/database-fields';
 
 import {
   FrictionIndicators,
@@ -391,10 +386,13 @@ export class FrictionIndicatorsTracker {
   /**
    * Record friction-related development event
    */
-  private recordFrictionEvent(event: Omit<DevelopmentEvent, DB_FIELDS.BUILDINGS.ID | 'timestamp'>): void {
+  private recordFrictionEvent(event: Omit<DevelopmentEvent, 'id' | 'timestamp'>): void {
     const fullEvent: DevelopmentEvent = {
       id: `friction_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      ...event,
+      type: event.type,
+      description: event.description,
+      impact: event.impact,
+      metadata: event.metadata,
       timestamp: new Date()
     };
 

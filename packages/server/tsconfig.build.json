@@ -13,7 +13,10 @@
     "src/models/**/*.ts",
     "src/middleware/**/*.ts",
     "src/utils/**/*.ts",
-    "src/config/**/*.ts"
+    "src/config/**/*.ts",
+    "src/constants/**/*.ts",
+    "src/scripts/**/*.ts",
+    "src/monitoring/**/*.ts"
   ],
   "exclude": [
     "node_modules",

@@ -1,10 +1,8 @@
 import { supabase } from '../../config/supabase';
 import { getTechSpec, TechnologyKey } from '@game/shared';
 import { EconomyService } from '../economy/EconomyService';
-import { DB_TABLES } from '../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { ENV_VARS } from '@game/shared';
-
-import { DB_FIELDS } from '../../../constants/database-fields';
 import { STATUS_CODES } from '@game/shared';
 /**
  * Service for handling complex resource and economy calculations.

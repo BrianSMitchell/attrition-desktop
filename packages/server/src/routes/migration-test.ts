@@ -9,7 +9,7 @@ import {
   createErrorResponse, 
   sendApiResponse,
   ApiErrorCode,
-  HttpStatusCode,
+  HTTP_STATUS,
   standardizeError
 } from '@game/shared';
 
@@ -21,17 +21,17 @@ const router = express.Router();
 router.get('/hello', async (req: Request, res: Response) => {
   try {
     const response = createSuccessResponse(
-      { message: 'Hello from enhanced API!', timestamp: new Date().toISOString() },
       { 
-        message: 'Test endpoint responding successfully',
-        statusCode: HttpStatusCode.OK
-      }
+        message: 'Hello from enhanced API!', 
+        timestamp: new Date().toISOString() 
+      },
+      'Test endpoint responding successfully'
     );
     
-    sendApiResponse(res, response);
+    sendApiResponse(res, response, undefined, HTTP_STATUS.OK);
   } catch (error) {
-    const { errorCode, message, details } = standardizeError(error);
-    const response = createErrorResponse(errorCode, message, { details });
+    const standardized = standardizeError(error);
+    const response = createErrorResponse(standardized.message, standardized.code);
     sendApiResponse(res, response);
   }
 });
@@ -40,17 +40,17 @@ router.get('/hello', async (req: Request, res: Response) => {
  * GET /api/test/error - Error response demonstration
  */
 router.get('/error', async (req: Request, res: Response) => {
-  try {
+ try {
     // Intentionally throw an error to demonstrate error handling
     throw new Error('This is a test error for migration demonstration');
   } catch (error) {
-    const { errorCode, message, details } = standardizeError(error);
+    const standardized = standardizeError(error);
     const response = createErrorResponse(
-      ApiErrorCode.OPERATION_FAILED, 
-      message, 
-      { details, statusCode: HttpStatusCode.INTERNAL_SERVER_ERROR }
+      standardized.message, 
+      ApiErrorCode.INTERNAL_ERROR,
+      { statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR }
     );
-    sendApiResponse(res, response);
+    sendApiResponse(res, response, undefined, HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 });
 
@@ -64,29 +64,28 @@ router.post('/validate', async (req: Request, res: Response) => {
     // Simple validation
     if (!name || !email) {
       const response = createErrorResponse(
-        ApiErrorCode.VALIDATION_FAILED,
         'Missing required fields',
+        ApiErrorCode.INVALID_REQUEST,
         {
-          statusCode: HttpStatusCode.BAD_REQUEST,
           details: [
             ...((!name) ? [{ field: 'name', message: 'Name is required' }] : []),
             ...((!email) ? [{ field: 'email', message: 'Email is required' }] : [])
           ]
         }
       );
-      return sendApiResponse(res, response);
+      return sendApiResponse(res, response, undefined, HTTP_STATUS.BAD_REQUEST);
     }
     
     // Success response
     const response = createSuccessResponse(
       { name, email, validated: true },
-      { message: 'Validation successful' }
+      'Validation successful'
     );
     
     sendApiResponse(res, response);
   } catch (error) {
-    const { errorCode, message, details } = standardizeError(error);
-    const response = createErrorResponse(errorCode, message, { details });
+    const standardized = standardizeError(error);
+    const response = createErrorResponse(standardized.message, standardized.code);
     sendApiResponse(res, response);
   }
 });
@@ -112,19 +111,12 @@ router.get('/game-data', async (req: Request, res: Response) => {
       }
     };
     
-    const response = createSuccessResponse(gameData, {
-      message: 'Game data retrieved successfully',
-      metadata: {
-        cached: false,
-        queryTime: '15ms',
-        version: '1.0.0'
-      }
-    });
+    const response = createSuccessResponse(gameData, 'Game data retrieved successfully');
     
     sendApiResponse(res, response);
   } catch (error) {
-    const { errorCode, message, details } = standardizeError(error);
-    const response = createErrorResponse(errorCode, message, { details });
+    const standardized = standardizeError(error);
+    const response = createErrorResponse(standardized.message, standardized.code);
     sendApiResponse(res, response);
   }
 });

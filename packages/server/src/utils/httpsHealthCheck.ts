@@ -3,11 +3,11 @@ import http from 'http';
 import { Request, Response } from 'express';
 import { HTTP_STATUS } from '../constants/response-formats';
 import { API_ENDPOINTS } from '../constants/api-endpoints';
-import { ENV_VALUES } from '@game/shared';
+import { ENV_VALUES, getEnvNumber } from '@game/shared';
 
 
 import { TIMEOUTS, GAME_CONSTANTS } from '@game/shared';
-import { ENV_VARS } from '@game/shared';
+import { ENV_VARS, isReverseProxySSL } from '@game/shared';
 
 /**
  * HTTPS Health Check and Validation Utilities
@@ -470,8 +470,3 @@ export default {
   httpsHealthCheckHandler,
   HttpsHealthMonitor
 };
-
-
-
-
-

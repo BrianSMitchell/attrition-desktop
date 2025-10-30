@@ -1,7 +1,7 @@
 import { supabase } from '../../config/supabase';
 import { getBuildingSpec, BuildingKey, getDefensesList, computeEnergyBalance } from '@game/shared';
 
-import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 export interface BaseStatsDTO {
   area: { total: number; used: number; free: number };
   energy: { produced: number; consumed: number; balance: number; rawBalance?: number; projectedBalance?: number };

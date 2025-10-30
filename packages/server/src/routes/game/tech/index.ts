@@ -1,53 +1,13 @@
-import { AuthRequest } from '../../../middleware/auth';
+import { Router, Response } from 'express';
+import { AuthRequest, authenticate } from '../../../middleware/auth';
 import { asyncHandler } from '../../../middleware/errorHandler';
-import { Router } from 'express';
 import { HTTP_STATUS, ERROR_MESSAGES } from '../../../constants/response-formats';
 import { API_ENDPOINTS } from '../../../constants/api-endpoints';
-
-
-// Placeholder types to prevent compilation errors
-import { DB_FIELDS } from '../../../constants/database-fields';
-import { supabase } from '../config/supabase';
-import { EmpireResolutionService } from '../services/empire/EmpireResolutionService';
-import { getTechSpec, getTechnologyList } from '@game/shared';
-interface AuthRequest extends Request {
-  user?: any;
-}
-
-type TechnologyKey = string;
-
-// Placeholder functions to prevent compilation errors
-const authenticate = (req: any, res: any, next: any) => next();
-const asyncHandler = (fn: any) => fn;
-const getTechnologyList = () => [];
-const getTechSpec = (key: string) => ({ cost: 100 });
-
-// Placeholder services
-const EmpireResolutionService = {
-  resolveEmpireByUserObject: async (user: any) => ({ id: 'mock-empire-id' })
-};
-
-const TechService = {
-  getStatus: async (userId: string, empireId: string, baseCoord: string) => ({ status: 'mock' }),
-  start: async (userId: string, empireId: string, locationCoord: string, techKey: string) => 
-    ({ success: true, data: {}, message: 'Mock response' }),
-  getQueue: async (empireId: string, base?: string) => ([]),
-  getRefundCredits: async (spec: any, level: number) => 50
-};
-
-// Mock supabase
-const supabase = {
-  from: (table: string) => ({
-    select: () => ({ eq: () => ({ maybeSingle: () => ({ data: null, error: null }) }) }),
-    update: () => ({ eq: () => ({ error: null }) })
-  })
-};
-
-// Mock DB_TABLES
-const DB_TABLES = {
-  TECH_QUEUE: 'tech_queue',
-  EMPIRES: 'empires'
-};
+import { DB_TABLES, DB_FIELDS } from '../../../constants/database-fields';
+import { supabase } from '../../../config/supabase';
+import { EmpireResolutionService } from '../../../services/empire/EmpireResolutionService';
+import { getTechSpec, getTechnologyList, TechnologyKey } from '@game/shared';
+import { TechService } from '../../../services/tech/TechService';
 
 const router: Router = Router();
 

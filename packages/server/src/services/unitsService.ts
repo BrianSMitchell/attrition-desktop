@@ -3,12 +3,27 @@ import { CreditLedgerService } from './creditLedgerService';
 import { CapacityService } from './bases/CapacityService';
 import { getUnitsList, UnitKey, TechnologyKey } from '@game/shared';
 import { ERROR_MESSAGES } from '../constants/response-formats';
-
-// Constants imports for eliminating hardcoded values
-
-import { DB_FIELDS } from '../../../constants/database-fields';
-import { ENV_VARS } from '@game/shared';
 import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { ENV_VARS } from '@game/shared';
+
+/**
+ * Format an "already in progress" error for idempotent operations
+ */
+function formatAlreadyInProgress(serviceType: string, identityKey: string, catalogKey: string) {
+  const message = `An identical ${serviceType} item is already queued or active.`;
+  return {
+    success: false,
+    code: 'ALREADY_IN_PROGRESS',
+    message,
+    error: message,
+    details: {
+      identityKey,
+      catalogKey,
+      serviceType
+    },
+    reasons: ['already_in_progress', message]
+  };
+}
 
 function mapFromEmpireTechLevels(empire: any): Partial<Record<string, number>> {
   const mapVal = (empire as any).techLevels as Map<string, number> | undefined;
@@ -363,6 +378,3 @@ export class UnitsService {
     );
   }
 }
-
-
-

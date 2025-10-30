@@ -1,8 +1,8 @@
-import { FILE_PATHS, DIRECTORY_PATHS } from '@game/shared';
+import { FILE_PATHS, DIRECTORY_PATHS, TestingMetricsCollector, TestAlert, TestTrend } from '@game/shared';
 
 /**
  * Testing Dashboard Generator
- * 
+ *
  * This module generates comprehensive HTML dashboards for visualizing testing
  * metrics, trends, and health indicators for the Attrition MMO testing pipeline.
  */
@@ -565,7 +565,7 @@ ${data.health.slowTests.slice(0, 5).map((test: { name: string; avgDuration: numb
 
         .health-metric .label {
             min-width: 100px;
-            font-weight: HTTP_STATUS.INTERNAL_SERVER_ERROR;
+            font-weight: 600;
         }
 
         .health-metric .value {
@@ -683,7 +683,7 @@ ${data.health.slowTests.slice(0, 5).map((test: { name: string; avgDuration: numb
         }
 
         .alert-message {
-            font-weight: HTTP_STATUS.INTERNAL_SERVER_ERROR;
+            font-weight: 600;
         }
 
         .alert-time {
@@ -743,6 +743,7 @@ ${data.health.slowTests.slice(0, 5).map((test: { name: string; avgDuration: numb
         .alert-type-card.performance { background-color: #dbeafe; }
         .alert-type-card.reliability { background-color: #fce7f3; }
         .alert-type-card.build { background-color: #fef2f2; }
+        .alert-type-card.test_failure { background-color: #fee2e2; }
 
         .alert-type-count {
             font-size: 2rem;
@@ -907,11 +908,11 @@ ${data.health.slowTests.slice(0, 5).map((test: { name: string; avgDuration: numb
   }
 
   private createAlertTypesDistribution(alerts: TestAlert[]): string {
-    const alertTypes = {
+    const alertTypes: { [key: string]: number } = {
       coverage: alerts.filter(a => a.type === 'coverage_drop').length,
       performance: alerts.filter(a => a.type === 'performance_regression').length,
       reliability: alerts.filter(a => a.type === 'reliability_decline' || a.type === 'flaky_test').length,
-      build: alerts.filter(a => a.type === 'build_failure').length
+      build: alerts.filter(a => a.type === 'build_failure').length,
     };
 
     return Object.entries(alertTypes)
@@ -1140,13 +1141,15 @@ ${data.health.slowTests.slice(0, 5).map((test: { name: string; avgDuration: numb
   }
 
   private getCoverageTrend(trends: TestTrend): string {
-    const recent = trends.metrics.coverage.slice(-2);
-    if (recent.length < 2) return '📊';
-    
-    const change = recent[1].value - recent[0].value;
-    if (change > 0) return '📈';
-    if (change < 0) return '📉';
-    return '➡️';
+    // Handle both array and single value coverage data
+    if (Array.isArray(trends.metrics.coverage) && trends.metrics.coverage.length >= 2) {
+      const recent = trends.metrics.coverage.slice(-2);
+      const change = recent[1].value - recent[0].value;
+      if (change > 0) return '📈';
+      if (change < 0) return '📉';
+      return '➡️';
+    }
+    return '📊'; // Neutral/default for single values or insufficient data
   }
 
   private formatTime(timestamp: Date | string): string {
@@ -1162,5 +1165,3 @@ ${data.health.slowTests.slice(0, 5).map((test: { name: string; avgDuration: numb
 }
 
 export default DashboardGenerator;
-
-

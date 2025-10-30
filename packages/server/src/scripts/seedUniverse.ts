@@ -1,4 +1,5 @@
 import { DB_TABLES } from '../constants/database-fields';
+import { supabase } from '../config/database';
 
 // Simple CLI arg parsing: --count=NUMBER
 function parseArgs() {

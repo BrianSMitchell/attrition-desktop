@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { FILE_EXTENSIONS, FILE_PATHS } from '@game/shared';
+import { FILE_EXTENSIONS, FILE_PATHS, getEnvString } from '@game/shared';
 import { ENV_VARS } from '@game/shared';
-import { DB_FIELDS } from '../../../constants/database-fields';
+import { DB_FIELDS } from '../constants/database-fields';
 
 /**
  * Testing Dashboard CLI Tool
@@ -16,6 +16,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { TestingMetricsCollector } from '../test-utils/testing-metrics-framework';
 import DashboardGenerator from '../test-utils/dashboard-generator';
+import { NotificationConfig, AutomatedReportingSystem } from '../test-utils/automated-reporting';
 import { HTTP_STATUS } from '../constants/response-formats';
 
 const program = new Command();
@@ -41,22 +42,28 @@ const dashboardGenerator = new DashboardGenerator(metricsCollector);
 const getNotificationConfig = (): NotificationConfig => {
   const config: NotificationConfig = {};
 
-  if (process.env[ENV_VARS.SLACK_WEBHOOK_URL]) {
+  const slackWebhookUrl = getEnvString(ENV_VARS.SLACK_WEBHOOK_URL);
+  if (slackWebhookUrl) {
     config.slack = {
-      webhookUrl: process.env[ENV_VARS.SLACK_WEBHOOK_URL],
-      channel: process.env[ENV_VARS.SLACK_CHANNEL] || '#testing',
-      username: process.env[ENV_VARS.SLACK_USERNAME] || 'Attrition Testing Bot'
+      webhookUrl: slackWebhookUrl,
+      channel: getEnvString(ENV_VARS.SLACK_CHANNEL) || '#testing',
+      username: getEnvString(ENV_VARS.SLACK_USERNAME) || 'Attrition Testing Bot'
     };
   }
 
-  if (process.env[ENV_VARS.SMTP_HOST]) {
+  const smtpHost = getEnvString(ENV_VARS.SMTP_HOST);
+  const smtpUsername = getEnvString(ENV_VARS.SMTP_USERNAME);
+  const smtpPassword = getEnvString(ENV_VARS.SMTP_PASSWORD);
+  const smtpFrom = getEnvString(ENV_VARS.EMAIL_FROM);
+  const emailRecipients = getEnvString(ENV_VARS.EMAIL_RECIPIENTS);
+  if (smtpHost && smtpUsername && smtpPassword && smtpFrom) {
     config.email = {
-      smtpHost: process.env[ENV_VARS.SMTP_HOST],
-      smtpPort: parseInt(process.env[ENV_VARS.SMTP_PORT] || '587'),
-      username: process.env[ENV_VARS.SMTP_USERNAME]!,
-      password: process.env[ENV_VARS.SMTP_PASSWORD]!,
-      from: process.env[ENV_VARS.EMAIL_FROM]!,
-      recipients: (process.env[ENV_VARS.EMAIL_RECIPIENTS] || '').split(',').filter(Boolean)
+      smtpHost,
+      smtpPort: parseInt(getEnvString(ENV_VARS.SMTP_PORT) || '587'),
+      username: smtpUsername,
+      password: smtpPassword,
+      from: smtpFrom,
+      recipients: emailRecipients ? emailRecipients.split(',').filter(Boolean) : []
     };
   }
 
@@ -492,5 +499,3 @@ export {
   dashboardGenerator,
   reportingSystem
 };
-
-

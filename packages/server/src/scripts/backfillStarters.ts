@@ -1,8 +1,6 @@
 import 'dotenv/config';
 import { supabase } from '../config/supabase';
-import { DB_TABLES } from '../constants/database-fields';
-
-import { DB_FIELDS } from '../../../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 import { GAME_CONSTANTS } from '@game/shared';
 interface UserRow {
   id: string;

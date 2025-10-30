@@ -1,14 +1,9 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { ERROR_MESSAGES } from '../constants/response-formats';
-
-// Constants imports for eliminating hardcoded values
-
 import { supabase } from '../config/supabase';
-
-import { DB_FIELDS } from '../../../constants/database-fields';
-import { ENV_VARS } from '@game/shared';
 import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { ENV_VARS, parseCoord } from '@game/shared';
 
 const onlineUserSocketCounts = new Map<string, number>();
 

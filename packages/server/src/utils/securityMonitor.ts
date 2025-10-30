@@ -1,13 +1,11 @@
 /**
-
-import { DB_FIELDS } from '../../../constants/database-fields';
-import { ENV_VARS } from '@game/shared';
-/**
  * Advanced Security Monitoring and Session Invalidation System
  * 
  * Provides comprehensive monitoring of authentication events and automatic
  * session invalidation when suspicious patterns are detected.
  */
+
+import { DB_FIELDS, ENV_VARS } from '@game/shared';
 
 import { Request } from 'express';
 import { EventEmitter } from 'events';
@@ -101,7 +99,7 @@ export class SecurityMonitor extends EventEmitter {
   /**
    * Record a security event and analyze for suspicious patterns
    */
-  recordEvent(event: Omit<SecurityEvent, DB_FIELDS.BUILDINGS.ID | 'timestamp' | 'riskScore'>): SecurityEvent {
+  recordEvent(event: Omit<SecurityEvent, 'id' | 'timestamp' | 'riskScore'>): SecurityEvent {
     const fullEvent: SecurityEvent = {
       ...event,
       id: this.generateEventId(),
@@ -392,7 +390,7 @@ export class SecurityMonitor extends EventEmitter {
   /**
    * Calculate risk score for an event
    */
-  private calculateRiskScore(event: Omit<SecurityEvent, DB_FIELDS.BUILDINGS.ID | 'timestamp' | 'riskScore'>): number {
+  private calculateRiskScore(event: Omit<SecurityEvent, 'id' | 'timestamp' | 'riskScore'>): number {
     let score = 0;
 
     // Base scores by event type
@@ -491,7 +489,7 @@ export class SecurityMonitor extends EventEmitter {
     const loginHours = history.map(e => e.timestamp.getHours());
     const averageHour = loginHours.reduce((a, b) => a + b, 0) / loginHours.length;
     
-    // Allow ±3 hours from average
+    // Allow Â±3 hours from average
     return Math.abs(hour - averageHour) <= 3;
   }
 

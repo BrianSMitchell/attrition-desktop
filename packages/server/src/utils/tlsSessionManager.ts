@@ -12,6 +12,7 @@ import { ENV_VALUES } from '@game/shared';
  */
 
 import crypto from 'crypto';
+import { EventEmitter } from 'events';
 import { HTTP_STATUS } from '../constants/response-formats';
 
 /**

@@ -19,8 +19,6 @@ import {
   getBuildingSpec 
 } from '@game/shared';
 import { EmpireResolutionService } from '../../../services/EmpireResolutionService';
-import { getTechSpec, getTechnologyList } from '@game/shared';
-import { getBuildingsList, getDefensesList, getUnitsList } from '@game/shared';
 
 const router = Router();
 

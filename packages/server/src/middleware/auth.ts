@@ -17,6 +17,7 @@ import {
 export interface SupabaseUser {
   _id: string;
   id: string;
+  userId: string;
   email: string;
   username: string;
   role: 'user' | 'admin';
@@ -172,6 +173,7 @@ export const authenticate = asyncHandler(async (req: AuthRequest, res: Response,
     const user: SupabaseUser = {
       _id: data.id,
       id: data.id,
+      userId: data.id,
       email: data.email,
       username: data.username,
       role: data.role,
@@ -245,6 +247,3 @@ export const generateRefreshToken = (userId: string): string => {
 
 /** Backward compatibility for existing call sites */
 export const generateToken = generateAccessToken;
-
-
-

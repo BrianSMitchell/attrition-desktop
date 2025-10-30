@@ -7,7 +7,6 @@ import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { HTTP_STATUS } from '@game/shared';
 import { DefenseKey, getDefensesList } from '@game/shared';
 import { EmpireResolutionService } from '../../services/empire/EmpireResolutionService';
-import { getDefensesList } from '@game/shared';
 
 const router = Router();
 

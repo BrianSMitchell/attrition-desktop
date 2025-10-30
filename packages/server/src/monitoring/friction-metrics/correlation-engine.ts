@@ -1,10 +1,9 @@
 /**
-}
-import { STATUS_CODES } from '@game/shared';
-/**
  * Correlation analysis engine for development friction monitoring
  * Identifies statistical relationships between code quality and development velocity
  */
+
+import { STATUS_CODES } from '@game/shared';
 
 import {
   FrictionCorrelations,

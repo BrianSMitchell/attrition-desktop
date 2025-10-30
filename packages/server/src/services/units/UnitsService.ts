@@ -1,10 +1,9 @@
 import { supabase } from '../../config/supabase';
 import { CapacityService } from '../bases/CapacityService';
+import { TechService } from '../tech/TechService';
 import { getUnitsList, getUnitSpec, type UnitKey } from '@game/shared';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
-
-import { DB_FIELDS } from '../../../constants/database-fields';
-import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 function evaluateUnitTechPrereqs(
   techLevels: Record<string, number>,
   prereqs: Array<{ key: string; level: number }>
@@ -237,6 +236,3 @@ console.warn('[UnitsService] Failed to log credit transaction:', logErr);
     } as const;
   }
 }
-
-
-

@@ -1,11 +1,7 @@
-import { AuthRequest } from '../../../middleware/auth';
-import { Response, Router } from 'express';
+import { Response } from 'express';
 import { supabase } from '../../config/supabase';
-import { ERROR_MESSAGES } from '../../../constants/response-formats';
-
-
-// Constants imports for eliminating hardcoded values
-import { DB_TABLES, DB_FIELDS } from '../../../constants/database-fields';
+import { ERROR_MESSAGES } from '../../constants/response-formats';
+import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { HTTP_STATUS } from '@game/shared';
 import { createBaseRouter, AuthRequest, asyncHandler } from './baseRouter';
 import { EmpireResolutionService } from '../../services/EmpireResolutionService';
