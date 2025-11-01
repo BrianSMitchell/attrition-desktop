@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 import https from 'https';
 import errorLogger from './errorLoggingService.js';
-import { ENV_VARS } from './packages/shared/src/constants/env-vars';
 
 
 /**

@@ -1,7 +1,8 @@
 import errorLogger from './errorLoggingService.js';
 import { createPinnedHttpsAgent } from './certificatePinning.js';
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
-import { ENV_VARS } from './packages/shared/src/constants/env-vars';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { ERROR_MESSAGES, ENV_VARS } = require('../../../shared/dist/cjs/index.js');
 
 
 

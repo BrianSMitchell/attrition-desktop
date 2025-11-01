@@ -1,4 +1,4 @@
-﻿import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -7,14 +7,15 @@ import desktopDb from './db.js';
 import errorLogger from './services/errorLoggingService.js';
 import performanceMonitoringService from './services/performanceMonitoringService.js';
 import { httpRequest } from './services/httpClient.js';
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
-import { ENV_VARS } from '@shared/constants/env-vars';
+
+// Import shared constants from CommonJS build to avoid ESM duplicate module loading
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const shared = require('../../shared/dist/cjs/index.js');
+const { ENV_VARS, HTTP_STATUS, ERROR_MESSAGES, FILE_PATHS, DIRECTORY_PATHS } = shared;
 
 // Security services removed - too restrictive for small game
 import { UpdateService } from './services/updateService.js';
-
-import { HTTP_STATUS } from './response-formats';
-import { FILE_PATHS, DIRECTORY_PATHS } from './packages/shared/src/constants/file-paths';
 
 /**
  * Resolve current directory for this ESM module without shadowing CommonJS globals.
@@ -1943,6 +1944,3 @@ process.on('unhandledRejection', (reason, promise) => {
   errorLogger.error('Unhandled Promise Rejection in main process', reason);
   app.quit();
 });
-
-
-

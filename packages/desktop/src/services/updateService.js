@@ -1,7 +1,6 @@
 import { app, dialog, BrowserWindow } from 'electron';
 import log from 'electron-log';
-import { ENV_VARS } from './packages/shared/src/constants/env-vars';
-import { DIRECTORY_PATHS } from './packages/shared/src/constants/file-paths';
+import { DIRECTORY_PATHS, ENV_VARS } from '@game/shared';
 
 
 

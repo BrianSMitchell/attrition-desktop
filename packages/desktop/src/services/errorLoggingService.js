@@ -1,9 +1,10 @@
-﻿import { app } from 'electron';
+import { app } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import desktopDb from '../db.js';
-import { ENV_VARS } from './packages/shared/src/constants/env-vars';
-import { ENV_VARS } from '@shared/constants/env-vars';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { ENV_VARS } = require('../../../shared/dist/cjs/index.js');
 
 
 // Error categories for classification
