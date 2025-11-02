@@ -3,28 +3,146 @@
  * @author Attrition Development Team
  */
 
-"use strict";
+/**
+ * Metric configuration interface
+ */
+interface MetricThresholds {
+  complexity: {
+    maxPerFunction: number;
+    maxPerFile: number;
+  };
+  duplication: {
+    minLines: number;
+    similarityThreshold: number;
+  };
+  fileSize: {
+    maxLines: number;
+    maxFunctions: number;
+  };
+  coupling: {
+    maxDependencies: number;
+    featureEnvyThreshold: number;
+  };
+}
+
+/**
+ * Project-specific rules configuration
+ */
+interface ProjectRules {
+  idConsistency: {
+    targetScore: number;
+    criticalViolations: string[];
+  };
+  logging: {
+    maxConsoleStatements: number;
+    allowInDevelopment: boolean;
+  };
+  legacyPatterns: {
+    bannedPatterns: string[];
+    migrationPhase: string;
+  };
+  serviceExtraction: {
+    minServiceScore: number;
+    maxRouteComplexity: number;
+  };
+}
+
+/**
+ * Analysis configuration interface
+ */
+interface AnalysisConfig {
+  includePatterns: string[];
+  excludePatterns: string[];
+  maxFileSize: number;
+  timeoutMs: number;
+}
+
+/**
+ * Reporting configuration interface
+ */
+interface ReportingConfig {
+  outputFormat: string;
+  includeRecommendations: boolean;
+  groupBy: string;
+}
+
+/**
+ * Complete project configuration
+ */
+interface ProjectConfig {
+  thresholds: MetricThresholds;
+  projectRules: ProjectRules;
+  analysis: AnalysisConfig;
+  reporting: ReportingConfig;
+}
+
+/**
+ * Pattern detection result
+ */
+interface PatternDetection {
+  objectId: any[];
+  uuid: any[];
+}
+
+/**
+ * Migration analysis issue
+ */
+interface MigrationIssue {
+  type: string;
+  severity: 'low' | 'medium' | 'high';
+  message: string;
+  patterns: any[];
+}
+
+/**
+ * Complete migration analysis result
+ */
+interface MigrationAnalysis {
+  filePath: string;
+  idConsistency: number;
+  legacyPatternScore: number;
+  serviceExtractionScore: number;
+  overallScore: number;
+  isReadyForMigration: boolean;
+  issues: MigrationIssue[];
+}
+
+/**
+ * ESLint violation format
+ */
+interface FormattedViolation {
+  rule: string;
+  severity: 'error' | 'warning';
+  message: string;
+  line: number;
+  column: number;
+  source: string;
+  recommendations: string[];
+}
 
 /**
  * Get project configuration from metrics system
- * @returns {Object} Project configuration object
+ * @returns Project configuration object
  */
-function getProjectConfig() {
+export function getProjectConfig(): ProjectConfig {
   try {
     // Import the metrics config from the existing system
     const { defaultMetricsConfig } = require('../../../utils/codeMetrics/config');
     return defaultMetricsConfig;
   } catch (error) {
-    console.warn('Could not load metrics config, using defaults:', error.message);
+    console.warn(
+      'Could not load metrics config, using defaults:',
+      error instanceof Error ? error.message : String(error)
+    );
     return getDefaultConfig();
   }
 }
 
 /**
  * Get default configuration when metrics system is not available
- * @returns {Object} Default configuration object
+ * @returns Default configuration object
  */
-function getDefaultConfig() {
+export function getDefaultConfig(): ProjectConfig {
   return {
     thresholds: {
       complexity: {
@@ -48,9 +166,9 @@ function getDefaultConfig() {
       idConsistency: {
         targetScore: 90,
         criticalViolations: [
-          "mongoose\\.Types\\.ObjectId",
-          "new ObjectId",
-          "ObjectId\\("
+          'mongoose\\.Types\\.ObjectId',
+          'new ObjectId',
+          'ObjectId\\('
         ]
       },
       logging: {
@@ -58,12 +176,8 @@ function getDefaultConfig() {
         allowInDevelopment: true
       },
       legacyPatterns: {
-        bannedPatterns: [
-          "callback",
-          "var ",
-          "console\\.log"
-        ],
-        migrationPhase: "Phase 5"
+        bannedPatterns: ['callback', 'var ', 'console\\.log'],
+        migrationPhase: 'Phase 5'
       },
       serviceExtraction: {
         minServiceScore: 80,
@@ -71,26 +185,26 @@ function getDefaultConfig() {
       }
     },
     analysis: {
-      includePatterns: ["**/*.ts", "**/*.js"],
-      excludePatterns: ["node_modules/**", "dist/**", "**/*.test.ts", "**/*.spec.ts"],
+      includePatterns: ['**/*.ts', '**/*.js'],
+      excludePatterns: ['node_modules/**', 'dist/**', '**/*.test.ts', '**/*.spec.ts'],
       maxFileSize: 1024 * 1024, // 1MB
       timeoutMs: 5000
     },
     reporting: {
-      outputFormat: "json",
+      outputFormat: 'json',
       includeRecommendations: true,
-      groupBy: "file"
+      groupBy: 'file'
     }
   };
 }
 
 /**
  * Calculate consistency score for ID patterns
- * @param {Array} objectIdPatterns - Array of ObjectId pattern occurrences
- * @param {Array} uuidPatterns - Array of UUID pattern occurrences
- * @returns {number} Consistency score (0-100)
+ * @param objectIdPatterns - Array of ObjectId pattern occurrences
+ * @param uuidPatterns - Array of UUID pattern occurrences
+ * @returns Consistency score (0-100)
  */
-function calculateIdConsistencyScore(objectIdPatterns, uuidPatterns) {
+export function calculateIdConsistencyScore(objectIdPatterns: any[], uuidPatterns: any[]): number {
   const total = objectIdPatterns.length + uuidPatterns.length;
   if (total === 0) return 100;
 
@@ -100,15 +214,18 @@ function calculateIdConsistencyScore(objectIdPatterns, uuidPatterns) {
 
 /**
  * Analyze file patterns for migration readiness
- * @param {string} filePath - Path to the file being analyzed
- * @param {Object} patterns - Detected patterns in the file
- * @returns {Object} Migration analysis result
+ * @param filePath - Path to the file being analyzed
+ * @param patterns - Detected patterns in the file
+ * @returns Migration analysis result
  */
-function analyzeMigrationReadiness(filePath, patterns) {
+export function analyzeMigrationReadiness(
+  filePath: string,
+  patterns: PatternDetection
+): MigrationAnalysis {
   const config = getProjectConfig();
   const rules = config.projectRules;
 
-  const analysis = {
+  const analysis: MigrationAnalysis = {
     filePath,
     idConsistency: calculateIdConsistencyScore(patterns.objectId, patterns.uuid),
     legacyPatternScore: calculateLegacyPatternScore(patterns),
@@ -140,10 +257,10 @@ function analyzeMigrationReadiness(filePath, patterns) {
 
 /**
  * Calculate legacy pattern score
- * @param {Object} patterns - Detected patterns in the file
- * @returns {number} Legacy pattern score (0-100)
+ * @param patterns - Detected patterns in the file
+ * @returns Legacy pattern score (0-100)
  */
-function calculateLegacyPatternScore(patterns) {
+export function calculateLegacyPatternScore(patterns: PatternDetection): number {
   const config = getProjectConfig();
   const bannedPatterns = config.projectRules.legacyPatterns.bannedPatterns;
 
@@ -160,15 +277,15 @@ function calculateLegacyPatternScore(patterns) {
   }
 
   const violationRatio = violations / totalPatterns;
-  return Math.round(Math.max(0, (1 - violationRatio)) * 100);
+  return Math.round(Math.max(0, 1 - violationRatio) * 100);
 }
 
 /**
  * Calculate service extraction score
- * @param {Object} patterns - Detected patterns in the file
- * @returns {number} Service extraction score (0-100)
+ * @param patterns - Detected patterns in the file
+ * @returns Service extraction score (0-100)
  */
-function calculateServiceExtractionScore(patterns) {
+export function calculateServiceExtractionScore(patterns: PatternDetection): number {
   // This would analyze route complexity and service extraction patterns
   // For now, return a placeholder score
   return 85;
@@ -176,11 +293,11 @@ function calculateServiceExtractionScore(patterns) {
 
 /**
  * Generate recommendations for file improvement
- * @param {Object} analysis - Migration analysis result
- * @returns {Array} Array of recommendation strings
+ * @param analysis - Migration analysis result
+ * @returns Array of recommendation strings
  */
-function generateRecommendations(analysis) {
-  const recommendations = [];
+export function generateRecommendations(analysis: MigrationAnalysis): string[] {
+  const recommendations: string[] = [];
 
   if (analysis.idConsistency < 90) {
     recommendations.push(
@@ -213,11 +330,14 @@ function generateRecommendations(analysis) {
 
 /**
  * Format violation for reporting
- * @param {Object} violation - Violation object from analysis
- * @param {string} ruleName - Name of the ESLint rule
- * @returns {Object} Formatted violation for ESLint reporting
+ * @param violation - Violation object from analysis
+ * @param ruleName - Name of the ESLint rule
+ * @returns Formatted violation for ESLint reporting
  */
-function formatViolationForReporting(violation, ruleName) {
+export function formatViolationForReporting(
+  violation: any,
+  ruleName: string
+): FormattedViolation {
   return {
     rule: ruleName,
     severity: violation.severity === 'high' ? 'error' : 'warning',
@@ -228,14 +348,3 @@ function formatViolationForReporting(violation, ruleName) {
     recommendations: violation.recommendations || []
   };
 }
-
-module.exports = {
-  getProjectConfig,
-  getDefaultConfig,
-  calculateIdConsistencyScore,
-  analyzeMigrationReadiness,
-  calculateLegacyPatternScore,
-  calculateServiceExtractionScore,
-  generateRecommendations,
-  formatViolationForReporting
-};
