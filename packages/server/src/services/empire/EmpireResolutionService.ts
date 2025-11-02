@@ -1,6 +1,7 @@
 import { Empire, Location } from '@game/shared';
 import { supabase } from '../../config/supabase';
 import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
+import { AuthenticationError, DatabaseError } from '../../types/error.types';
 /**
  * Service for resolving empire-related operations and validations
  */
@@ -54,25 +55,41 @@ export class EmpireResolutionService {
    */
   public static async resolveEmpireByUserObject(user: UserObject): Promise<any | null> {
     const userId = user._id || user.id;
-    if (!userId) return null;
+    if (!userId) {
+      throw new AuthenticationError('User ID not found in session');
+    }
 
     // Try user.empire_id first
     if (user.empire_id) {
-      const { data: empireRow } = await supabase
+      const { data: empireRow, error: empireError } = await supabase
         .from(DB_TABLES.EMPIRES)
         .select('id, name, territories, credits, energy, user_id')
         .eq(DB_FIELDS.BUILDINGS.ID, user.empire_id)
         .maybeSingle();
 
+      if (empireError) {
+        throw new DatabaseError('Failed to resolve empire by ID', 'RESOLVE_EMPIRE_BY_ID', {
+          empireId: user.empire_id,
+          error: empireError.message
+        });
+      }
+
       if (empireRow?.id) return empireRow;
     }
 
     // Try looking up by user_id
-    const { data: empireRow } = await supabase
+    const { data: empireRow, error: lookupError } = await supabase
       .from(DB_TABLES.EMPIRES)
       .select('id, name, territories, credits, energy, user_id')
       .eq(DB_FIELDS.EMPIRES.USER_ID, userId)
       .maybeSingle();
+
+    if (lookupError) {
+      throw new DatabaseError('Failed to resolve empire by user ID', 'RESOLVE_EMPIRE_BY_USER', {
+        userId,
+        error: lookupError.message
+      });
+    }
 
     return empireRow || null;
   }

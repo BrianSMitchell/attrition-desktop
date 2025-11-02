@@ -2,6 +2,7 @@ import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
 import { supabase } from '../../config/supabase';
 import { EmpireResolutionService } from './EmpireResolutionService';
+import { NotFoundError, DatabaseError } from '../../types/error.types';
 interface CreditTransaction {
   _id: string;
   amount: number;
@@ -29,7 +30,7 @@ export class EmpireService {
     // Resolve empire
     const empireRow = await EmpireResolutionService.resolveEmpireByUserObject(user);
     if (!empireRow) {
-      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
+      throw new NotFoundError('Empire', user?.id || user?._id);
     }
 
     const empireId = String(empireRow.id);
@@ -44,7 +45,9 @@ export class EmpireService {
 
     if (error) {
       console.error('Error fetching credit history:', error);
-      throw new Error('Failed to fetch credit history');
+      throw new DatabaseError('Failed to fetch credit history', 'GET_CREDIT_HISTORY', {
+        supabaseError: error.message
+      });
     }
 
     return (txns || []).map(t => ({
@@ -63,7 +66,7 @@ export class EmpireService {
   static async getEmpireDetails(user: any) {
     const empireRow = await EmpireResolutionService.resolveEmpireByUserObject(user);
     if (!empireRow) {
-      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
+      throw new NotFoundError('Empire', user?.id || user?._id);
     }
 
     return {
