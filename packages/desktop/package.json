@@ -17,7 +17,7 @@
     "prebuild": "pnpm --filter @game/shared build && pnpm --filter @game/client build && pnpm run build:desktop",
     "postinstall": "electron-builder install-app-deps",
     "rebuild:native": "node scripts/rebuild-native.cjs",
-    "build": "pnpm run rebuild:native && electron-builder --config ../../config/electron-builder.yml",
+    "build": "pnpm run rebuild:native && electron-builder --config ../../config/electron-builder.yml --publish never",
     "build:win": "pnpm run rebuild:native && electron-builder --win --config ../../config/electron-builder.yml",
     "build:mac": "pnpm run rebuild:native && electron-builder --mac --config ../../config/electron-builder.yml",
     "build:linux": "pnpm run rebuild:native && electron-builder --linux --config ../../config/electron-builder.yml",
