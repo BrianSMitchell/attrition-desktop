@@ -1,11 +1,47 @@
 import desktopDb from "../db.js";
 
+interface PerformanceMetric {
+  timestamp: number;
+  operation: string;
+  success: boolean;
+  durationMs: number;
+  batchSize?: number;
+  error?: string;
+}
+
+interface PerformanceStats {
+  totalOperations: number;
+  successRate: number;
+  averageDurationMs: number;
+  medianDurationMs?: number;
+  p95DurationMs?: number;
+  p99DurationMs?: number;
+  minDurationMs?: number;
+  maxDurationMs?: number;
+  operationsByType: Record<string, {
+    count: number;
+    successRate: number;
+    avgDuration: number;
+  }>;
+  errorDistribution: Record<string, number>;
+  throughput?: {
+    operationsPerMinute: number;
+    bytesPerSecond: number;
+  };
+}
+
 /**
  * Event Queue Service for handling offline/online hybrid operations
  * Implements Tier A event queue system with idempotency and synchronization
  * Enhanced with performance monitoring for sync operations
  */
 class EventQueueService {
+  private flushInterval: NodeJS.Timeout | null;
+  private isFlushing: boolean;
+  private deviceId: string;
+  private performanceMetrics: Map<string, PerformanceMetric[]>;
+  private isMonitoringEnabled: boolean;
+
   constructor() {
     // State
     this.flushInterval = null;
@@ -17,7 +53,12 @@ class EventQueueService {
     this.initializePerformanceMonitoring();
   }
 
-  initializePerformanceMonitoring() {
+  private getDeviceId(): string {
+    // Stub - implement device ID generation
+    return 'device-' + Math.random().toString(36).substring(7);
+  }
+
+  private initializePerformanceMonitoring(): void {
     // Initialize performance metrics storage
     this.performanceMetrics.set("eventProcessing", []);
     this.performanceMetrics.set("batchFlush", []);
@@ -29,7 +70,7 @@ class EventQueueService {
   /**
    * Record performance metrics for sync operations
    */
-  recordPerformanceMetric(metric) {
+  recordPerformanceMetric(metric: Partial<PerformanceMetric>): void {
     if (!this.isMonitoringEnabled) return;
 
     const fullMetric = {
@@ -61,7 +102,7 @@ class EventQueueService {
   /**
    * Get performance metrics for sync operations
    */
-  getPerformanceMetrics(hours = 24) {
+  getPerformanceMetrics(hours: number = 24): PerformanceMetric[] {
     try {
       const cutoffTime = Date.now() - hours * 60 * 1000;
       const metrics = this.performanceMetrics.get("syncOperations") || [];
@@ -76,7 +117,7 @@ class EventQueueService {
   /**
    * Get performance statistics for sync operations
    */
-  getPerformanceStats(hours = 24) {
+  getPerformanceStats(hours: number = 24): PerformanceStats {
     try {
       const metrics = this.getPerformanceMetrics(hours);
 
@@ -159,7 +200,7 @@ class EventQueueService {
     }
   }
 
-  calculateMedian(values) {
+  private calculateMedian(values: number[]): number {
     if (values.length === 0) return 0;
     const sorted = [...values].sort((a, b) => a - b);
     const middle = Math.floor(sorted.length / 2);
@@ -168,14 +209,14 @@ class EventQueueService {
       : sorted[middle];
   }
 
-  calculatePercentile(values, percentile) {
+  private calculatePercentile(values: number[], percentile: number): number {
     if (values.length === 0) return 0;
     const sorted = [...values].sort((a, b) => a - b);
     const index = Math.floor((percentile / 100) * (sorted.length - 1));
     return sorted[index];
   }
 
-  calculateThroughput(metrics, hours) {
+  private calculateThroughput(metrics: PerformanceMetric[], hours: number): number {
     // Estimate throughput based on batch sizes and durations
     const totalBytes = metrics.reduce((sum, m) => {
       const batchSize = m.batchSize || 1;
@@ -190,7 +231,7 @@ class EventQueueService {
   /**
    * Clear performance metrics
    */
-  clearPerformanceMetrics() {
+  clearPerformanceMetrics(): void {
     this.performanceMetrics.set("syncOperations", []);
     try {
       desktopDb.clearSyncPerformanceMetrics();
