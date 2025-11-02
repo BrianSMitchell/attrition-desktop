@@ -61,6 +61,10 @@ jobs:
       env:
         npm_config_build_from_source: true
         
+    - name: Compile desktop TypeScript
+      run: |
+        pnpm --filter @game/desktop run build:desktop
+      
     - name: Build desktop application
       run: |
         pnpm --filter @game/desktop build
