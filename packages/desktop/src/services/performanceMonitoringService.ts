@@ -3,10 +3,10 @@ import desktopDb from '../db.js';
 class PerformanceMonitoringService {
   static KV_THRESHOLDS_KEY = 'perf_thresholds';
 
-  getMetrics(hours = 24) {
+  getMetrics(hours = 24): any[] {
     try {
       const rows = desktopDb.getRecentSyncPerformanceMetrics?.(hours) || [];
-      const metrics = rows.map((row) => {
+      const metrics = rows.map((row: any) => {
         const duration = row.durationMs ?? row.duration_ms;
         const batch = row.batchSize ?? row.batch_size;
         const err = row.error ?? row.error_message;
@@ -31,7 +31,7 @@ class PerformanceMonitoringService {
     }
   }
 
-  getStats(hours = 24) {
+  getStats(hours = 24): any {
     try {
       const metrics = this.getMetrics(hours);
       if (metrics.length === 0) {
@@ -59,15 +59,15 @@ class PerformanceMonitoringService {
         },
       };
 
-      const byOp = {};
+      const byOp: Record<string, any[]> = {};
       for (const m of metrics) {
         (byOp[m.operation] ||= []).push(m);
       }
 
       for (const [op, arr] of Object.entries(byOp)) {
-        const opDurations = arr.map((m) => m.durationMs);
-        const opSuccess = arr.filter((m) => m.success);
-        stats.operationsByType[op] = {
+        const opDurations = arr.map((m: any) => m.durationMs);
+        const opSuccess = arr.filter((m: any) => m.success);
+        (stats.operationsByType as Record<string, any>)[op] = {
           count: arr.length,
           successRate: (opSuccess.length / arr.length) * 100,
           avgDuration: opDurations.reduce((s, v) => s + v, 0) / opDurations.length,
@@ -79,7 +79,7 @@ class PerformanceMonitoringService {
 
       for (const f of failed) {
         const key = f.error || 'unknown_error';
-        stats.errorDistribution[key] = (stats.errorDistribution[key] || 0) + 1;
+        (stats.errorDistribution as Record<string, number>)[key] = ((stats.errorDistribution as Record<string, number>)[key] || 0) + 1;
       }
 
       return stats;
@@ -89,7 +89,7 @@ class PerformanceMonitoringService {
     }
   }
 
-  export(format = 'json', hours = 24) {
+  export(format = 'json', hours = 24): string {
     try {
       const metrics = this.getMetrics(hours);
       if (format === 'csv') {
@@ -102,7 +102,7 @@ class PerformanceMonitoringService {
     }
   }
 
-  clear() {
+  clear(): number {
     try {
       const deleted = desktopDb.clearSyncPerformanceMetrics?.(0) ?? 0;
       return deleted;
@@ -112,7 +112,7 @@ class PerformanceMonitoringService {
     }
   }
 
-  getThresholds() {
+  getThresholds(): any[] {
     try {
       const stored = desktopDb.getKeyValue?.(PerformanceMonitoringService.KV_THRESHOLDS_KEY);
       if (Array.isArray(stored)) return stored;
@@ -123,9 +123,9 @@ class PerformanceMonitoringService {
     }
   }
 
-  setThresholds(thresholds) {
+  setThresholds(thresholds: any[]): boolean {
     try {
-      const sanitized = (thresholds || []).map((t) => ({
+      const sanitized = (thresholds || []).map((t: any) => ({
         op: t.op,
         p95Ms: typeof t.p95Ms === 'number' && t.p95Ms >= 0 ? t.p95Ms : undefined,
         failRatePct: typeof t.failRatePct === 'number' && t.failRatePct >= 0 && t.failRatePct <= 100 ? t.failRatePct : undefined,
@@ -138,8 +138,8 @@ class PerformanceMonitoringService {
     }
   }
 
-  getThresholdBreaches(hours = 1) {
-    const breaches = [];
+  getThresholdBreaches(hours = 1): any[] {
+    const breaches: any[] = [];
     const thresholds = this.getThresholds();
     if (thresholds.length === 0) return breaches;
 
@@ -172,7 +172,7 @@ class PerformanceMonitoringService {
           }
         }
       } else {
-        const opStats = stats.operationsByType[t.op];
+        const opStats = (stats.operationsByType as Record<string, any>)[t.op];
         if (opStats) {
           if (typeof t.p95Ms === 'number' && opStats.p95DurationMs > t.p95Ms) {
             breaches.push({
@@ -206,7 +206,7 @@ class PerformanceMonitoringService {
 
   // Helpers
 
-  emptyStats() {
+  emptyStats(): any {
     return {
       totalOperations: 0,
       successRate: 0,
@@ -225,7 +225,7 @@ class PerformanceMonitoringService {
     };
   }
 
-  calculateMedian(values) {
+  calculateMedian(values: number[]): number {
     if (!values.length) return 0;
     const sorted = [...values].sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
@@ -234,14 +234,14 @@ class PerformanceMonitoringService {
       : sorted[mid];
   }
 
-  calculatePercentile(values, percentile) {
+  calculatePercentile(values: number[], percentile: number): number {
     if (!values.length) return 0;
     const sorted = [...values].sort((a, b) => a - b);
     const idx = Math.floor((percentile / 100) * (sorted.length - 1));
     return sorted[idx];
   }
 
-  calculateThroughput(metrics, hours) {
+  calculateThroughput(metrics: any[], hours: number): number {
     const totalBytes = metrics.reduce((sum, m) => {
       const batch = m.batchSize || 1;
       return sum + (batch * 1024);
@@ -250,7 +250,7 @@ class PerformanceMonitoringService {
     return totalBytes / totalSeconds;
   }
 
-  convertMetricsToCSV(metrics) {
+  convertMetricsToCSV(metrics: any[]): string {
     if (!metrics.length) return '';
 
     const headers = [

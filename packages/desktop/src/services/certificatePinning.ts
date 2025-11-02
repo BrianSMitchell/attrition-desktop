@@ -162,16 +162,16 @@ export function createPinnedHttpsAgent(hostname: string): https.Agent {
   return new https.Agent({
     checkServerIdentity: (host, cert) => {
       // Perform standard hostname verification first
-      const hostnameError = https.globalAgent.options.checkServerIdentity(host, cert);
+      const hostnameError = https.globalAgent.options.checkServerIdentity?.(host, cert);
       if (hostnameError) {
         return hostnameError;
       }
 
       // Get certificate chain
       const certChain = [cert];
-      let current = cert;
-      while (current.issuerCertificate && current !== current.issuerCertificate) {
-        current = current.issuerCertificate;
+      let current: PeerCertificate = cert;
+      while ((current as any).issuerCertificate && current !== (current as any).issuerCertificate) {
+        current = (current as any).issuerCertificate as PeerCertificate;
         certChain.push(current);
       }
 
@@ -198,7 +198,12 @@ export function createPinnedHttpsAgent(hostname: string): https.Agent {
 
       // Return error if validation failed
       if (!validation.valid && validation.enforced) {
-        const error = new Error(`Certificate pinning validation failed for ${hostname}`);
+        const error = new Error(`Certificate pinning validation failed for ${hostname}`) as Error & {
+          code: string;
+          hostname: string;
+          expectedPins?: string[];
+          actualFingerprints?: string[];
+        };
         error.code = 'CERT_PIN_FAILURE';
         error.hostname = hostname;
         error.expectedPins = validation.expectedPins;
@@ -234,16 +239,17 @@ export async function pinnedFetch(url: string, options: RequestInit = {}): Promi
     try {
       return await fetch(url, enhancedOptions);
     } catch (error) {
-      if (error.code === 'CERT_PIN_FAILURE') {
+      const err = error as Error & { code?: string; hostname?: string; originalError?: Error };
+      if (err.code === 'CERT_PIN_FAILURE') {
         // Log certificate pinning failure
-        errorLogger.error('[CertPinning] Fetch failed due to certificate pinning', error, {
+        errorLogger.error('[CertPinning] Fetch failed due to certificate pinning', err, {
           url,
-          hostname: error.hostname
+          hostname: err.hostname
         });
         
         // Throw a more user-friendly error
-        const userError = new Error('Secure connection failed: Certificate validation error');
-        userError.originalError = error;
+        const userError = new Error('Secure connection failed: Certificate validation error') as Error & { originalError?: Error; code?: string };
+        userError.originalError = err;
         userError.code = 'SECURE_CONNECTION_FAILED';
         throw userError;
       }
@@ -288,10 +294,11 @@ export function updateCertificatePins(hostname: string, newPins: string[]): Upda
       changed: JSON.stringify(oldPins) !== JSON.stringify(newPins)
     };
   } catch (error) {
-    errorLogger.error('[CertPinning] Failed to update certificate pins', error, { hostname });
+    const err = error as Error;
+    errorLogger.error('[CertPinning] Failed to update certificate pins', err, { hostname });
     return {
       success: false,
-      error: error.message,
+      error: err.message,
       hostname
     };
   }
@@ -323,21 +330,22 @@ export async function testCertificatePinning(hostname: string, port: number = 44
       agent,
       timeout: 10000
     }, (res) => {
+      const peerCert = (res.socket as any).getPeerCertificate();
       resolve({
         success: true,
         hostname,
         statusCode: res.statusCode,
         certificate: {
-          subject: res.socket.getPeerCertificate().subject,
-          issuer: res.socket.getPeerCertificate().issuer,
-          validFrom: res.socket.getPeerCertificate().valid_from,
-          validTo: res.socket.getPeerCertificate().valid_to,
-          fingerprint: getCertificateFingerprint(res.socket.getPeerCertificate().raw)
+          subject: peerCert.subject,
+          issuer: peerCert.issuer,
+          validFrom: peerCert.valid_from,
+          validTo: peerCert.valid_to,
+          fingerprint: getCertificateFingerprint(peerCert.raw)
         }
       });
     });
 
-    req.on('error', (error) => {
+    req.on('error', (error: Error & { code?: string }) => {
       resolve({
         success: false,
         hostname,

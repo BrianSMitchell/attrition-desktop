@@ -9,7 +9,7 @@
 // - If a table isn't present for a key and level > 1, we currently throw to
 //   avoid inventing a non-canonical formula. Add the table here to enable upgrades.
 
-import { BuildingKey, getBuildingSpec } from './buildings';
+import { BuildingKey, getBuildingSpec } from './buildings.js';
 
 const LEVEL_CREDITS: Partial<Record<BuildingKey, number[]>> = {
   // Urban Structures: Level -> Credits

@@ -33,7 +33,7 @@ try {
 } catch {}
 
 const STARTUP_LOG = path.join(DIRNAME, 'startup.log');
-function logStartup(msg, extra) {
+function logStartup(msg: string, extra?: any): void {
   try {
     const line = `[${new Date().toISOString()}] ${msg}${extra ? ' ' + JSON.stringify(extra) : ''}\n`;
     fs.appendFileSync(STARTUP_LOG, line, { encoding: 'utf8' });
@@ -45,8 +45,8 @@ logStartup('boot', { dirname: DIRNAME, resourcesPath: process.resourcesPath, pac
  * Resolve shared parser lazily to avoid hard-failing at module load time.
  * Falls back to identity parser if not found (sufficient for CSP testing).
  */
-let parseAndNormalizeBootstrap;
-async function resolveSharedParser() {
+let parseAndNormalizeBootstrap: any;
+async function resolveSharedParser(): Promise<any> {
   if (parseAndNormalizeBootstrap) return parseAndNormalizeBootstrap;
 
   // Attempt workspace/proper import first
@@ -81,7 +81,7 @@ async function resolveSharedParser() {
   try {
     errorLogger?.warn?.('[Desktop] Falling back to identity parser for bootstrap normalization (shared parser not found)');
   } catch {}
-  parseAndNormalizeBootstrap = (data) => data;
+  parseAndNormalizeBootstrap = (data: any) => data;
   return parseAndNormalizeBootstrap;
 }
 
@@ -110,8 +110,8 @@ function checkLauncherLaunch() {
 /**
  * Show warning dialog if game was launched directly (not through launcher)
  */
-async function showLauncherWarning() {
-  const result = await dialog.showMessageBox(null, {
+async function showLauncherWarning(): Promise<boolean> {
+  const result = await dialog.showMessageBox(null as any, {
     type: 'warning',
     title: 'Attrition - Use Launcher',
     message: 'Please use the Attrition Launcher',
@@ -153,7 +153,7 @@ if (isDev) {
 } else {
   // In production, only log the protocol and host (not full URL for security)
   try {
-    const url = new URL(API_BASE_URL);
+    const url = new URL(API_BASE_URL!);
     console.log(`[Desktop] API configured for ${url.protocol}//${url.host}`);
   } catch {
     console.log('[Desktop] API configuration loaded');
@@ -178,7 +178,7 @@ process.on('uncaughtException', (error) => {
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  errorLogger.error('Unhandled Promise Rejection in main process', reason);
+  errorLogger.error('Unhandled Promise Rejection in main process', reason as Error);
 });
 
 // All security middleware removed - too restrictive for small private game
@@ -188,7 +188,7 @@ ipcMain.handle('app:getVersion', () => {
   try {
     return app.getVersion();
   } catch (error) {
-    errorLogger.error('Failed to get app version', error);
+    errorLogger.error('Failed to get app version', error as Error);
     return 'unknown';
   }
 });
@@ -197,7 +197,7 @@ ipcMain.handle('app:isPackaged', () => {
   try {
     return app.isPackaged;
   } catch (error) {
-    errorLogger.error('Failed to get app isPackaged status', error);
+    errorLogger.error('Failed to get app isPackaged status', error as Error);
     return false; // Default to development mode if uncertain
   }
 });
@@ -206,7 +206,7 @@ ipcMain.handle('app:openExternal', async (_event, url) => {
   try {
     // Security: Validate URL format and protocol allowlist
     if (!url || typeof url !== 'string' || url.length > 2000) {
-      errorLogger.warn('app:openExternal rejected: invalid URL parameter', { urlType: typeof url, urlLength: url?.length });
+      errorLogger.warn('app:openExternal rejected: invalid URL parameter', null, { urlType: typeof url, urlLength: url?.length });
       return false;
     }
 
@@ -215,21 +215,21 @@ ipcMain.handle('app:openExternal', async (_event, url) => {
     // Security: Only allow safe protocols
     const ALLOWED_PROTOCOLS = ['http:', 'https:', 'mailto:'];
     if (!ALLOWED_PROTOCOLS.includes(u.protocol)) {
-      errorLogger.warn('app:openExternal rejected: protocol not allowed', { protocol: u.protocol, url });
+      errorLogger.warn('app:openExternal rejected: protocol not allowed', null, { protocol: u.protocol, url });
       return false;
     }
 
     // Security: Block potentially dangerous hosts
     const hostname = u.hostname.toLowerCase();
     if (hostname === 'localhost' || hostname.startsWith('127.') || hostname.startsWith('192.168.') || hostname.startsWith('10.')) {
-      errorLogger.warn('app:openExternal rejected: local/private network access attempted', { hostname, url });
+      errorLogger.warn('app:openExternal rejected: local/private network access attempted', null, { hostname, url });
       return false;
     }
 
     await shell.openExternal(u.toString());
     return true;
   } catch (error) {
-    errorLogger.error('Failed to open external URL', error, { url: typeof url === 'string' ? url.substring(0, 100) : 'invalid' });
+    errorLogger.error('Failed to open external URL', error as Error, { url: typeof url === 'string' ? url.substring(0, 100) : 'invalid' });
     return false;
   }
 });
@@ -255,7 +255,7 @@ function getOrCreateDeviceId() {
     desktopDb.setKeyValue('device_id', id);
     return id;
   } catch (error) {
-    errorLogger.warn('Failed device id get/set; falling back to unknown-device', error);
+    errorLogger.warn('Failed device id get/set; falling back to unknown-device', error as Error);
     return 'unknown-device';
   }
 }
@@ -270,7 +270,7 @@ ipcMain.handle('tokens:saveRefresh', async (_event, refreshToken) => {
     await keytar.setPassword(APP_ID, 'refresh', String(refreshToken ?? ''));
     return { ok: true };
   } catch (error) {
-    errorLogger.error('Failed to save refresh token', error);
+    errorLogger.error('Failed to save refresh token', error as Error);
     return { ok: false };
   }
 });
@@ -280,7 +280,7 @@ ipcMain.handle('tokens:deleteRefresh', async () => {
     await keytar.deletePassword(APP_ID, 'refresh');
     return { ok: true };
   } catch (error) {
-    errorLogger.error('Failed to delete refresh token', error);
+    errorLogger.error('Failed to delete refresh token', error as Error);
     return { ok: false };
   }
 });
@@ -290,7 +290,7 @@ ipcMain.handle('tokens:hasRefresh', async () => {
     const rt = await keytar.getPassword(APP_ID, 'refresh');
     return { ok: true, has: !!rt };
   } catch (error) {
-    errorLogger.error('Failed to check refresh token', error);
+    errorLogger.error('Failed to check refresh token', error as Error);
     return { ok: false, has: false };
   }
 });
@@ -307,7 +307,7 @@ ipcMain.handle('auth:refresh', async (event) => {
       return { ok: false, error: 'no_refresh' };
     }
 
-    const url = `${API_BASE_URL.replace(/\/$/, '')}/auth/refresh`;
+    const url = `${API_BASE_URL!.replace(/\/$/, '')}/auth/refresh`;
 
     // NEW: forward renderer headers for device fingerprint consistency
     const userAgent =
@@ -339,19 +339,19 @@ ipcMain.handle('auth:refresh', async (event) => {
               try {
                 await keytar.setPassword(APP_ID, 'refresh', String(nextRt));
               } catch (error) {
-                errorLogger.error('Failed to rotate refresh token', error);
+                errorLogger.error('Failed to rotate refresh token', error as Error);
               }
             }
             return { ok: true, token: String(json.data.token) };
           }
 
-          errorLogger.warn('Auth refresh invalid response', { response: json });
+          errorLogger.warn('Auth refresh invalid response', null, { response: json });
           return { ok: false, error: json?.error || 'refresh_failed' };
         }
         
         // If it's a connection error and we have more attempts, wait and retry
         if (attempt < 3 && (result.error?.code === 'ECONNREFUSED' || result.error?.code === 'FETCH_ERROR')) {
-          errorLogger.info(`Auth refresh attempt ${attempt} failed, retrying in ${attempt * 1000}ms`, { error: result.error?.code });
+          errorLogger.info(`Auth refresh attempt ${attempt} failed, retrying in ${attempt * 1000}ms`, null, { error: result.error?.code });
           await new Promise(resolve => setTimeout(resolve, attempt * 1000)); // 1s, 2s delays
           lastError = result;
           continue;
@@ -363,17 +363,17 @@ ipcMain.handle('auth:refresh', async (event) => {
             await keytar.deletePassword(APP_ID, 'refresh');
             errorLogger.info('Auth refresh received 401 - cleared stored refresh token');
           } catch (e) {
-            errorLogger.error('Failed to clear refresh token after 401', e);
+            errorLogger.error('Failed to clear refresh token after 401', e as Error);
           }
           return { ok: false, status: HTTP_STATUS.UNAUTHORIZED, error: 'invalid_refresh_token' };
         }
-        errorLogger.warn('Auth refresh HTTP failure', { status: result.status, code: result.error?.code, attempt });
+        errorLogger.warn('Auth refresh HTTP failure', null, { status: result.status, code: result.error?.code, attempt });
         return { ok: false, status: result.status };
         
       } catch (requestError) {
         lastError = requestError;
         if (attempt < 3) {
-          errorLogger.info(`Auth refresh attempt ${attempt} exception, retrying in ${attempt * 1000}ms`, { error: requestError.message });
+          errorLogger.info(`Auth refresh attempt ${attempt} exception, retrying in ${attempt * 1000}ms`, null, { error: (requestError as Error).message });
           await new Promise(resolve => setTimeout(resolve, attempt * 1000));
           continue;
         }
@@ -382,10 +382,10 @@ ipcMain.handle('auth:refresh', async (event) => {
     }
 
     // All attempts failed
-    errorLogger.error('Auth refresh failed after all attempts', lastError);
+    errorLogger.error('Auth refresh failed after all attempts', lastError as Error);
     return { ok: false, error: 'all_attempts_failed' };
   } catch (error) {
-    errorLogger.error('Auth refresh exception', error);
+    errorLogger.error('Auth refresh exception', error as Error);
     return { ok: false, error: 'exception' };
   }
 });
@@ -403,7 +403,7 @@ ipcMain.handle('auth:login', async (event, { email, password }) => {
     return { success: false, error: 'Email and password are required', message: 'Email and password are required' };
   }
   try {
-    const url = `${API_BASE_URL.replace(/\/$/, '')}/auth/login`;
+    const url = `${API_BASE_URL!.replace(/\/$/, '')}/auth/login`;
     console.log('[AUTH] Making login request to:', url);
     const userAgent =
       (event?.sender?.getUserAgent && event.sender.getUserAgent()) ||
@@ -428,7 +428,7 @@ ipcMain.handle('auth:login', async (event, { email, password }) => {
         try {
           await keytar.setPassword(APP_ID, 'refresh', String(refreshToken));
         } catch (error) {
-          errorLogger.error('Failed to save refresh token on login', error);
+          errorLogger.error('Failed to save refresh token on login', error as Error);
         }
       }
       console.log('[AUTH] Login successful, returning user data');
@@ -458,7 +458,7 @@ ipcMain.handle('auth:login', async (event, { email, password }) => {
 
     return json || { success: false, code: 'INVALID_RESPONSE', message: 'Invalid response', error: 'INVALID_RESPONSE' };
   } catch (error) {
-    errorLogger.error('Auth login exception', error);
+    errorLogger.error('Auth login exception', error as Error);
     return { success: false, error: 'exception' };
   }
 });
@@ -467,7 +467,7 @@ ipcMain.handle('auth:login', async (event, { email, password }) => {
 ipcMain.handle('auth:register', async (event, { email, username, password }) => {
   console.log('[AUTH] Direct registration attempt:', { email, username });
   try {
-    const url = `${API_BASE_URL.replace(/\/$/, '')}/auth/register`;
+    const url = `${API_BASE_URL!.replace(/\/$/, '')}/auth/register`;
 
     const userAgent =
       (event?.sender?.getUserAgent && event.sender.getUserAgent()) ||
@@ -491,7 +491,7 @@ ipcMain.handle('auth:register', async (event, { email, username, password }) => 
         try {
           await keytar.setPassword(APP_ID, 'refresh', String(refreshToken));
         } catch (error) {
-          errorLogger.error('Failed to save refresh token on register', error);
+          errorLogger.error('Failed to save refresh token on register', error as Error);
         }
       }
       return { success: true, data: { token, user, empire }, message: json.message };
@@ -515,7 +515,7 @@ ipcMain.handle('auth:register', async (event, { email, username, password }) => 
 
     return json || { success: false, code: 'INVALID_RESPONSE', message: 'Invalid response', error: 'INVALID_RESPONSE' };
   } catch (error) {
-    errorLogger.error('Auth register exception', error);
+    errorLogger.error('Auth register exception', error as Error);
     return { success: false, error: ERROR_MESSAGES.NETWORK_ERROR, message: 'Could not connect to server' };
   }
 });
@@ -580,7 +580,7 @@ ipcMain.handle('auth:register-secure', secureIpcHandler('auth:register', async (
  * Security: Key validation for KV store operations
  * Prevents access to sensitive system keys and enforces namespace rules
  */
-function validateKVKey(key) {
+function validateKVKey(key: string): { valid: boolean; reason?: string } {
   if (!key || typeof key !== 'string') {
     return { valid: false, reason: 'Key must be a non-empty string' };
   }
@@ -618,20 +618,20 @@ ipcMain.handle('db:kv:set', async (_event, key, value) => {
     // Security: Validate key before operation
     const validation = validateKVKey(key);
     if (!validation.valid) {
-      errorLogger.warn('KV store set rejected', { key, reason: validation.reason });
+      errorLogger.warn('KV store set rejected', null, { key, reason: validation.reason });
       return { success: false, error: validation.reason };
     }
     
     // Security: Validate value size to prevent DoS
     if (value && typeof value === 'string' && value.length > 100000) {
-      errorLogger.warn('KV store set rejected: value too large', { key, valueSize: value.length });
+      errorLogger.warn('KV store set rejected: value too large', null, { key, valueSize: value.length });
       return { success: false, error: 'Value too large (max 100KB)' };
     }
     
     return { success: desktopDb.setKeyValue(key, value) };
   } catch (error) {
-    errorLogger.error('KV store set failed', error, { key: key?.substring(0, 50) });
-    return { success: false, error: error.message };
+    errorLogger.error('KV store set failed', error as Error, { key: key?.substring(0, 50) });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -640,15 +640,15 @@ ipcMain.handle('db:kv:get', async (_event, key) => {
     // Security: Validate key before operation
     const validation = validateKVKey(key);
     if (!validation.valid) {
-      errorLogger.warn('KV store get rejected', { key, reason: validation.reason });
+      errorLogger.warn('KV store get rejected', null, { key, reason: validation.reason });
       return { success: false, error: validation.reason };
     }
     
     const value = desktopDb.getKeyValue(key);
     return { success: true, value };
   } catch (error) {
-    errorLogger.error('KV store get failed', error, { key: key?.substring(0, 50) });
-    return { success: false, error: error.message };
+    errorLogger.error('KV store get failed', error as Error, { key: key?.substring(0, 50) });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -657,14 +657,14 @@ ipcMain.handle('db:kv:delete', async (_event, key) => {
     // Security: Validate key before operation
     const validation = validateKVKey(key);
     if (!validation.valid) {
-      errorLogger.warn('KV store delete rejected', { key, reason: validation.reason });
+      errorLogger.warn('KV store delete rejected', null, { key, reason: validation.reason });
       return { success: false, error: validation.reason };
     }
     
     return { success: desktopDb.deleteKeyValue(key) };
   } catch (error) {
-    errorLogger.error('KV store delete failed', error, { key: key?.substring(0, 50) });
-    return { success: false, error: error.message };
+    errorLogger.error('KV store delete failed', error as Error, { key: key?.substring(0, 50) });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -673,8 +673,8 @@ ipcMain.handle('db:catalogs:set', async (_event, key, catalogData, version, cont
   try {
     return { success: desktopDb.setCatalog(key, catalogData, version, contentHash) };
   } catch (error) {
-    errorLogger.error('Catalog set failed', error, { key, version });
-    return { success: false, error: error.message };
+    errorLogger.error('Catalog set failed', error as Error, { key, version });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -683,8 +683,8 @@ ipcMain.handle('db:catalogs:get', async (_event, key) => {
     const catalog = desktopDb.getCatalog(key);
     return { success: true, catalog };
   } catch (error) {
-    errorLogger.error('Catalog get failed', error, { key });
-    return { success: false, error: error.message };
+    errorLogger.error('Catalog get failed', error as Error, { key });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -693,8 +693,8 @@ ipcMain.handle('db:catalogs:getAll', async () => {
     const catalogs = desktopDb.getAllCatalogs();
     return { success: true, catalogs };
   } catch (error) {
-    errorLogger.error('Catalog getAll failed', error);
-    return { success: false, error: error.message };
+    errorLogger.error('Catalog getAll failed', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -703,8 +703,8 @@ ipcMain.handle('db:profile:set', async (_event, userId, deviceId, snapshotData, 
   try {
     return { success: desktopDb.setProfileSnapshot(userId, deviceId, snapshotData, schemaVersion) };
   } catch (error) {
-    errorLogger.error('Profile set failed', error, { userId, deviceId });
-    return { success: false, error: error.message };
+    errorLogger.error('Profile set failed', error as Error, { userId, deviceId });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -713,34 +713,34 @@ ipcMain.handle('db:profile:get', async (_event, userId, deviceId) => {
     const profile = desktopDb.getProfileSnapshot(userId, deviceId);
     return { success: true, profile };
   } catch (error) {
-    errorLogger.error('Profile get failed', error, { userId, deviceId });
-    return { success: false, error: error.message };
+    errorLogger.error('Profile get failed', error as Error, { userId, deviceId });
+    return { success: false, error: (error as Error).message };
   }
 });
 
-let eventQueueService;
-let updateService;
+let eventQueueService: any;
+let updateService: any;
 
 // Update service IPC handlers
 ipcMain.handle('update:check', async () => {
   try {
-    errorLogger.info('IPC update:check called', { hasUpdateService: !!updateService });
+    errorLogger.info('IPC update:check called', null, { hasUpdateService: !!updateService });
     if (!updateService) {
       errorLogger.warn('Update service not initialized');
       return { success: false, error: 'Update service not initialized' };
     }
     const result = await updateService.checkForUpdates();
-    errorLogger.info('Update check completed', result);
+    errorLogger.info('Update check completed', null, result);
     return result || { success: true };
   } catch (error) {
-    errorLogger.error('Update check failed', error);
-    return { success: false, error: error.message };
+    errorLogger.error('Update check failed', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
 ipcMain.handle('update:download', async () => {
   try {
-    errorLogger.info('IPC update:download called', { hasUpdateService: !!updateService });
+    errorLogger.info('IPC update:download called', null, { hasUpdateService: !!updateService });
     if (!updateService) {
       errorLogger.warn('Update service not initialized');
       return { success: false, error: 'Update service not initialized' };
@@ -748,14 +748,14 @@ ipcMain.handle('update:download', async () => {
     await updateService.downloadUpdate();
     return { success: true };
   } catch (error) {
-    errorLogger.error('Update download failed', error);
-    return { success: false, error: error.message };
+    errorLogger.error('Update download failed', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
 ipcMain.handle('update:install', async () => {
   try {
-    errorLogger.info('IPC update:install called', { hasUpdateService: !!updateService });
+    errorLogger.info('IPC update:install called', null, { hasUpdateService: !!updateService });
     if (!updateService) {
       errorLogger.warn('Update service not initialized');
       return { success: false, error: 'Update service not initialized' };
@@ -763,24 +763,24 @@ ipcMain.handle('update:install', async () => {
     updateService.quitAndInstall();
     return { success: true };
   } catch (error) {
-    errorLogger.error('Update install failed', error);
-    return { success: false, error: error.message };
+    errorLogger.error('Update install failed', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
 ipcMain.handle('update:status', async () => {
   try {
-    errorLogger.info('IPC update:status called', { hasUpdateService: !!updateService });
+    errorLogger.info('IPC update:status called', null, { hasUpdateService: !!updateService });
     if (!updateService) {
       errorLogger.warn('Update service not initialized');
       return { success: false, error: 'Update service not initialized' };
     }
     const status = updateService.getStatus();
-    errorLogger.info('Update status retrieved', status);
+    errorLogger.info('Update status retrieved', null, status);
     return { success: true, status };
   } catch (error) {
-    errorLogger.error('Update status check failed', error);
-    return { success: false, error: error.message };
+    errorLogger.error('Update status check failed', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -801,15 +801,15 @@ async function loadEventQueueService() {
   if (app.isPackaged) {
     errorLogger.warn('[Desktop] Using packaged stub EventQueueService for CSP test run');
     eventQueueService = {
-      enqueue: async (kind, payload, options = {}) => {
+      enqueue: async (kind: string, payload: any, options: any = {}) => {
         try {
           const deviceId =
             (typeof desktopDb.getKeyValue === 'function' && desktopDb.getKeyValue('device_id')) ||
             'stub-device';
           const dedupeKey = options?.dedupeKey ?? null;
-          return desktopDb.enqueueEvent(kind, deviceId, payload, dedupeKey);
+          return desktopDb.enqueueEvent(kind, deviceId, payload, { dedupeKey });
         } catch (e) {
-          errorLogger.error('[Desktop] Packaged stub EventQueueService enqueue failed', e, { kind });
+          errorLogger.error('[Desktop] Packaged stub EventQueueService enqueue failed', e as Error, { kind });
           throw e;
         }
       }
@@ -821,7 +821,7 @@ async function loadEventQueueService() {
     try { return app.getAppPath(); } catch { return null; }
   })();
 
-  errorLogger.info('[Desktop] Resolving eventQueueService candidates', {
+  errorLogger.info('[Desktop] Resolving eventQueueService candidates', null, {
     appPath: appPathSafe,
     dirname: DIRNAME,
     resourcesPath: process.resourcesPath
@@ -833,7 +833,7 @@ async function loadEventQueueService() {
     try {
       const href = new URL('./services/eventQueueService.js', import.meta.url).href;
       ({ default: eventQueueService } = await import(href));
-      errorLogger.info('[Desktop] Loaded eventQueueService via import.meta.url', { resolved: href });
+      errorLogger.info('[Desktop] Loaded eventQueueService via import.meta.url', null, { resolved: href });
       return;
     } catch (e) {
       lastError = e;
@@ -860,8 +860,8 @@ async function loadEventQueueService() {
 
     for (const p of svcCandidates) {
       try {
-        ({ default: eventQueueService } = await import(pathToFileURL(p).href));
-        errorLogger.info('[Desktop] Loaded eventQueueService', { resolved: p });
+        ({ default: eventQueueService } = await import(pathToFileURL(p!).href));
+        errorLogger.info('[Desktop] Loaded eventQueueService', null, { resolved: p });
         return;
       } catch (e) {
         lastError = e;
@@ -870,24 +870,23 @@ async function loadEventQueueService() {
     }
   }
 
-  errorLogger.fatal('Failed to resolve eventQueueService.js', {
+  errorLogger.fatal('Failed to resolve eventQueueService.js', null, {
     dirname: DIRNAME,
     appPath: appPathSafe,
-    candidates: svcCandidates,
-    lastError: lastError?.message
+    lastError: (lastError as Error)?.message
   });
 
   // Fallback stub to allow app to continue (for CSP testing) if the service cannot be resolved
   eventQueueService = {
-    enqueue: async (kind, payload, options = {}) => {
+    enqueue: async (kind: string, payload: any, options: any = {}) => {
       try {
         const deviceId =
           (typeof desktopDb.getKeyValue === 'function' && desktopDb.getKeyValue('device_id')) ||
           'stub-device';
         const dedupeKey = options?.dedupeKey ?? null;
-        return desktopDb.enqueueEvent(kind, deviceId, payload, dedupeKey);
+        return desktopDb.enqueueEvent(kind, deviceId, payload, { dedupeKey });
       } catch (e) {
-        errorLogger.error('[Desktop] Stub EventQueueService enqueue failed', e, { kind });
+        errorLogger.error('[Desktop] Stub EventQueueService enqueue failed', e as Error, { kind });
         throw e;
       }
     }
@@ -902,8 +901,8 @@ ipcMain.handle('db:events:enqueue', async (_event, kind, deviceId, payload, dedu
     const id = desktopDb.enqueueEvent(kind, deviceId, payload, dedupeKey);
     return { success: true, id };
   } catch (error) {
-    errorLogger.error('Event enqueue failed', error, { kind, deviceId });
-    return { success: false, error: error.message };
+    errorLogger.error('Event enqueue failed', error as Error, { kind, deviceId });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -919,8 +918,8 @@ ipcMain.handle('db:events:flushQueue', async (_event, limit = 50) => {
       errors: []
     };
   } catch (error) {
-    errorLogger.error('Flush queue failed', error);
-    return { success: false, error: error.message };
+    errorLogger.error('Flush queue failed', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -937,8 +936,8 @@ ipcMain.handle('db:events:getQueueMetrics', async () => {
     };
     return { success: true, metrics };
   } catch (error) {
-    errorLogger.error('Get queue metrics failed', error);
-    return { success: false, error: error.message };
+    errorLogger.error('Get queue metrics failed', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -947,22 +946,22 @@ ipcMain.handle('eventQueue:enqueue', async (_event, kind, payload, options = {})
   try {
     // Security: Validate kind parameter
     if (!kind || typeof kind !== 'string' || kind.length > 100) {
-      errorLogger.warn('Event enqueue rejected: invalid kind', { kind, kindType: typeof kind });
+      errorLogger.warn('Event enqueue rejected: invalid kind', null, { kind, kindType: typeof kind });
       return { success: false, error: 'Event kind must be a string (max 100 chars)' };
     }
     
     // Security: Validate payload size to prevent DoS
     const payloadString = JSON.stringify(payload || {});
     if (payloadString.length > 50000) {
-      errorLogger.warn('Event enqueue rejected: payload too large', { kind, payloadSize: payloadString.length });
+      errorLogger.warn('Event enqueue rejected: payload too large', null, { kind, payloadSize: payloadString.length });
       return { success: false, error: 'Event payload too large (max 50KB)' };
     }
     
     const eventId = await eventQueueService.enqueue(kind, payload, options);
     return { success: true, eventId };
   } catch (error) {
-    errorLogger.error('EventQueueService enqueue failed', error, { kind: kind?.substring(0, 50), options });
-    return { success: false, error: error.message };
+    errorLogger.error('EventQueueService enqueue failed', error as Error, { kind: kind?.substring(0, 50), options });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -977,8 +976,8 @@ ipcMain.handle('db:events:cleanup', async (_event, olderThanDays = 7) => {
     const deletedRows = desktopDb.deleteOldSentEvents(olderThanDays);
     return { success: true, deletedRows };
   } catch (error) {
-    errorLogger.error('Event cleanup failed', error, { olderThanDays });
-    return { success: false, error: error.message };
+    errorLogger.error('Event cleanup failed', error as Error, { olderThanDays });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -988,8 +987,8 @@ ipcMain.handle('db:events:getPendingCount', async (_event, kind = null) => {
     const count = desktopDb.getPendingEventsCount(kind);
     return { success: true, count };
   } catch (error) {
-    errorLogger.error('Get pending events count failed', error, { kind });
-    return { success: false, error: error.message, count: 0 };
+    errorLogger.error('Get pending events count failed', error as Error, { kind });
+    return { success: false, error: (error as Error).message, count: 0 };
   }
 });
 
@@ -998,8 +997,8 @@ ipcMain.handle('db:sync:set', async (_event, key, value) => {
   try {
     return { success: desktopDb.setSyncState(key, value) };
   } catch (error) {
-    errorLogger.error('Sync state set failed', error, { key });
-    return { success: false, error: error.message };
+    errorLogger.error('Sync state set failed', error as Error, { key });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -1008,8 +1007,8 @@ ipcMain.handle('db:sync:get', async (_event, key) => {
     const value = desktopDb.getSyncState(key);
     return { success: true, value };
   } catch (error) {
-    errorLogger.error('Sync state get failed', error, { key });
-    return { success: false, error: error.message };
+    errorLogger.error('Sync state get failed', error as Error, { key });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -1026,31 +1025,31 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
     }
     
     if (typeof accessToken !== 'string') {
-      errorLogger.warn('Bootstrap rejected: access token must be string', { tokenType: typeof accessToken });
+      errorLogger.warn('Bootstrap rejected: access token must be string', null, { tokenType: typeof accessToken });
       return { success: false, error: 'invalid_token_type' };
     }
     
     if (accessToken.length > 5000) {
-      errorLogger.warn('Bootstrap rejected: access token too long', { tokenLength: accessToken.length });
+      errorLogger.warn('Bootstrap rejected: access token too long', null, { tokenLength: accessToken.length });
       return { success: false, error: 'token_too_long' };
     }
     
     // Security: Basic JWT format validation (should start with 'eyJ' for header)
     if (!accessToken.startsWith('eyJ')) {
-      errorLogger.warn('Bootstrap rejected: invalid JWT format', { tokenPrefix: accessToken.substring(0, 10) });
+      errorLogger.warn('Bootstrap rejected: invalid JWT format', null, { tokenPrefix: accessToken.substring(0, 10) });
       return { success: false, error: 'invalid_jwt_format' };
     }
     
     // Security: Check for proper JWT structure (should have 2 dots)
     const jwtParts = accessToken.split('.');
     if (jwtParts.length !== 3) {
-      errorLogger.warn('Bootstrap rejected: malformed JWT', { parts: jwtParts.length });
+      errorLogger.warn('Bootstrap rejected: malformed JWT', null, { parts: jwtParts.length });
       return { success: false, error: 'malformed_jwt' };
     }
 
     // Fetch bootstrap data from API
-    const url = `${API_BASE_URL.replace(/\/$/, '')}/sync/bootstrap`;
-    errorLogger.info('Fetching bootstrap data', { url });
+    const url = `${API_BASE_URL!.replace(/\/$/, '')}/sync/bootstrap`;
+    errorLogger.info('Fetching bootstrap data', null, { url });
     
     const startTime = Date.now();
     const result = await httpRequest({
@@ -1065,7 +1064,7 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
     });
 
     const fetchTime = Date.now() - startTime;
-    errorLogger.info('HTTP response received', { status: result.status, fetchTimeMs: fetchTime });
+    errorLogger.info('HTTP response received', null, { status: result.status, fetchTimeMs: fetchTime });
 
     // Record performance metric for bootstrap fetch
     try {
@@ -1084,7 +1083,7 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
         process: 'main'
       });
     } catch (perfError) {
-      errorLogger.warn('Failed to log bootstrap fetch performance metric', perfError);
+      errorLogger.warn('Failed to log bootstrap fetch performance metric', perfError as Error);
     }
 
     if (!result.ok) {
@@ -1125,13 +1124,13 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
         fallbackVersion: String(fbVer || '1.0.0')
       });
     } catch (error) {
-      errorLogger.error('Bootstrap payload validation failed', error);
+      errorLogger.error('Bootstrap payload validation failed', error as Error);
       return {
         success: false,
         code: 'INVALID_CACHE_DATA',
         message: 'Bootstrap payload failed validation',
         error: 'INVALID_CACHE_DATA',
-        details: error?.message
+        details: (error as any)?.message
       };
     }
 
@@ -1140,7 +1139,7 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
       const prevVersion = desktopDb.getSyncState('bootstrap_version');
       const nextVersion = normalized.version || '1.0.0';
       if (prevVersion && typeof prevVersion === 'string' && prevVersion !== nextVersion) {
-        errorLogger.info('Cache version mismatch; invalidating cached content', { from: prevVersion, to: nextVersion });
+        errorLogger.info('Cache version mismatch; invalidating cached content', null, { from: prevVersion, to: nextVersion });
         const ok = desktopDb.clearCachedContent();
         // Record a perf metric for observability
         try {
@@ -1154,20 +1153,20 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
             process: 'main'
           });
         } catch (perfError) {
-          errorLogger.warn('Failed to log cache invalidate performance metric', perfError);
+          errorLogger.warn('Failed to log cache invalidate performance metric', perfError as Error);
         }
         if (!ok) {
           errorLogger.warn('Cache invalidation reported failure');
         }
       }
     } catch (invErr) {
-      errorLogger.warn('Cache invalidation threw', invErr);
+      errorLogger.warn('Cache invalidation threw', invErr as Error);
     }
 
     const catalogCount = normalized.catalogs ? Object.keys(normalized.catalogs).length : 0;
     const hasProfile = !!normalized.profile;
 
-    errorLogger.info('Bootstrap data received successfully', {
+    errorLogger.info('Bootstrap data received successfully', null, {
       catalogCount,
       hasProfile,
       hasVersion: !!normalized.version,
@@ -1178,34 +1177,35 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
     let cachedCatalogs = 0;
     const cacheStartTime = Date.now();
     if (normalized.catalogs) {
-      errorLogger.info('Caching catalogs', { catalogCount });
+      errorLogger.info('Caching catalogs', null, { catalogCount });
       
       for (const [key, catalogInfo] of Object.entries(normalized.catalogs)) {
         try {
+          const info = catalogInfo as any;
           const success = desktopDb.setCatalog(
             key,
-            catalogInfo.data,
-            catalogInfo.version,
-            catalogInfo.contentHash
+            info.data,
+            info.version,
+            info.contentHash
           );
           if (success) {
             cachedCatalogs++;
           }
-          errorLogger.debug('Cached catalog', { 
+          errorLogger.debug('Cached catalog', null, { 
             key, 
             success, 
-            version: catalogInfo.version,
-            hasData: !!catalogInfo.data,
-            hasContentHash: !!catalogInfo.contentHash
+            version: info.version,
+            hasData: !!info.data,
+            hasContentHash: !!info.contentHash
           });
         } catch (error) {
-          errorLogger.error('Failed to cache catalog', error, { key });
-          return { success: false, error: `cache_catalog_${key}`, details: error.message };
+          errorLogger.error('Failed to cache catalog', error as Error, { key });
+          return { success: false, error: `cache_catalog_${key}`, details: (error as Error).message };
         }
       }
       
       const cacheTime = Date.now() - cacheStartTime;
-      errorLogger.info('Completed catalog caching', {
+      errorLogger.info('Completed catalog caching', null, {
         totalCatalogs: catalogCount,
         successfullyCached: cachedCatalogs,
         cacheTimeMs: cacheTime
@@ -1227,7 +1227,7 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
           process: 'main'
         });
       } catch (perfError) {
-        errorLogger.warn('Failed to log catalog cache performance metric', perfError);
+        errorLogger.warn('Failed to log catalog cache performance metric', perfError as Error);
       }
     }
 
@@ -1236,7 +1236,7 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
     const profileCacheStartTime = Date.now();
     if (normalized.profile) {
       try {
-        errorLogger.info('Caching profile snapshot', {
+        errorLogger.info('Caching profile snapshot', null, {
           userId: normalized.profile.userId,
           deviceId: normalized.profile.deviceId,
           hasData: !!normalized.profile.data,
@@ -1252,8 +1252,8 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
         profileCached = success;
         const profileCacheTime = Date.now() - profileCacheStartTime;
         
-        errorLogger.info('Profile snapshot cached', { 
-          success, 
+        errorLogger.info('Profile snapshot cached', null, { 
+          success,
           userId: normalized.profile.userId,
           cacheTimeMs: profileCacheTime
         });
@@ -1274,13 +1274,13 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
             process: 'main'
           });
         } catch (perfError) {
-          errorLogger.warn('Failed to log profile cache performance metric', perfError);
+          errorLogger.warn('Failed to log profile cache performance metric', perfError as Error);
         }
       } catch (error) {
-        errorLogger.error('Failed to cache profile snapshot', error, {
+        errorLogger.error('Failed to cache profile snapshot', error as Error, {
           userId: normalized.profile?.userId
         });
-        return { success: false, error: 'cache_profile', details: error.message };
+        return { success: false, error: 'cache_profile', details: (error as Error).message };
       }
     }
 
@@ -1293,16 +1293,16 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
       desktopDb.setSyncState('bootstrap_version', normalized.version || '1.0.0');
       
       const stateTime = Date.now() - stateStartTime;
-      errorLogger.info('Bootstrap state recorded', {
+      errorLogger.info('Bootstrap state recorded', null, {
         version: normalized.version || '1.0.0',
         stateTimeMs: stateTime
       });
     } catch (error) {
-      errorLogger.error('Failed to record bootstrap state', error);
+      errorLogger.error('Failed to record bootstrap state', error as Error);
     }
 
     const totalTime = Date.now() - startTime;
-    errorLogger.info('Bootstrap fetch and cache completed', {
+    errorLogger.info('Bootstrap fetch and cache completed', null, {
       totalTimeMs: totalTime,
       catalogsCached: cachedCatalogs,
       profileCached,
@@ -1327,13 +1327,13 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
         process: 'main'
       });
     } catch (perfError) {
-      errorLogger.warn('Failed to log bootstrap complete performance metric', perfError);
+      errorLogger.warn('Failed to log bootstrap complete performance metric', perfError as Error);
     }
     
     return { success: true, data: json.data };
  } catch (error) {
     const errorTime = Date.now();
-    errorLogger.fatal('Bootstrap fetchAndCache failed with exception', error);
+    errorLogger.fatal('Bootstrap fetchAndCache failed with exception', error as Error);
     
     // Record performance metric for failed bootstrap operation
     try {
@@ -1343,18 +1343,18 @@ ipcMain.handle('db:bootstrap:fetchAndCache', async (event, accessTokenParam) => 
         timestamp: errorTime,
         success: false,
         batchSize: 1,
-        error: error.message,
+        error: (error as Error).message,
         context: {
-          errorType: error.constructor.name,
-          errorMessage: error.message
+          errorType: (error as any).constructor.name,
+          errorMessage: (error as Error).message
         },
         process: 'main'
       });
     } catch (perfError) {
-      errorLogger.warn('Failed to log bootstrap error performance metric', perfError);
+      errorLogger.warn('Failed to log bootstrap error performance metric', perfError as Error);
     }
     
-    return { success: false, error: 'exception', details: error.message };
+    return { success: false, error: 'exception', details: (error as Error).message };
   }
 });
 
@@ -1364,8 +1364,8 @@ ipcMain.handle('db:health', async () => {
     const health = desktopDb.getHealthInfo();
     return { success: true, health };
   } catch (error) {
-    errorLogger.error('Database health check failed', error);
-    return { success: false, error: error.message };
+    errorLogger.error('Database health check failed', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -1387,51 +1387,59 @@ ipcMain.handle('error:log', async (_event, entry) => {
       entry.stack = entry.stack.substring(0, 10000) + '... [truncated]';
     }
     
-    const result = errorLogger.logError(entry);
+    const result = desktopDb.logError(entry);
     return { success: true, id: result };
   } catch (error) {
     console.error('[Main] Error logging failed:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
 ipcMain.handle('error:getRecent', async (_event, hours = 24) => {
   try {
-    const errors = errorLogger.getRecentErrors(hours);
+    const errors = desktopDb.getRecentErrors(hours);
     return { success: true, errors };
   } catch (error) {
-    errorLogger.error('Failed to get recent errors', error);
-    return { success: false, error: error.message };
+    errorLogger.error('Failed to get recent errors', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
 ipcMain.handle('error:clear', async () => {
   try {
-    errorLogger.clearStoredLogs();
+    desktopDb.clearErrorLogs();
     return { success: true };
   } catch (error) {
-    errorLogger.error('Failed to clear stored logs', error);
-    return { success: false, error: error.message };
+    errorLogger.error('Failed to clear stored logs', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
 ipcMain.handle('error:export', async (_event, { format = 'json', hours = 24 } = {}) => {
   try {
-    const data = errorLogger.exportErrors(format, hours);
+    const errors = desktopDb.getRecentErrors(hours);
+    const data = format === 'json' ? JSON.stringify(errors, null, 2) : errors.map(e => JSON.stringify(e)).join('\n');
     return { success: true, data };
   } catch (error) {
-    errorLogger.error('Failed to export errors', error);
-    return { success: false, error: error.message };
+    errorLogger.error('Failed to export errors', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
 ipcMain.handle('error:getStats', async (_event, hours = 24) => {
   try {
-    const stats = errorLogger.getErrorStats(hours);
+    const errors = desktopDb.getRecentErrors(hours);
+    const stats = {
+      total: errors.length,
+      byLevel: errors.reduce((acc: Record<string, number>, e: any) => {
+        acc[e.level || 'unknown'] = (acc[e.level || 'unknown'] || 0) + 1;
+        return acc;
+      }, {})
+    };
     return { success: true, stats };
   } catch (error) {
-    errorLogger.error('Failed to get error stats', error);
-    return { success: false, error: error.message };
+    errorLogger.error('Failed to get error stats', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -1445,8 +1453,8 @@ ipcMain.handle('perf:getMetrics', async (_event, hours = 24) => {
     const data = performanceMonitoringService.getMetrics(windowHours);
     return { success: true, data };
   } catch (error) {
-    errorLogger.error('perf:getMetrics failed', error, { hours });
-    return { success: false, error: error.message };
+    errorLogger.error('perf:getMetrics failed', error as Error, { hours });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -1457,8 +1465,8 @@ ipcMain.handle('perf:getStats', async (_event, hours = 24) => {
     const stats = performanceMonitoringService.getStats(windowHours);
     return { success: true, stats };
   } catch (error) {
-    errorLogger.error('perf:getStats failed', error, { hours });
-    return { success: false, error: error.message };
+    errorLogger.error('perf:getStats failed', error as Error, { hours });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -1470,8 +1478,8 @@ ipcMain.handle('perf:export', async (_event, { format = 'json', hours = 24 } = {
     const data = performanceMonitoringService.export(fmt, windowHours);
     return { success: true, data, format: fmt };
   } catch (error) {
-    errorLogger.error('perf:export failed', error, { format, hours });
-    return { success: false, error: error.message };
+    errorLogger.error('perf:export failed', error as Error, { format, hours });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -1480,8 +1488,8 @@ ipcMain.handle('perf:clear', async () => {
     const deleted = performanceMonitoringService.clear();
     return { success: true, deleted };
   } catch (error) {
-    errorLogger.error('perf:clear failed', error);
-    return { success: false, error: error.message };
+    errorLogger.error('perf:clear failed', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -1490,8 +1498,8 @@ ipcMain.handle('perf:getThresholds', async () => {
     const thresholds = performanceMonitoringService.getThresholds();
     return { success: true, thresholds };
   } catch (error) {
-    errorLogger.error('perf:getThresholds failed', error);
-    return { success: false, error: error.message };
+    errorLogger.error('perf:getThresholds failed', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -1500,8 +1508,8 @@ ipcMain.handle('perf:setThresholds', async (_event, thresholds) => {
     const ok = performanceMonitoringService.setThresholds(Array.isArray(thresholds) ? thresholds : []);
     return { success: ok };
   } catch (error) {
-    errorLogger.error('perf:setThresholds failed', error);
-    return { success: false, error: error.message };
+    errorLogger.error('perf:setThresholds failed', error as Error);
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -1512,8 +1520,8 @@ ipcMain.handle('perf:getThresholdBreaches', async (_event, hours = 1) => {
     const breaches = performanceMonitoringService.getThresholdBreaches(windowHours);
     return { success: true, breaches };
   } catch (error) {
-    errorLogger.error('perf:getThresholdBreaches failed', error, { hours });
-    return { success: false, error: error.message };
+    errorLogger.error('perf:getThresholdBreaches failed', error as Error, { hours });
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -1546,11 +1554,11 @@ function resolveClientIndex() {
         return p;
       }
     } catch (error) {
-      errorLogger.warn('Failed to check candidate path', error, { path: p });
+      errorLogger.warn('Failed to check candidate path', error as Error, { path: p });
     }
   }
 
-  errorLogger.warn('Could not find packaged index.html', { candidates });
+  errorLogger.warn('Could not find packaged index.html', null, { candidates: candidates.join(', ') });
   // Fallback to devIndex to aid local development
   return devIndex;
 }
@@ -1564,7 +1572,7 @@ function createMainWindow() {
     show: true,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(DIRNAME, 'preload.cjs'),
+      preload: path.join(DIRNAME, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -1614,7 +1622,7 @@ function createMainWindow() {
         win.webContents.openDevTools({ mode: 'detach' });
       }
     } catch (error) {
-      errorLogger.warn('Failed to open dev tools', error);
+      errorLogger.warn('Failed to open dev tools', error as Error);
     }
   });
 
@@ -1708,14 +1716,14 @@ function createMainWindow() {
         errorLogger.warn('nav-diag injection failed', e);
       });
     } catch (e) {
-      errorLogger.warn('nav-diag injection error', e);
+      errorLogger.warn('nav-diag injection error', e as Error);
     }
   });
 
   // Guard against accidental top-level navigations to file:///C:/... (e.g., "/login")
   // Always redirect back to our index.html with an appropriate hash route.
   // This handles both direct navigations and also failed loads (e.g., ERR_FILE_NOT_FOUND)
-  const redirectToHashRoute = (event, url, reason) => {
+  const redirectToHashRoute = (event: any, url: string, reason: string) => {
     try {
       const u = new URL(url);
       if (u.protocol !== 'file:') return false;
@@ -1744,7 +1752,7 @@ function createMainWindow() {
       });
       return true;
     } catch (e) {
-      errorLogger.warn('redirectToHashRoute error', e, { url, reason });
+      errorLogger.warn('redirectToHashRoute error', e as Error, { url, reason });
       return false;
     }
   };
@@ -1774,7 +1782,7 @@ function createMainWindow() {
 
   const indexPath = resolveClientIndex();
   logStartup('createMainWindow:loadFile', { indexPath });
-  errorLogger.info('Loading index', { indexPath });
+  errorLogger.info('Loading index', null, { indexPath });
   win.loadFile(indexPath).catch((error) => {
     errorLogger.fatal('Failed to load index.html', error);
   });
@@ -1798,7 +1806,7 @@ app.on('ready', async () => {
     // Improve notifications and app identity on Windows
     app.setAppUserModelId(APP_ID);
   } catch (error) {
-    errorLogger.warn('Failed to set app user model ID', error);
+    errorLogger.warn('Failed to set app user model ID', error as Error);
   }
 
   // Initialize SQLite BEFORE loading services that depend on it
@@ -1878,7 +1886,7 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   
   // Kill any child processes we spawned
-  childProcesses.forEach(child => {
+  childProcesses.forEach((child: any) => {
     try {
       if (!child.killed) {
         child.kill('SIGTERM');
@@ -1900,14 +1908,7 @@ app.on('before-quit', (event) => {
   
   // Security service cleanup removed - no longer needed
   
-  // Safely close logger if it has a close method
-  try {
-    if (errorLogger && typeof errorLogger.close === 'function') {
-      errorLogger.close();
-    }
-  } catch (err) {
-    console.error('Failed to close error logger:', err);
-  }
+  // errorLogger doesn't have a close method, skip this step
   
   // Close database connection
   try {

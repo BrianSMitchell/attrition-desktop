@@ -1,6 +1,6 @@
 // Technology catalog and helpers for Phase A (level 1 unlocks with credits and lab gating)
 
-import { DB_FIELDS } from './constants/database-fields';
+import { DB_FIELDS } from './constants/database-fields.js';
 export type TechnologyKey =
   | typeof DB_FIELDS.EMPIRES.ENERGY
   | 'computer'

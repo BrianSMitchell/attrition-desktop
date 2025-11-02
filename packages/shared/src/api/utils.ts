@@ -15,7 +15,7 @@ import {
   RateLimitInfo,
   OperationStatus,
   HealthStatus
-} from './types';
+} from './types.js';
 
 /**
  * Generate a unique request ID for tracking

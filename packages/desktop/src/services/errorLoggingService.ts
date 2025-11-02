@@ -90,12 +90,12 @@ export class ErrorLogEntry {
  * Redacts sensitive keys from an object recursively.
  * Any key matching /^(authorization|token|refreshToken)$/i will have its value replaced.
  */
-function redactSensitive(input) {
+function redactSensitive(input: any): any {
   try {
     if (input == null || typeof input !== 'object') return input;
     if (Array.isArray(input)) return input.map(redactSensitive);
     const SENSITIVE = /^(authorization|token|refreshToken)$/i;
-    const out = {};
+    const out: Record<string, any> = {};
     for (const [k, v] of Object.entries(input)) {
       out[k] = SENSITIVE.test(k) ? '***REDACTED***' : redactSensitive(v);
     }
@@ -192,7 +192,7 @@ class DesktopErrorLogger implements Logger {
   /**
    * Check if error should be logged based on severity level
    */
-  shouldLog(level) {
+  shouldLog(level: ErrorSeverityType): boolean {
     const levelOrder = [ErrorSeverity.DEBUG, ErrorSeverity.INFO, ErrorSeverity.WARN, ErrorSeverity.ERROR, ErrorSeverity.FATAL];
     const currentLevelIndex = levelOrder.indexOf(this.logLevel);
     const entryLevelIndex = levelOrder.indexOf(level);
@@ -203,7 +203,7 @@ class DesktopErrorLogger implements Logger {
   /**
    * Log to console with appropriate formatting
    */
-  logToConsole(entry) {
+  logToConsole(entry: ErrorLogEntry): void {
     const timestamp = new Date(entry.timestamp).toLocaleString();
     const location = entry.fileName ? `${entry.fileName}:${entry.lineNumber || '?'}:${entry.columnNumber || '?'}` : '';
     const locationStr = location ? ` [${location}]` : '';
@@ -247,7 +247,7 @@ class DesktopErrorLogger implements Logger {
   /**
    * Log to file with rotation
    */
-  logToFile(entry) {
+  logToFile(entry: ErrorLogEntry): void {
     try {
       this.rotateLogFileIfNeeded();
 
@@ -305,7 +305,7 @@ class DesktopErrorLogger implements Logger {
   /**
    * Store error in database for later analysis
    */
-  storeInDatabase(entry) {
+  storeInDatabase(entry: ErrorLogEntry): void {
     try {
       if (desktopDb && desktopDb.initialized) {
         // Store in KV store for error tracking
@@ -342,7 +342,7 @@ class DesktopErrorLogger implements Logger {
    * Determine if an error should be queued for server sync
    * Only queue fatal errors in production, or if explicitly enabled via env var
    */
-  shouldQueueErrorForSync(entry) {
+  shouldQueueErrorForSync(entry: ErrorLogEntry): boolean {
     // If explicitly enabled, queue all errors
     if (process.env[ENV_VARS.ENABLE_ERROR_SYNC] === 'true') {
       return true;
@@ -383,7 +383,7 @@ class DesktopErrorLogger implements Logger {
   /**
    * Specialized logging methods for common error types
    */
-  logIpcError(method, error, context = {}) {
+  logIpcError(method: string, error: Error, context: LoggerContext = {}): string | undefined {
     return this.log(
       ErrorSeverity.ERROR,
       ErrorCategory.IPC,
@@ -393,7 +393,7 @@ class DesktopErrorLogger implements Logger {
     );
   }
 
-  logDatabaseError(operation, error, context = {}) {
+  logDatabaseError(operation: string, error: Error, context: LoggerContext = {}): string | undefined {
     return this.log(
       ErrorSeverity.ERROR,
       ErrorCategory.DATABASE,
@@ -403,7 +403,7 @@ class DesktopErrorLogger implements Logger {
     );
   }
 
-  logNetworkError(endpoint, error, context = {}) {
+  logNetworkError(endpoint: string, error: Error, context: LoggerContext = {}): string | undefined {
     return this.log(
       ErrorSeverity.ERROR,
       ErrorCategory.NETWORK,
@@ -413,7 +413,7 @@ class DesktopErrorLogger implements Logger {
     );
   }
 
-  logFileSystemError(operation, filePath, error, context = {}) {
+  logFileSystemError(operation: string, filePath: string, error: Error, context: LoggerContext = {}): string | undefined {
     return this.log(
       ErrorSeverity.ERROR,
       ErrorCategory.FILE_SYSTEM,
@@ -423,7 +423,7 @@ class DesktopErrorLogger implements Logger {
     );
   }
 
-  logSecurityError(operation, error, context = {}) {
+  logSecurityError(operation: string, error: Error, context: LoggerContext = {}): string | undefined {
     return this.log(
       ErrorSeverity.ERROR,
       ErrorCategory.SECURITY,
@@ -433,7 +433,7 @@ class DesktopErrorLogger implements Logger {
     );
   }
 
-  logAuthenticationError(operation, error, context = {}) {
+  logAuthenticationError(operation: string, error: Error, context: LoggerContext = {}): string | undefined {
     return this.log(
       ErrorSeverity.ERROR,
       ErrorCategory.AUTHENTICATION,
@@ -494,15 +494,15 @@ class DesktopErrorLogger implements Logger {
         byProcess: {}
       };
 
-      errors.forEach(error => {
+      errors.forEach((error: any) => {
         // Count by level
-        stats.byLevel[error.level] = (stats.byLevel[error.level] || 0) + 1;
+        (stats.byLevel as any)[error.level] = ((stats.byLevel as any)[error.level] || 0) + 1;
         
         // Count by category
-        stats.byCategory[error.category] = (stats.byCategory[error.category] || 0) + 1;
+        (stats.byCategory as any)[error.category] = ((stats.byCategory as any)[error.category] || 0) + 1;
         
         // Count by process
-        stats.byProcess[error.process] = (stats.byProcess[error.process] || 0) + 1;
+        (stats.byProcess as any)[error.process] = ((stats.byProcess as any)[error.process] || 0) + 1;
       });
 
       return stats;

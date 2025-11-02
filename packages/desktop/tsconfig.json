@@ -19,7 +19,7 @@
     "moduleResolution": "bundler",
     "allowJs": true,
     "checkJs": false,
-    "noEmit": true
+    "noEmit": false
   },
   "include": ["src/**/*.ts", "src/**/*.js"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"],

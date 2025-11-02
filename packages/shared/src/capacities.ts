@@ -13,8 +13,8 @@
 //   - Artificial Intelligence: +5% to research capacity
 // - Percent bonuses apply after summing all flat additions: effective = flatSum * (1 + totalPercent)
 
-import type { BuildingType } from './types';
-import type { TechnologyKey } from './tech';
+import type { BuildingType } from './types.js';
+import type { TechnologyKey } from './tech.js';
 
 // Tunable constants for Phase 2 (safe defaults; adjust as needed)
 const ROBOTIC_FACTORY_CONSTR_PER_LEVEL = 2; // +2 cred/h per level (Construction)

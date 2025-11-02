@@ -1,6 +1,6 @@
 // Utility functions for the game
 
-import { Coordinates, CoordinateComponents } from './types';
+import { Coordinates, CoordinateComponents } from './types.js';
 
 /**
  * Calculate distance between two coordinates

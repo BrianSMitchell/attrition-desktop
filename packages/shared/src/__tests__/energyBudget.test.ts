@@ -3,7 +3,7 @@
  * Tests canonical scenarios to ensure consistent energy calculations
  */
 
-import { computeEnergyBalance, canStartWithDelta } from '../energyBudget';
+import { computeEnergyBalance, canStartWithDelta } from '../energyBudget.js';
 
 describe('Energy Budget Helper', () => {
   describe('computeEnergyBalance', () => {

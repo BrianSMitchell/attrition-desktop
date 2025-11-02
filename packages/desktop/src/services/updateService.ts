@@ -25,9 +25,9 @@ function isDevelopmentMode() {
 }
 
 // Lazy-load autoUpdater to avoid module resolution issues in packed builds
-let autoUpdater = null;
+let autoUpdater: any = null;
 
-async function getAutoUpdater() {
+async function getAutoUpdater(): Promise<any> {
   if (autoUpdater) {
     log.info('getAutoUpdater: Returning cached autoUpdater instance');
     return autoUpdater;
@@ -59,9 +59,9 @@ async function getAutoUpdater() {
     return autoUpdater;
   } catch (error) {
     log.error('Failed to load electron-updater:', error, {
-      errorMessage: error.message,
-      errorCode: error.code,
-      errorStack: error.stack
+      errorMessage: (error as any).message,
+      errorCode: (error as any).code,
+      errorStack: (error as any).stack
     });
     return null;
   }
@@ -72,6 +72,14 @@ async function getAutoUpdater() {
  * Handles automatic update checking, downloading, and installation
  */
 class UpdateService {
+  updateAvailable: boolean;
+  updateDownloaded: boolean;
+  checkingForUpdate: boolean;
+  downloadProgress: any;
+  isValid: boolean;
+  autoUpdater: any;
+  readyPromise: Promise<void>;
+
   constructor() {
     this.updateAvailable = false;
     this.updateDownloaded = false;
@@ -84,7 +92,7 @@ class UpdateService {
     this.readyPromise = this.initialize();
   }
   
-  async initialize() {
+  async initialize(): Promise<void> {
     try {
       log.info('UpdateService: Starting initialization');
       this.autoUpdater = await getAutoUpdater();
@@ -113,14 +121,14 @@ class UpdateService {
     }
   }
 
-  setupLogger() {
+  setupLogger(): void {
     // Configure electron-log for auto-updater
     log.transports.file.level = 'info';
     this.autoUpdater.logger = log;
     this.autoUpdater.logger.info('UpdateService initialized');
   }
 
-  setupEventHandlers() {
+  setupEventHandlers(): void {
     // Auto-updater event handlers
     this.autoUpdater.on('checking-for-update', () => {
       this.checkingForUpdate = true;
@@ -128,7 +136,7 @@ class UpdateService {
       this.notifyRenderer('update-checking');
     });
 
-    this.autoUpdater.on('update-available', (info) => {
+    this.autoUpdater.on('update-available', (info: any) => {
       this.updateAvailable = true;
       this.checkingForUpdate = false;
       log.info('Update available:', info.version);
@@ -139,19 +147,19 @@ class UpdateService {
       });
     });
 
-    this.autoUpdater.on('update-not-available', (info) => {
+    this.autoUpdater.on('update-not-available', (info: any) => {
       this.checkingForUpdate = false;
       log.info('Update not available');
       this.notifyRenderer('update-not-available');
     });
 
-    this.autoUpdater.on('error', (err) => {
+    this.autoUpdater.on('error', (err: any) => {
       this.checkingForUpdate = false;
       log.error('Error in auto-updater:', err);
       this.notifyRenderer('update-error', { message: err.message });
     });
 
-    this.autoUpdater.on('download-progress', (progressObj) => {
+    this.autoUpdater.on('download-progress', (progressObj: any) => {
       this.downloadProgress = progressObj;
       const percent = Math.round(progressObj.percent);
       log.info(`Download progress: ${percent}%`);
@@ -163,7 +171,7 @@ class UpdateService {
       });
     });
 
-    this.autoUpdater.on('update-downloaded', (info) => {
+    this.autoUpdater.on('update-downloaded', (info: any) => {
       this.updateDownloaded = true;
       log.info('Update downloaded');
       this.notifyRenderer('update-downloaded', {
@@ -174,7 +182,7 @@ class UpdateService {
     });
   }
 
-  configureUpdater() {
+  configureUpdater(): void {
     // Configure auto-updater settings
     this.autoUpdater.autoDownload = false; // Let user decide when to download
     this.autoUpdater.autoInstallOnAppQuit = true;
@@ -205,7 +213,7 @@ class UpdateService {
    * Check for updates manually
    * @param {boolean} silent - Whether to show "no updates" message
    */
-  async checkForUpdates(silent = false) {
+  async checkForUpdates(silent = false): Promise<any> {
     const isDev = isDevelopmentMode();
     log.info(`UpdateService.checkForUpdates called`, { silent, isValid: this.isValid, checkingForUpdate: this.checkingForUpdate, isDev });
     
@@ -246,22 +254,22 @@ class UpdateService {
       return { success: true, result };
     } catch (error) {
       log.error('Failed to check for updates:', error, {
-        errorMessage: error.message,
-        errorCode: error.code,
-        errorStack: error.stack
+        errorMessage: (error as any).message,
+        errorCode: (error as any).code,
+        errorStack: (error as any).stack
       });
       if (!silent) {
         log.info('Notifying renderer: update-error');
-        this.notifyRenderer('update-error', { message: error.message });
+        this.notifyRenderer('update-error', { message: (error as Error).message });
       }
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 
   /**
    * Download available update
    */
-  async downloadUpdate() {
+  async downloadUpdate(): Promise<void> {
     if (!this.isValid) {
       log.warn('UpdateService is not valid - skipping download');
       return;
@@ -277,14 +285,14 @@ class UpdateService {
       await this.autoUpdater.downloadUpdate();
     } catch (error) {
       log.error('Failed to download update:', error);
-      this.notifyRenderer('update-error', { message: error.message });
+      this.notifyRenderer('update-error', { message: (error as Error).message });
     }
   }
 
   /**
    * Install downloaded update and restart app
    */
-  quitAndInstall() {
+  quitAndInstall(): void {
     if (!this.updateDownloaded) {
       log.warn('No update downloaded to install');
       return;
@@ -297,7 +305,7 @@ class UpdateService {
   /**
    * Prompt user to restart for update installation
    */
-  async promptForRestart() {
+  async promptForRestart(): Promise<void> {
     const mainWindow = BrowserWindow.getAllWindows()[0];
     
     const result = await dialog.showMessageBox(mainWindow, {
@@ -322,7 +330,7 @@ class UpdateService {
    * Start periodic update checks
    * @param {number} intervalMinutes - Check interval in minutes (default: 60)
    */
-  startPeriodicChecks(intervalMinutes = 60) {
+  startPeriodicChecks(intervalMinutes = 60): void {
     if (!this.isValid) {
       log.warn('UpdateService is not valid - skipping periodic checks');
       return;
@@ -353,7 +361,7 @@ class UpdateService {
    * Get current update service status
    * @returns {object} Status information
    */
-  getStatus() {
+  getStatus(): any {
     const status = {
       isValid: this.isValid,
       updateAvailable: this.updateAvailable,
@@ -370,7 +378,7 @@ class UpdateService {
   /**
    * Notify renderer process of update events
    */
-  notifyRenderer(event, data = {}) {
+  notifyRenderer(event: string, data: any = {}): void {
     const windows = BrowserWindow.getAllWindows();
     windows.forEach(window => {
       window.webContents.send('update-event', { type: event, data });

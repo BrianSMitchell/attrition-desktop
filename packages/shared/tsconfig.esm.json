@@ -7,7 +7,8 @@
     "declaration": true,
     "declarationDir": "./dist/types",
     "emitDeclarationOnly": false,
-    "tsBuildInfoFile": "./dist/esm.tsbuildinfo"
+    "tsBuildInfoFile": "./dist/esm.tsbuildinfo",
+    "allowImportingTsExtensions": false
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]

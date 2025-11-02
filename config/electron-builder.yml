@@ -13,7 +13,7 @@ directories:
   buildResources: ../build
 
 files:
-  - "src/**/*"
+  - "dist/**/*"
   - "node_modules/**/*"
   - "package.json"
   - "!**/.vscode/*"

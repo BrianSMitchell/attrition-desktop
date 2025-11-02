@@ -49,7 +49,7 @@ export async function httpRequest({ url, method = 'GET', headers = {}, body, tim
       const hostname = new URL(url).hostname;
       agent = createPinnedHttpsAgent(hostname);
     } catch (agentError) {
-      errorLogger.warn('[DesktopMain.http] Failed to create pinned HTTPS agent', agentError, { tag, urlPath, requestId });
+      errorLogger.warn('[DesktopMain.http] Failed to create pinned HTTPS agent', agentError as Error, { tag, urlPath, requestId });
       // Fall back to default agent
     }
   }
@@ -62,7 +62,7 @@ export async function httpRequest({ url, method = 'GET', headers = {}, body, tim
       errorLogger.warn('[DesktopMain.http] HTTPS request without SSL validation (development only)', null, { tag, urlPath, requestId });
     }
 
-    const fetchOptions = { method, headers: secureHeaders, body, signal: ac.signal };
+    const fetchOptions: RequestInit & { agent?: any } = { method, headers: secureHeaders, body, signal: ac.signal };
     
     // Add HTTPS agent for certificate pinning
     if (agent) {

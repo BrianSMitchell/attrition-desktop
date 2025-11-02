@@ -6,7 +6,7 @@
  * - Projected energy state (including in-progress constructions)
  */
 
-import { getBuildingSpec, BuildingKey } from "./buildings";
+import { getBuildingSpec, BuildingKey } from "./buildings.js";
 
 export interface EnergyCalculationInput {
   buildings: Array<{

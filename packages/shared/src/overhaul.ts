@@ -2,7 +2,7 @@
 // Implements star kinds, planetary terrains, base position modifiers, and deterministic selection.
 // This module is framework-agnostic and can be used by both server and client.
 
-import { generateSeedFromCoordinate } from "./random";
+import { generateSeedFromCoordinate } from "./random.js";
 
 // -------------------------
 // Types

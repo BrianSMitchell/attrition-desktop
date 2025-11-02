@@ -1,5 +1,5 @@
 // Defenses catalog and helpers for Phase A (tech-gated, credits cost, energy consumption)
-import type { TechnologyKey } from './tech';
+import type { TechnologyKey } from './tech.js';
 
 export type DefenseKey =
   | 'barracks'

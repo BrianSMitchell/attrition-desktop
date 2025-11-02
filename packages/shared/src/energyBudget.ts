@@ -14,7 +14,7 @@
  *    (each queue entry represents a single upgrade step). We preserve that parity here to avoid UI/server drift.
  */
 
-import { getBuildingSpec, BuildingKey } from "./buildings";
+import { getBuildingSpec, BuildingKey } from "./buildings.js";
 
 export interface EnergyContextInput {
   buildingsAtBase: Array<{

@@ -2,7 +2,7 @@
 // Note: For Phase A we primarily gate by technology prerequisites.
 // Credits/energy/economy/pop/area are included for future use but not fully enforced yet.
 
-import { TechnologyKey } from './tech';
+import { TechnologyKey } from './tech.js';
 
 export type BuildingKey =
   | 'urban_structures'

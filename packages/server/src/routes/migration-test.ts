@@ -25,13 +25,16 @@ router.get('/hello', async (req: Request, res: Response) => {
         message: 'Hello from enhanced API!', 
         timestamp: new Date().toISOString() 
       },
-      'Test endpoint responding successfully'
+      {
+        message: 'Test endpoint responding successfully',
+        statusCode: HTTP_STATUS.OK
+      }
     );
     
-    sendApiResponse(res, response, undefined, HTTP_STATUS.OK);
+    sendApiResponse(res, response);
   } catch (error) {
     const standardized = standardizeError(error);
-    const response = createErrorResponse(standardized.message, standardized.code);
+    const response = createErrorResponse(standardized.errorCode, standardized.message);
     sendApiResponse(res, response);
   }
 });
@@ -46,11 +49,11 @@ router.get('/error', async (req: Request, res: Response) => {
   } catch (error) {
     const standardized = standardizeError(error);
     const response = createErrorResponse(
-      standardized.message, 
-      ApiErrorCode.INTERNAL_ERROR,
+      ApiErrorCode.OPERATION_FAILED,
+      standardized.message,
       { statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR }
     );
-    sendApiResponse(res, response, undefined, HTTP_STATUS.INTERNAL_SERVER_ERROR);
+    sendApiResponse(res, response);
   }
 });
 
@@ -64,28 +67,31 @@ router.post('/validate', async (req: Request, res: Response) => {
     // Simple validation
     if (!name || !email) {
       const response = createErrorResponse(
+        ApiErrorCode.VALIDATION_FAILED,
         'Missing required fields',
-        ApiErrorCode.INVALID_REQUEST,
         {
+          statusCode: HTTP_STATUS.BAD_REQUEST,
           details: [
             ...((!name) ? [{ field: 'name', message: 'Name is required' }] : []),
             ...((!email) ? [{ field: 'email', message: 'Email is required' }] : [])
           ]
         }
       );
-      return sendApiResponse(res, response, undefined, HTTP_STATUS.BAD_REQUEST);
+      return sendApiResponse(res, response);
     }
     
     // Success response
     const response = createSuccessResponse(
       { name, email, validated: true },
-      'Validation successful'
+      {
+        message: 'Validation successful'
+      }
     );
     
     sendApiResponse(res, response);
   } catch (error) {
     const standardized = standardizeError(error);
-    const response = createErrorResponse(standardized.message, standardized.code);
+    const response = createErrorResponse(standardized.errorCode, standardized.message);
     sendApiResponse(res, response);
   }
 });
@@ -111,12 +117,14 @@ router.get('/game-data', async (req: Request, res: Response) => {
       }
     };
     
-    const response = createSuccessResponse(gameData, 'Game data retrieved successfully');
+    const response = createSuccessResponse(gameData, {
+      message: 'Game data retrieved successfully'
+    });
     
     sendApiResponse(res, response);
   } catch (error) {
     const standardized = standardizeError(error);
-    const response = createErrorResponse(standardized.message, standardized.code);
+    const response = createErrorResponse(standardized.errorCode, standardized.message);
     sendApiResponse(res, response);
   }
 });

@@ -1,6 +1,6 @@
 // Message constants organized by game features with dynamic value support
 
-import { MessageTemplate, MessageSeverity, MessageCategory } from './types';
+import { MessageTemplate, MessageSeverity, MessageCategory } from './types.js';
 
 /**
  * Authentication and login message templates

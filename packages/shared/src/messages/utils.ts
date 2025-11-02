@@ -8,7 +8,7 @@ import {
   MessageQueueEntry,
   MessageSeverity,
   MessageCategory 
-} from './types';
+} from './types.js';
 
 /**
  * Generate a unique message ID

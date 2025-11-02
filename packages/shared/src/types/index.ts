@@ -768,6 +768,6 @@ export interface Planet {
 /**
  * Re-export all types from sub-modules for convenience
  */
-export * from '../api/types';
-export * from '../messages/types';
-export * from '../types/test-types';
+export * from '../api/types.js';
+export * from '../messages/types.js';
+export * from '../types/test-types.js';

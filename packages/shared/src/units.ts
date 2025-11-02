@@ -1,7 +1,7 @@
 // Units catalog and helpers for Phase A (tech-gated).
 // Values set to match provided screenshots for Units tab. UI reads these canonically.
 
-import type { TechnologyKey } from './tech';
+import type { TechnologyKey } from './tech.js';
 
 export type DriveType = 'inter' | 'stellar' | 'warp';
 export type WeaponType = 'laser' | 'missiles' | 'plasma' | 'ion' | 'photon' | 'disruptor';

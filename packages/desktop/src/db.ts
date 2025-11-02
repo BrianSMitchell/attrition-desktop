@@ -9,6 +9,10 @@ const SCHEMA_VERSION = 3; // Incremented for error logging support
  * Handles catalogs, profile snapshots, event queuing for sync, and error logging.
  */
 class DesktopDb {
+  dbPath: string;
+  db: Database.Database | null;
+  initialized: boolean;
+
   constructor() {
     this.dbPath = path.join(app.getPath('userData'), 'attrition-desktop.db');
     this.db = null;
@@ -19,7 +23,7 @@ class DesktopDb {
    * Initialize database connection and run migrations.
    * Call once during app startup.
    */
-  init() {
+  init(): Database.Database | null {
     if (this.initialized) return this.db;
 
     try {
@@ -51,9 +55,9 @@ class DesktopDb {
       console.log(`[Desktop] Running database migrations from ${currentVersion} to ${SCHEMA_VERSION}`);
 
       // Create all tables in single transaction
-      const migration = this.db.transaction(() => {
+      const migration = this.db!.transaction(() => {
         // Schema version tracking
-        this.db.exec(`
+        this.db!.exec(`
           CREATE TABLE IF NOT EXISTS schema_version (
             version INTEGER PRIMARY KEY,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -61,7 +65,7 @@ class DesktopDb {
         `);
 
         // Key-value store for settings/metadata
-        this.db.exec(`
+        this.db!.exec(`
           CREATE TABLE IF NOT EXISTS kv_store (
             key TEXT PRIMARY KEY,
             value TEXT,
@@ -70,7 +74,7 @@ class DesktopDb {
         `);
 
         // Catalogs cache (game data: buildings, tech, units, defenses)
-        this.db.exec(`
+        this.db!.exec(`
           CREATE TABLE IF NOT EXISTS catalogs (
             key TEXT PRIMARY KEY,
             catalog_data TEXT NOT NULL,
@@ -82,7 +86,7 @@ class DesktopDb {
         `);
 
         // Profile snapshot cache (user/empire data)
-        this.db.exec(`
+        this.db!.exec(`
           CREATE TABLE IF NOT EXISTS profile_snapshot (
             user_id TEXT PRIMARY KEY,
             device_id TEXT NOT NULL,
@@ -97,7 +101,7 @@ class DesktopDb {
         `);
 
         // Enhanced event queue for offline/sync operations (Tier A only)
-        this.db.exec(`
+        this.db!.exec(`
           CREATE TABLE IF NOT EXISTS event_queue (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             kind TEXT NOT NULL,
@@ -132,7 +136,7 @@ class DesktopDb {
         `);
 
         // Sync state tracking
-        this.db.exec(`
+        this.db!.exec(`
           CREATE TABLE IF NOT EXISTS sync_state (
             key TEXT PRIMARY KEY,
             value TEXT,
@@ -141,7 +145,7 @@ class DesktopDb {
         `);
 
         // Error logging table for structured error storage
-        this.db.exec(`
+        this.db!.exec(`
           CREATE TABLE IF NOT EXISTS error_logs (
             id TEXT PRIMARY KEY,
             timestamp DATETIME NOT NULL,
@@ -177,7 +181,7 @@ class DesktopDb {
         `);
 
         // Performance monitoring table for sync operations
-        this.db.exec(`
+        this.db!.exec(`
           CREATE TABLE IF NOT EXISTS sync_performance_metrics (
             id TEXT PRIMARY KEY,
             operation TEXT NOT NULL,
@@ -211,20 +215,20 @@ class DesktopDb {
     }
   }
 
-  getSchemaVersion() {
+  getSchemaVersion(): number {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         SELECT version FROM schema_version ORDER BY version DESC LIMIT 1
       `);
-      const row = stmt.get();
+      const row = stmt.get() as any;
       return row?.version || 0;
     } catch (err) {
       return 0;
     }
   }
 
-  setSchemaVersion(version) {
-    const stmt = this.db.prepare(`
+  setSchemaVersion(version: number): void {
+    const stmt = this.db!.prepare(`
       INSERT OR REPLACE INTO schema_version (version, updated_at)
       VALUES (?, CURRENT_TIMESTAMP)
     `);
@@ -233,7 +237,7 @@ class DesktopDb {
 
   // ===== KV STORE OPERATIONS =====
 
-  setKeyValue(key, value) {
+  setKeyValue(key: string, value: any): boolean {
     try {
       if (!this.db || !this.initialized) {
         console.error('[DesktopDb] KV store set failed: database not initialized', { key });
@@ -251,7 +255,7 @@ class DesktopDb {
     }
   }
 
-  getKeyValue(key) {
+  getKeyValue(key: string): any {
     try {
       if (!this.db || !this.initialized) {
         console.error('[DesktopDb] KV store get failed: database not initialized', { key });
@@ -260,7 +264,7 @@ class DesktopDb {
       const stmt = this.db.prepare(`
         SELECT value FROM kv_store WHERE key = ?
       `);
-      const row = stmt.get(key);
+      const row = stmt.get(key) as any;
       return row ? JSON.parse(row.value) : null;
     } catch (err) {
       console.error('[DesktopDb] KV store get failed:', err, { key });
@@ -268,9 +272,9 @@ class DesktopDb {
     }
   }
 
-  deleteKeyValue(key) {
+  deleteKeyValue(key: string): boolean {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         DELETE FROM kv_store WHERE key = ?
       `);
       const result = stmt.run(key);
@@ -283,9 +287,9 @@ class DesktopDb {
 
   // ===== CATALOGS OPERATIONS =====
 
-  setCatalog(key, catalogData, version = null, contentHash = null) {
+  setCatalog(key: string, catalogData: any, version: string | null = null, contentHash: string | null = null): boolean {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         INSERT OR REPLACE INTO catalogs
           (key, catalog_data, version, content_hash, updated_at)
         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -303,13 +307,13 @@ class DesktopDb {
     }
   }
 
-  getCatalog(key) {
+  getCatalog(key: string): any {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         SELECT catalog_data, version, content_hash, updated_at
         FROM catalogs WHERE key = ?
       `);
-      const row = stmt.get(key);
+      const row = stmt.get(key) as any;
       if (!row) return null;
 
       return {
@@ -324,16 +328,16 @@ class DesktopDb {
     }
   }
 
-  getAllCatalogs() {
+  getAllCatalogs(): any {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         SELECT key, catalog_data, version, content_hash, updated_at
         FROM catalogs
         ORDER BY key
       `);
-      const rows = stmt.all();
+      const rows = stmt.all() as any[];
 
-      return rows.reduce((acc, row) => ({
+      return rows.reduce((acc: any, row: any) => ({
         ...acc,
         [row.key]: {
           data: JSON.parse(row.catalog_data),
@@ -350,9 +354,9 @@ class DesktopDb {
 
   // ===== PROFILE SNAPSHOT OPERATIONS =====
 
-  setProfileSnapshot(userId, deviceId, snapshotData, schemaVersion = 1) {
+  setProfileSnapshot(userId: string, deviceId: string, snapshotData: any, schemaVersion: number = 1): boolean {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         INSERT OR REPLACE INTO profile_snapshot
           (user_id, device_id, snapshot_data, schema_version, fetched_at)
         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -370,14 +374,14 @@ class DesktopDb {
     }
   }
 
-  getProfileSnapshot(userId, deviceId) {
+  getProfileSnapshot(userId: string, deviceId: string): any {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         SELECT snapshot_data, schema_version, fetched_at
         FROM profile_snapshot
         WHERE user_id = ? AND device_id = ?
       `);
-      const row = stmt.get(userId, deviceId);
+      const row = stmt.get(userId, deviceId) as any;
       if (!row) return null;
 
       return {
@@ -396,7 +400,7 @@ class DesktopDb {
   /**
    * Enhanced enqueue with idempotency support and proper indexing
    */
-  enqueueEvent(kind, deviceId, payload, options = {}) {
+  enqueueEvent(kind: string, deviceId: string, payload: any, options: any = {}): number {
     const {
       dedupeKey = null,
       identityKey = null,
@@ -408,19 +412,19 @@ class DesktopDb {
     try {
       // Check for existing identical pending event (idempotency)
       if (identityKey) {
-        const existingStmt = this.db.prepare(`
+        const existingStmt = this.db!.prepare(`
           SELECT id FROM event_queue 
           WHERE identity_key = ? AND status IN ('queued', 'sent')
           LIMIT 1
         `);
-        const existing = existingStmt.get(identityKey);
+        const existing = existingStmt.get(identityKey) as any;
         if (existing) {
           console.log(`[DesktopDb] Idempotent skip for identityKey=${identityKey}`);
           return existing.id;
         }
       }
 
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         INSERT INTO event_queue
           (kind, device_id, payload, dedupe_key, identity_key, catalog_key, location_coord, empire_id, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -436,7 +440,7 @@ class DesktopDb {
         empireId
       );
 
-      return result.lastInsertRowid;
+      return result.lastInsertRowid as number;
     } catch (err) {
       console.error('[DesktopDb] Event enqueue failed:', err, { 
         kind, 
@@ -451,7 +455,7 @@ class DesktopDb {
   /**
    * Dequeue events for flush with enhanced filtering and status management
    */
-  dequeueEventsForFlush(limit = 50, kind = null) {
+  dequeueEventsForFlush(limit: number = 50, kind: string | null = null): any[] {
     try {
       let sql = `
         SELECT id, kind, device_id, payload, dedupe_key, identity_key, catalog_key, location_coord, empire_id, created_at
@@ -459,7 +463,7 @@ class DesktopDb {
         WHERE status = 'queued'
       `;
       
-      const params = [];
+      const params: any[] = [];
       if (kind) {
         sql += ` AND kind = ?`;
         params.push(kind);
@@ -468,10 +472,10 @@ class DesktopDb {
       sql += ` ORDER BY created_at ASC LIMIT ?`;
       params.push(limit);
 
-      const stmt = this.db.prepare(sql);
-      const rows = stmt.all(...params);
+      const stmt = this.db!.prepare(sql);
+      const rows = stmt.all(...params) as any[];
 
-      return rows.map(row => ({
+      return rows.map((row: any) => ({
         id: row.id,
         kind: row.kind,
         deviceId: row.device_id,
@@ -492,9 +496,9 @@ class DesktopDb {
   /**
    * Mark event as successfully sent to server
    */
-  markEventSent(eventId) {
+  markEventSent(eventId: number): boolean {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         UPDATE event_queue
         SET status = 'sent', 
             sent_at = CURRENT_TIMESTAMP,
@@ -512,9 +516,9 @@ class DesktopDb {
   /**
    * Mark event as failed with error tracking
    */
-  markEventFailed(eventId, errorMessage) {
+  markEventFailed(eventId: number, errorMessage: string): boolean {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         UPDATE event_queue
         SET status = 'failed',
             last_error = ?,
@@ -533,9 +537,9 @@ class DesktopDb {
   /**
    * Mark event as completed/acknowledged by server
    */
-  markEventCompleted(eventId) {
+  markEventCompleted(eventId: number): boolean {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         UPDATE event_queue
         SET status = 'completed',
             completed_at = CURRENT_TIMESTAMP,
@@ -553,18 +557,18 @@ class DesktopDb {
   /**
    * Get pending events count by kind
    */
-  getPendingEventsCount(kind = null) {
+  getPendingEventsCount(kind: string | null = null): number {
     try {
       let sql = `SELECT COUNT(*) as count FROM event_queue WHERE status = 'queued'`;
-      const params = [];
+      const params: any[] = [];
       
       if (kind) {
         sql += ` AND kind = ?`;
         params.push(kind);
       }
       
-      const stmt = this.db.prepare(sql);
-      const row = stmt.get(...params);
+      const stmt = this.db!.prepare(sql);
+      const row = stmt.get(...params) as any;
       return row?.count || 0;
     } catch (err) {
       console.error('[DesktopDb] Get pending events count failed:', err, { kind });
@@ -575,15 +579,15 @@ class DesktopDb {
   /**
    * Get events by identity key for idempotency checks
    */
-  getEventsByIdentityKey(identityKey) {
+  getEventsByIdentityKey(identityKey: string): any[] {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         SELECT id, kind, status, created_at, sent_at, completed_at
         FROM event_queue 
         WHERE identity_key = ?
         ORDER BY created_at DESC
       `);
-      return stmt.all(identityKey);
+      return stmt.all(identityKey) as any[];
     } catch (err) {
       console.error('[DesktopDb] Get events by identity key failed:', err, { identityKey });
       return [];
@@ -593,9 +597,9 @@ class DesktopDb {
   /**
    * Delete old sent events for cleanup
    */
-  deleteOldSentEvents(olderThanDays = 7) {
+  deleteOldSentEvents(olderThanDays: number = 7): number {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         DELETE FROM event_queue
         WHERE status IN ('sent', 'completed') 
         AND updated_at < datetime('now', '-${olderThanDays} days')
@@ -611,9 +615,9 @@ class DesktopDb {
   /**
    * Delete all events of a specific kind (for cleanup)
    */
-  clearEventsByKind(kind) {
+  clearEventsByKind(kind: string): number {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         DELETE FROM event_queue
         WHERE kind = ?
       `);
@@ -629,9 +633,9 @@ class DesktopDb {
   /**
    * Get event statistics for monitoring
    */
-  getEventStats() {
+  getEventStats(): any[] {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         SELECT 
           kind,
           status,
@@ -642,7 +646,7 @@ class DesktopDb {
         GROUP BY kind, status
         ORDER BY kind, status
       `);
-      return stmt.all();
+      return stmt.all() as any[];
     } catch (err) {
       console.error('[DesktopDb] Get event stats failed:', err);
       return [];
@@ -652,12 +656,12 @@ class DesktopDb {
   /**
    * Get distinct kinds that currently have queued events
    */
-  getDistinctPendingKinds() {
+  getDistinctPendingKinds(): string[] {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         SELECT DISTINCT kind FROM event_queue WHERE status = 'queued'
       `);
-      return stmt.all().map(row => row.kind);
+      return (stmt.all() as any[]).map((row: any) => row.kind);
     } catch (err) {
       console.error('[DesktopDb] Get distinct pending kinds failed:', err);
       return [];
@@ -666,9 +670,9 @@ class DesktopDb {
 
   // ===== SYNC STATE OPERATIONS =====
 
-  setSyncState(key, value) {
+  setSyncState(key: string, value: any): boolean {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         INSERT OR REPLACE INTO sync_state (key, value, updated_at)
         VALUES (?, ?, CURRENT_TIMESTAMP)
       `);
@@ -680,12 +684,12 @@ class DesktopDb {
     }
   }
 
-  getSyncState(key) {
+  getSyncState(key: string): any {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         SELECT value FROM sync_state WHERE key = ?
       `);
-      const row = stmt.get(key);
+      const row = stmt.get(key) as any;
       return row ? JSON.parse(row.value) : null;
     } catch (err) {
       console.error('[DesktopDb] Sync state get failed:', err, { key });
@@ -698,12 +702,12 @@ class DesktopDb {
    * Preserves event_queue, kv_store, sync_state, error_logs, and perf metrics.
    * Intended to be called when a cache version mismatch is detected.
    */
-  clearCachedContent() {
+  clearCachedContent(): boolean {
     try {
-      const tx = this.db.transaction(() => {
+      const tx = this.db!.transaction(() => {
         // Remove versioned cached content
-        this.db.exec(`DELETE FROM catalogs;`);
-        this.db.exec(`DELETE FROM profile_snapshot;`);
+        this.db!.exec(`DELETE FROM catalogs;`);
+        this.db!.exec(`DELETE FROM profile_snapshot;`);
       });
       tx();
       console.log('[DesktopCache] Cleared catalogs and profile_snapshot caches due to version mismatch');
@@ -719,9 +723,9 @@ class DesktopDb {
   /**
    * Log an error to the database
    */
-  logError(entry) {
+  logError(entry: any): boolean {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         INSERT INTO error_logs
           (id, timestamp, level, category, message, error_name, error_message, error_stack, 
            context, correlation_id, process, file_name, line_number, column_number, 
@@ -770,9 +774,9 @@ class DesktopDb {
   /**
    * Log performance metrics for sync operations
    */
-  logSyncPerformanceMetric(metric) {
+  logSyncPerformanceMetric(metric: any): boolean {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         INSERT INTO sync_performance_metrics
           (id, operation, duration_ms, timestamp, success, batch_size, error_message, 
            context, correlation_id, process, created_at)
@@ -805,9 +809,9 @@ class DesktopDb {
   /**
    * Get recent sync performance metrics
    */
-  getRecentSyncPerformanceMetrics(hours = 24) {
+  getRecentSyncPerformanceMetrics(hours: number = 24): any[] {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         SELECT id, operation, duration_ms, timestamp, success, batch_size, error_message,
                context, correlation_id, process
         FROM sync_performance_metrics
@@ -816,9 +820,9 @@ class DesktopDb {
         LIMIT 1000
       `);
       
-      const rows = stmt.all();
+      const rows = stmt.all() as any[];
       
-      return rows.map(row => ({
+      return rows.map((row: any) => ({
         id: row.id,
         operation: row.operation,
         durationMs: row.duration_ms,
@@ -839,9 +843,9 @@ class DesktopDb {
   /**
    * Get sync performance statistics
    */
-  getSyncPerformanceStats(hours = 24) {
+  getSyncPerformanceStats(hours: number = 24): any[] {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         SELECT 
           operation,
           COUNT(*) as total_count,
@@ -856,7 +860,7 @@ class DesktopDb {
         ORDER BY total_count DESC
       `);
       
-      return stmt.all();
+      return stmt.all() as any[];
     } catch (err) {
       console.error('[DesktopDb] Get sync performance stats failed:', err, { hours });
       return [];
@@ -866,9 +870,9 @@ class DesktopDb {
   /**
    * Clear sync performance metrics
    */
-  clearSyncPerformanceMetrics(olderThanDays = 30) {
+  clearSyncPerformanceMetrics(olderThanDays: number = 30): number {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         DELETE FROM sync_performance_metrics
         WHERE timestamp < datetime('now', '-${olderThanDays} days')
       `);
@@ -884,7 +888,7 @@ class DesktopDb {
   /**
    * Generate unique ID for performance metrics
    */
-  generateId() {
+  generateId(): string {
     return Math.random().toString(36).substring(2, 15) + 
            Math.random().toString(36).substring(2, 15);
   }
@@ -892,9 +896,9 @@ class DesktopDb {
   /**
    * Get recent errors from the database
    */
-  getRecentErrors(hours = 24) {
+  getRecentErrors(hours: number = 24): any[] {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         SELECT id, timestamp, level, category, message, error_name, error_message, error_stack,
                context, correlation_id, process, file_name, line_number, column_number,
                user_agent, url, user_id, component_stack
@@ -904,9 +908,9 @@ class DesktopDb {
         LIMIT 1000
       `);
       
-      const rows = stmt.all();
+      const rows = stmt.all() as any[];
       
-      return rows.map(row => ({
+      return rows.map((row: any) => ({
         id: row.id,
         timestamp: row.timestamp,
         level: row.level,
@@ -937,9 +941,9 @@ class DesktopDb {
   /**
    * Get error statistics from the database
    */
-  getErrorStats(hours = 24) {
+  getErrorStats(hours: number = 24): any[] {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         SELECT 
           level,
           category,
@@ -953,7 +957,7 @@ class DesktopDb {
         ORDER BY count DESC, last_occurrence DESC
       `);
       
-      return stmt.all();
+      return stmt.all() as any[];
     } catch (err) {
       console.error('[DesktopDb] Get error stats failed:', err, { hours });
       return [];
@@ -963,9 +967,9 @@ class DesktopDb {
   /**
    * Delete old error logs for cleanup
    */
-  deleteOldErrorLogs(olderThanDays = 30) {
+  deleteOldErrorLogs(olderThanDays: number = 30): number {
     try {
-      const stmt = this.db.prepare(`
+      const stmt = this.db!.prepare(`
         DELETE FROM error_logs
         WHERE timestamp < datetime('now', '-${olderThanDays} days')
       `);
@@ -981,9 +985,9 @@ class DesktopDb {
   /**
    * Clear all error logs
    */
-  clearErrorLogs() {
+  clearErrorLogs(): number {
     try {
-      const stmt = this.db.prepare('DELETE FROM error_logs');
+      const stmt = this.db!.prepare('DELETE FROM error_logs');
       const result = stmt.run();
       return result.changes;
     } catch (err) {
@@ -995,7 +999,7 @@ class DesktopDb {
   /**
    * Export error logs
    */
-  exportErrorLogs(format = 'json', hours = 24) {
+  exportErrorLogs(format: string = 'json', hours: number = 24): string {
     try {
       const errors = this.getRecentErrors(hours);
       
@@ -1013,7 +1017,7 @@ class DesktopDb {
   /**
    * Convert errors to CSV format
    */
-  convertErrorsToCSV(errors) {
+  convertErrorsToCSV(errors: any[]): string {
     if (errors.length === 0) return '';
 
     // CSV headers
@@ -1023,7 +1027,7 @@ class DesktopDb {
     ];
     
     // Convert each error to CSV row
-    const rows = errors.map(error => {
+    const rows = errors.map((error: any) => {
       return [
         error.timestamp,
         error.level,
@@ -1044,7 +1048,7 @@ class DesktopDb {
 
   // ===== CLEANUP =====
 
-  close() {
+  close(): void {
     if (this.db) {
       try {
         this.db.close();
@@ -1059,12 +1063,12 @@ class DesktopDb {
 
   // ===== HEALTH CHECK =====
 
-  getHealthInfo() {
+  getHealthInfo(): any {
     try {
       const fileSize = require('node:fs').statSync(this.dbPath).size;
 
       // Get table counts
-      const counts = {};
+      const counts: Record<string, number> = {};
       const tables = [
         'kv_store', 'catalogs', 'profile_snapshot',
         'event_queue', 'sync_state', 'error_logs'
@@ -1072,8 +1076,8 @@ class DesktopDb {
 
       for (const table of tables) {
         try {
-          const stmt = this.db.prepare(`SELECT COUNT(*) as count FROM ${table}`);
-          counts[table] = stmt.get().count;
+          const stmt = this.db!.prepare(`SELECT COUNT(*) as count FROM ${table}`);
+          counts[table] = (stmt.get() as any).count;
         } catch (err) {
           console.warn('[Desktop] Failed to get table count:', err, { table });
           counts[table] = -1; // Indicate error
@@ -1091,7 +1095,7 @@ class DesktopDb {
       console.error('[Desktop] Database health check failed:', err);
       return {
         connected: false,
-        error: err.message,
+        error: (err as Error).message,
         dbPath: this.dbPath
       };
     }
