@@ -21,7 +21,9 @@
     "downlevelIteration": true
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "*.config.ts",
+    ".eslintrc.ts"
   ],
   "exclude": [
     "node_modules",

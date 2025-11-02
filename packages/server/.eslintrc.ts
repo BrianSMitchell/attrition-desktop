@@ -1,25 +1,21 @@
 /**
  * ESLint Configuration for Attrition Server
  * Integrates custom code smell detection with standard JavaScript rules
- *
- * This JavaScript file is required for ESLint 8.x compatibility.
- * For type-safe configuration reference, see .eslintrc.ts
  */
 
-module.exports = {
+import type { ESLint } from 'eslint';
+
+const config: ESLint.ConfigData = {
   root: true,
-  parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 2020,
     sourceType: 'module'
   },
   plugins: [
-    '@typescript-eslint'
-    // '@attrition/code-smell-detector' // TODO: Implement custom plugin
+    '@attrition/code-smell-detector'
   ],
   extends: [
-    'eslint:recommended',
-    'plugin:@typescript-eslint/recommended'
+    'eslint:recommended'
   ],
   env: {
     node: true,
@@ -43,20 +39,20 @@ module.exports = {
     'object-curly-spacing': ['error', 'always'],
     'array-bracket-spacing': ['error', 'never'],
 
-    // Custom Attrition rules - Recommended configuration (TODO: Enable when plugin is implemented)
-    // '@attrition/code-smell-detector/id-consistency': 'error',
-    // '@attrition/code-smell-detector/no-excessive-logging': 'warn',
-    // '@attrition/code-smell-detector/no-legacy-database-checks': 'error',
-    // '@attrition/code-smell-detector/service-extraction-required': 'warn',
-    // '@attrition/code-smell-detector/max-complexity': 'warn'
+    // Custom Attrition rules - Recommended configuration
+    '@attrition/code-smell-detector/id-consistency': 'error',
+    '@attrition/code-smell-detector/no-excessive-logging': 'warn',
+    '@attrition/code-smell-detector/no-legacy-database-checks': 'error',
+    '@attrition/code-smell-detector/service-extraction-required': 'warn',
+    '@attrition/code-smell-detector/max-complexity': 'warn'
   },
   overrides: [
     // Test files
     {
       files: ['**/__tests__/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
       rules: {
-        // '@attrition/code-smell-detector/no-excessive-logging': 'off',
-        // '@attrition/code-smell-detector/max-complexity': 'off'
+        '@attrition/code-smell-detector/no-excessive-logging': 'off',
+        '@attrition/code-smell-detector/max-complexity': 'off'
       }
     },
 
@@ -64,8 +60,8 @@ module.exports = {
     {
       files: ['**/migrations/**/*.ts', '**/scripts/**/*.ts'],
       rules: {
-        // '@attrition/code-smell-detector/no-legacy-database-checks': 'warn',
-        // '@attrition/code-smell-detector/service-extraction-required': 'off'
+        '@attrition/code-smell-detector/no-legacy-database-checks': 'warn',
+        '@attrition/code-smell-detector/service-extraction-required': 'off'
       }
     },
 
@@ -80,7 +76,10 @@ module.exports = {
   ignorePatterns: [
     'dist/',
     'node_modules/',
+    '!.eslintrc.ts',
     'coverage/',
     '*.d.ts'
   ]
 };
+
+export default config;
