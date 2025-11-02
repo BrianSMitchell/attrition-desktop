@@ -107,12 +107,13 @@ deb:
     - libxtst6
     - libnss3
 
-publish:
-  provider: github
-  owner: BrianSMitchell
-  repo: attrition-desktop
-  publishAutoUpdate: true
-  releaseType: release
+# Publish disabled - handled by GitHub Actions workflow instead
+# publish:
+#   provider: github
+#   owner: BrianSMitchell
+#   repo: attrition-desktop
+#   publishAutoUpdate: true
+#   releaseType: release
 
 # Auto-updater configuration
 electronUpdaterCompatibility: ">= 0.1.0"
