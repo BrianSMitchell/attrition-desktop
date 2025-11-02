@@ -1,0 +1,126 @@
+name: Desktop Installer Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.2.6
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+        
+    - name: Setup Python for native builds
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install Visual Studio Build Tools
+      run: |
+        choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --passive --locale en-US"
+      
+    - name: Cache pnpm dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.pnpm-store
+        key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-
+          
+    - name: Install dependencies
+      run: |
+        pnpm install --frozen-lockfile
+      env:
+        npm_config_node_gyp: $(npm prefix -g)/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js
+      
+    - name: Build packages
+      run: |
+        pnpm --filter @game/shared build
+        pnpm --filter @game/server build  
+        pnpm --filter @game/client build
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Rebuild native dependencies for desktop
+      run: |
+        cd packages/desktop
+        npm rebuild better-sqlite3 keytar
+      env:
+        npm_config_build_from_source: true
+        
+    - name: Build desktop application
+      run: |
+        pnpm --filter @game/desktop build
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+    - name: Get version from tag
+      id: version
+      run: |
+        $VERSION = $env:GITHUB_REF -replace 'refs/tags/', ''
+        echo "version=$VERSION" >> $env:GITHUB_OUTPUT
+        echo "Version: $VERSION"
+      shell: pwsh
+      
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        name: Attrition Desktop ${{ steps.version.outputs.version }}
+        body: |
+          ## Attrition Desktop ${{ steps.version.outputs.version }}
+          
+          Desktop installer for Attrition: Strategic Space Empire.
+          
+          ### 📥 Installation
+          1. Download `Attrition-Setup-${{ steps.version.outputs.version }}.exe`
+          2. Run the installer and follow the setup wizard
+          3. Launch Attrition from your desktop or start menu
+          
+          ### 💻 System Requirements
+          - **OS**: Windows 10 or later (64-bit)
+          - **RAM**: 4GB minimum, 8GB recommended
+          - **Storage**: 500MB free disk space
+          - **Display**: 1280x720 minimum resolution
+          
+          ### ✨ Features
+          - Automatic updates for future versions
+          - Offline gameplay support
+          - Cloud save synchronization
+          
+          ### 🔄 Updating
+          The launcher will automatically check for and download updates when available.
+          
+          ---
+          
+          **Full changelog**: [View on GitHub](https://github.com/BrianSMitchell/attrition-game/releases)
+        files: |
+          packages/desktop/releases/Attrition Setup *.exe
+          packages/desktop/releases/Attrition Setup *.exe.blockmap
+          packages/desktop/releases/latest.yml
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: installer-${{ steps.version.outputs.version }}
+        path: |
+          packages/desktop/releases/Attrition Setup *.exe
+          packages/desktop/releases/latest.yml
+        retention-days: 90
