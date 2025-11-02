@@ -3,7 +3,7 @@
   "version": "1.2.5",
   "private": true,
   "description": "Attrition - Strategic space colonization and warfare game",
-  "main": "src/main.js",
+  "main": "src/main.ts",
   "author": "Attrition Game Studio",
   "license": "MIT",
   "homepage": "https://attrition-game.com",
