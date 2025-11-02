@@ -3,34 +3,102 @@
  * @author Attrition Development Team
  */
 
-"use strict";
+import { Rule } from 'eslint';
+
+/**
+ * ESLint SourceCode object interface
+ */
+interface SourceCode {
+  getText(node: any): string;
+}
+
+/**
+ * AST Node location information
+ */
+interface NodeLocation {
+  type: string;
+  node: any;
+  line: number;
+  column: number;
+}
+
+/**
+ * ObjectId usage detection result
+ */
+interface ObjectIdUsage extends NodeLocation {
+  type: 'function_call' | 'mongoose_call' | 'new_expression' | 'require_statement';
+}
+
+/**
+ * UUID usage detection result
+ */
+interface UUIDUsage extends NodeLocation {
+  type: 'uuid_call' | 'uuid_string';
+}
+
+/**
+ * Legacy pattern violation
+ */
+interface LegacyPattern extends NodeLocation {
+  type: 'var_declaration' | 'callback_pattern';
+  pattern: string;
+}
+
+/**
+ * Import/Export statement information
+ */
+interface ImportStatement {
+  type: 'import';
+  node: any;
+  source: string;
+  specifiers: string[];
+}
+
+/**
+ * Export statement information
+ */
+interface ExportStatement {
+  type: 'default_export' | 'named_export';
+  node: any;
+  declaration: string | null;
+}
+
+/**
+ * Import/Export result container
+ */
+interface ImportExportResult {
+  imports: ImportStatement[];
+  exports: ExportStatement[];
+}
 
 /**
  * Get node source code text
- * @param {Object} node - AST node
- * @param {Object} sourceCode - ESLint source code object
- * @returns {string} Source code text for the node
+ * @param node - AST node
+ * @param sourceCode - ESLint source code object
+ * @returns Source code text for the node
  */
-function getNodeText(node, sourceCode) {
+export function getNodeText(node: any, sourceCode: SourceCode): string {
   return sourceCode.getText(node);
 }
 
 /**
  * Get all function declarations in a file
- * @param {Object} ast - AST object
- * @returns {Array} Array of function declaration nodes
+ * @param ast - AST object
+ * @returns Array of function declaration nodes
  */
-function getAllFunctions(ast) {
-  const functions = [];
+export function getAllFunctions(ast: any): any[] {
+  const functions: any[] = [];
 
-  // Walk the AST to find all function declarations
-  function walk(node) {
+  /**
+   * Walk the AST to find all function declarations
+   */
+  function walk(node: any): void {
     if (node.type === 'FunctionDeclaration') {
       functions.push(node);
     }
 
     if (node.body && Array.isArray(node.body)) {
-      node.body.forEach(child => walk(child));
+      node.body.forEach((child: any) => walk(child));
     }
 
     if (node.body && typeof node.body === 'object') {
@@ -52,22 +120,24 @@ function getAllFunctions(ast) {
 
 /**
  * Count console statements in a file
- * @param {Object} ast - AST object
- * @returns {number} Number of console statements
+ * @param ast - AST object
+ * @returns Number of console statements
  */
-function countConsoleStatements(ast) {
+export function countConsoleStatements(ast: any): number {
   let count = 0;
 
-  function walk(node) {
-    if (node.type === 'ExpressionStatement' &&
-        node.expression.type === 'CallExpression' &&
-        node.expression.callee.type === 'MemberExpression' &&
-        node.expression.callee.object.name === 'console') {
+  function walk(node: any): void {
+    if (
+      node.type === 'ExpressionStatement' &&
+      node.expression.type === 'CallExpression' &&
+      node.expression.callee.type === 'MemberExpression' &&
+      node.expression.callee.object.name === 'console'
+    ) {
       count++;
     }
 
     if (node.body && Array.isArray(node.body)) {
-      node.body.forEach(child => walk(child));
+      node.body.forEach((child: any) => walk(child));
     }
 
     if (node.body && typeof node.body === 'object') {
@@ -89,13 +159,13 @@ function countConsoleStatements(ast) {
 
 /**
  * Detect ObjectId usage patterns in AST
- * @param {Object} ast - AST object
- * @returns {Array} Array of ObjectId usage locations
+ * @param ast - AST object
+ * @returns Array of ObjectId usage locations
  */
-function detectObjectIdUsage(ast) {
-  const usages = [];
+export function detectObjectIdUsage(ast: any): ObjectIdUsage[] {
+  const usages: ObjectIdUsage[] = [];
 
-  function walk(node) {
+  function walk(node: any): void {
     // Check for ObjectId() calls
     if (node.type === 'CallExpression' && node.callee.name === 'ObjectId') {
       usages.push({
@@ -107,10 +177,12 @@ function detectObjectIdUsage(ast) {
     }
 
     // Check for mongoose.Types.ObjectId calls
-    if (node.type === 'CallExpression' &&
-        node.callee.type === 'MemberExpression' &&
-        node.callee.object.name === 'Types' &&
-        node.callee.property.name === 'ObjectId') {
+    if (
+      node.type === 'CallExpression' &&
+      node.callee.type === 'MemberExpression' &&
+      node.callee.object.name === 'Types' &&
+      node.callee.property.name === 'ObjectId'
+    ) {
       usages.push({
         type: 'mongoose_call',
         node,
@@ -144,7 +216,7 @@ function detectObjectIdUsage(ast) {
 
     // Walk child nodes
     if (node.body && Array.isArray(node.body)) {
-      node.body.forEach(child => walk(child));
+      node.body.forEach((child: any) => walk(child));
     }
 
     if (node.body && typeof node.body === 'object') {
@@ -166,17 +238,19 @@ function detectObjectIdUsage(ast) {
 
 /**
  * Detect UUID usage patterns in AST
- * @param {Object} ast - AST object
- * @returns {Array} Array of UUID usage locations
+ * @param ast - AST object
+ * @returns Array of UUID usage locations
  */
-function detectUUIDUsage(ast) {
-  const usages = [];
+export function detectUUIDUsage(ast: any): UUIDUsage[] {
+  const usages: UUIDUsage[] = [];
 
-  function walk(node) {
+  function walk(node: any): void {
     // Check for UUID-related function calls
-    if (node.type === 'CallExpression' &&
-        node.callee.name &&
-        (node.callee.name.includes('uuid') || node.callee.name.includes('UUID'))) {
+    if (
+      node.type === 'CallExpression' &&
+      node.callee.name &&
+      (node.callee.name.includes('uuid') || node.callee.name.includes('UUID'))
+    ) {
       usages.push({
         type: 'uuid_call',
         node,
@@ -199,7 +273,7 @@ function detectUUIDUsage(ast) {
 
     // Walk child nodes
     if (node.body && Array.isArray(node.body)) {
-      node.body.forEach(child => walk(child));
+      node.body.forEach((child: any) => walk(child));
     }
 
     if (node.body && typeof node.body === 'object') {
@@ -221,13 +295,13 @@ function detectUUIDUsage(ast) {
 
 /**
  * Calculate cyclomatic complexity of a function
- * @param {Object} node - Function AST node
- * @returns {number} Cyclomatic complexity score
+ * @param node - Function AST node
+ * @returns Cyclomatic complexity score
  */
-function calculateComplexity(node) {
+export function calculateComplexity(node: any): number {
   let complexity = 1; // Base complexity
 
-  function walk(n) {
+  function walk(n: any): void {
     switch (n.type) {
       case 'IfStatement':
       case 'ConditionalExpression':
@@ -260,7 +334,7 @@ function calculateComplexity(node) {
 
     // Walk child nodes
     if (n.body && Array.isArray(n.body)) {
-      n.body.forEach(child => walk(child));
+      n.body.forEach((child: any) => walk(child));
     }
 
     if (n.body && typeof n.body === 'object') {
@@ -276,11 +350,11 @@ function calculateComplexity(node) {
     }
 
     if (n.cases) {
-      n.cases.forEach(caseNode => walk(caseNode));
+      n.cases.forEach((caseNode: any) => walk(caseNode));
     }
 
     if (n.consequent && Array.isArray(n.consequent.body)) {
-      n.consequent.body.forEach(child => walk(child));
+      n.consequent.body.forEach((child: any) => walk(child));
     }
   }
 
@@ -293,14 +367,14 @@ function calculateComplexity(node) {
 
 /**
  * Detect legacy patterns in code
- * @param {Object} ast - AST object
- * @param {Array} bannedPatterns - Array of regex patterns to detect
- * @returns {Array} Array of legacy pattern violations
+ * @param ast - AST object
+ * @param bannedPatterns - Array of regex patterns to detect (currently unused but kept for API compatibility)
+ * @returns Array of legacy pattern violations
  */
-function detectLegacyPatterns(ast, bannedPatterns) {
-  const violations = [];
+export function detectLegacyPatterns(ast: any, bannedPatterns?: RegExp[]): LegacyPattern[] {
+  const violations: LegacyPattern[] = [];
 
-  function walk(node) {
+  function walk(node: any): void {
     // Check for var declarations
     if (node.type === 'VariableDeclaration' && node.kind === 'var') {
       violations.push({
@@ -313,11 +387,13 @@ function detectLegacyPatterns(ast, bannedPatterns) {
     }
 
     // Check for callback patterns
-    if (node.type === 'FunctionExpression' &&
-        node.parent &&
-        node.parent.type === 'CallExpression' &&
-        node.parent.parent &&
-        node.parent.parent.type === 'CallExpression') {
+    if (
+      node.type === 'FunctionExpression' &&
+      node.parent &&
+      node.parent.type === 'CallExpression' &&
+      node.parent.parent &&
+      node.parent.parent.type === 'CallExpression'
+    ) {
       violations.push({
         type: 'callback_pattern',
         node,
@@ -329,7 +405,7 @@ function detectLegacyPatterns(ast, bannedPatterns) {
 
     // Walk child nodes
     if (node.body && Array.isArray(node.body)) {
-      node.body.forEach(child => walk(child));
+      node.body.forEach((child: any) => walk(child));
     }
 
     if (node.body && typeof node.body === 'object') {
@@ -351,22 +427,24 @@ function detectLegacyPatterns(ast, bannedPatterns) {
 
 /**
  * Get all import/export statements
- * @param {Object} ast - AST object
- * @returns {Object} Object with imports and exports arrays
+ * @param ast - AST object
+ * @returns Object with imports and exports arrays
  */
-function getImportExportStatements(ast) {
-  const result = {
+export function getImportExportStatements(ast: any): ImportExportResult {
+  const result: ImportExportResult = {
     imports: [],
     exports: []
   };
 
-  function walk(node) {
+  function walk(node: any): void {
     if (node.type === 'ImportDeclaration') {
       result.imports.push({
         type: 'import',
         node,
         source: node.source.value,
-        specifiers: node.specifiers.map(spec => spec.imported ? spec.imported.name : spec.local.name)
+        specifiers: node.specifiers.map((spec: any) =>
+          spec.imported ? spec.imported.name : spec.local.name
+        )
       });
     }
 
@@ -379,7 +457,7 @@ function getImportExportStatements(ast) {
     }
 
     if (node.body && Array.isArray(node.body)) {
-      node.body.forEach(child => walk(child));
+      node.body.forEach((child: any) => walk(child));
     }
 
     if (node.body && typeof node.body === 'object') {
@@ -390,14 +468,3 @@ function getImportExportStatements(ast) {
   walk(ast);
   return result;
 }
-
-module.exports = {
-  getNodeText,
-  getAllFunctions,
-  countConsoleStatements,
-  detectObjectIdUsage,
-  detectUUIDUsage,
-  calculateComplexity,
-  detectLegacyPatterns,
-  getImportExportStatements
-};
