@@ -11,6 +11,8 @@ export class DashboardService {
    * Gets dashboard data for an authenticated user
    * @param user - The authenticated user object
    * @returns Promise<DashboardData> - Complete dashboard data
+   * @throws AuthenticationError - if user ID is missing
+   * @throws DatabaseError - if empire resolution fails
    */
   static async getDashboardData(user: any): Promise<DashboardData> {
     const userId = user?._id || user?.id;

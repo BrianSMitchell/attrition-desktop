@@ -9,6 +9,13 @@ import {
   computeEnergyBalance,
   getBuildingSpec,
 } from '@game/shared';
+import {
+  NotFoundError,
+  DatabaseError,
+  ValidationError,
+  ConflictError,
+  BadRequestError,
+} from '../../types/error.types';
 
 /**
  * DTO formatters
@@ -90,8 +97,15 @@ export class DefensesService {
       .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
-    if (error || !empire) {
-      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
+    if (error) {
+      throw new DatabaseError('Failed to fetch empire tech levels', 'GET_EMPIRE_TECH', {
+        empireId,
+        supabaseError: error.message
+      });
+    }
+
+    if (!empire) {
+      throw new NotFoundError('Empire', empireId);
     }
 
     const techLevels = mapTechLevels(empire.tech_levels);
@@ -129,8 +143,15 @@ export class DefensesService {
       .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
-    if (empireError || !empire) {
-      return formatError(ERROR_MESSAGES.NOT_FOUND, ERROR_MESSAGES.EMPIRE_NOT_FOUND);
+    if (empireError) {
+      throw new DatabaseError('Failed to fetch empire', 'GET_EMPIRE', {
+        empireId,
+        supabaseError: empireError.message
+      });
+    }
+
+    if (!empire) {
+      throw new NotFoundError('Empire', empireId);
     }
 
     // Validate owned location
@@ -140,28 +161,31 @@ export class DefensesService {
       .eq('coord', locationCoord)
       .maybeSingle();
 
-    if (locationError || !location) {
-      return formatError(ERROR_MESSAGES.NOT_FOUND, ERROR_MESSAGES.LOCATION_NOT_FOUND);
+    if (locationError) {
+      throw new DatabaseError('Failed to fetch location', 'GET_LOCATION', {
+        locationCoord,
+        supabaseError: locationError.message
+      });
+    }
+
+    if (!location) {
+      throw new NotFoundError('Location', locationCoord);
     }
 
     if (location.owner !== empire.user_id) {
-      return formatError('NOT_OWNER', 'You do not own this location', { locationCoord });
+      throw new ConflictError('You do not own this location', { locationCoord });
     }
 
     // Validate defense spec and tech prereqs
     const spec = getDefensesList().find((d) => d.key === defenseKey);
     if (!spec) {
-      return formatError('INVALID_REQUEST', 'Unknown defense key', { field: 'defenseKey', value: defenseKey });
+      throw new ValidationError('Unknown defense key', { field: 'defenseKey', value: defenseKey });
     }
 
     const techLevels = mapTechLevels(empire.tech_levels);
     const techCheck = evaluateDefenseTechPrereqs(techLevels, spec.techPrereqs);
     if (!techCheck.ok) {
-      const reasons = techCheck.unmet.map((u) => `Requires ${u.key} ${u.requiredLevel} (current ${u.currentLevel}).`);
-      return {
-        ...formatError('TECH_REQUIREMENTS', 'Technology requirements not met', { unmet: techCheck.unmet }),
-        reasons,
-      } as any;
+      throw new ValidationError('Technology requirements not met', { unmet: techCheck.unmet });
     }
 
     // Check if item already in progress
@@ -185,7 +209,7 @@ export class DefensesService {
       const caps = await CapacityService.getBaseCapacities(empireId, locationCoord);
       const perHour = Math.max(0, Number(caps?.citizen?.value || 0));
       if (!(perHour > 0)) {
-        return formatError('NO_CAPACITY', 'This base has no citizen capacity to build defenses.');
+        throw new BadRequestError('This base has no citizen capacity to build defenses.');
       }
 
       // Energy validation
@@ -254,7 +278,7 @@ export class DefensesService {
       const delta = Number(spec.energyDelta || 0);
       const projectedEnergy = balance + reservedNegative + delta;
       if (delta < 0 && projectedEnergy < 0) {
-        return formatError('INSUFFICIENT_ENERGY', 'Insufficient energy capacity to start this defense.', {
+        throw new BadRequestError('Insufficient energy capacity to start this defense.', {
           balance,
           delta,
           projectedEnergy,
@@ -265,7 +289,7 @@ export class DefensesService {
       const cost = Math.max(0, Number(spec.creditsCost || 0));
       const available = Number(empire.credits || 0);
       if (available < cost) {
-        return formatError('INSUFFICIENT_RESOURCES', `Insufficient credits. Requires ${cost}, you have ${available}.`, {
+        throw new BadRequestError(`Insufficient credits. Requires ${cost}, you have ${available}.`, {
           required: cost,
           available,
         });
@@ -279,7 +303,11 @@ export class DefensesService {
 
       if (updateError) {
         console.error('Error updating empire credits:', updateError);
-        return formatError('UPDATE_ERROR', 'Failed to deduct credits');
+        throw new DatabaseError('Failed to deduct credits', 'UPDATE_EMPIRE_CREDITS', {
+          empireId,
+          cost,
+          supabaseError: updateError.message
+        });
       }
 
       // Calculate completion time
@@ -303,7 +331,12 @@ export class DefensesService {
 
       if (insertError) {
         console.error('Error inserting defense queue:', insertError);
-        return formatError('INSERT_ERROR', 'Failed to create defense queue item');
+        throw new DatabaseError('Failed to create defense queue item', 'INSERT_DEFENSE_QUEUE', {
+          empireId,
+          locationCoord,
+          defenseKey,
+          supabaseError: insertError.message
+        });
       }
 
       return formatSuccess(
@@ -323,7 +356,7 @@ export class DefensesService {
       const cost = Math.max(0, Number(spec.creditsCost || 0));
       const available = Number(empire.credits || 0);
       if (available < cost) {
-        return formatError('INSUFFICIENT_RESOURCES', `Insufficient credits. Requires ${cost}, you have ${available}.`, {
+        throw new BadRequestError(`Insufficient credits. Requires ${cost}, you have ${available}.`, {
           required: cost,
           available,
         });
@@ -337,7 +370,11 @@ export class DefensesService {
 
       if (updateError) {
         console.error('Error updating empire credits:', updateError);
-        return formatError('UPDATE_ERROR', 'Failed to deduct credits');
+        throw new DatabaseError('Failed to deduct credits', 'UPDATE_EMPIRE_CREDITS', {
+          empireId,
+          cost,
+          supabaseError: updateError.message
+        });
       }
 
       // Insert waiting queue item (no completion time yet)
@@ -354,7 +391,12 @@ export class DefensesService {
 
       if (insertError) {
         console.error('Error inserting defense queue:', insertError);
-        return formatError('INSERT_ERROR', 'Failed to create defense queue item');
+        throw new DatabaseError('Failed to create defense queue item', 'INSERT_DEFENSE_QUEUE', {
+          empireId,
+          locationCoord,
+          defenseKey,
+          supabaseError: insertError.message
+        });
       }
 
       return formatSuccess(

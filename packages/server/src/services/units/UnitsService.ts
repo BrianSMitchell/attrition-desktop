@@ -4,6 +4,13 @@ import { TechService } from '../tech/TechService';
 import { getUnitsList, getUnitSpec, type UnitKey } from '@game/shared';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
 import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
+import {
+  NotFoundError,
+  DatabaseError,
+  ValidationError,
+  ConflictError,
+  BadRequestError,
+} from '../../types/error.types';
 function evaluateUnitTechPrereqs(
   techLevels: Record<string, number>,
   prereqs: Array<{ key: string; level: number }>
@@ -114,27 +121,21 @@ const techLevels = await TechService.getTechLevels(empireId);
       .eq('coord', baseCoord)
       .maybeSingle();
     if (!loc.data) {
-      return { success: false as const, code: ERROR_MESSAGES.NOT_FOUND, message: ERROR_MESSAGES.LOCATION_NOT_FOUND };
+      throw new NotFoundError('Location', baseCoord);
     }
     if (String((loc.data as any).owner_id || '') !== String(userId)) {
-      return { success: false as const, code: 'NOT_OWNER', message: 'You do not own this location' };
+      throw new ConflictError('You do not own this location', { locationCoord: baseCoord });
     }
 
     // Load spec & tech levels
     const spec = getUnitSpec(unitKey);
     if (!spec) {
-      return { success: false as const, code: 'INVALID_REQUEST', message: 'Unknown unit key' };
+      throw new ValidationError('Unknown unit key', { unitKey });
     }
 const techLevels = await TechService.getTechLevels(empireId);
     const techCheck = evaluateUnitTechPrereqs(techLevels, spec.techPrereqs || []);
     if (!techCheck.ok) {
-      return {
-        success: false as const,
-        code: 'TECH_REQUIREMENTS',
-        message: 'Technology requirements not met',
-        details: { unmet: techCheck.unmet },
-        reasons: techCheck.unmet.map((u) => `Requires ${u.key} ${u.requiredLevel} (current ${u.currentLevel}).`),
-      } as any;
+      throw new ValidationError('Technology requirements not met', { unmet: techCheck.unmet });
     }
 
     // Shipyard requirements
@@ -142,15 +143,19 @@ const techLevels = await TechService.getTechLevels(empireId);
     if (typeof spec.requiredShipyardLevel === 'number' && spec.requiredShipyardLevel > 0) {
       const currentShip = shipLevels['shipyards'] || 0;
       if (currentShip < spec.requiredShipyardLevel) {
-        const msg = `Requires Shipyard level ${spec.requiredShipyardLevel} at this base (current ${currentShip}).`;
-        return { success: false as const, code: 'TECH_REQUIREMENTS', message: msg, reasons: [msg] } as any;
+        throw new ValidationError(`Requires Shipyard level ${spec.requiredShipyardLevel} at this base (current ${currentShip}).`, {
+          required: spec.requiredShipyardLevel,
+          current: currentShip
+        });
       }
     }
     if (typeof spec.requiredOrbitalShipyardLevel === 'number' && spec.requiredOrbitalShipyardLevel > 0) {
       const currentOrb = shipLevels['orbital_shipyards'] || 0;
       if (currentOrb < spec.requiredOrbitalShipyardLevel) {
-        const msg = `Requires Orbital Shipyard level ${spec.requiredOrbitalShipyardLevel} at this base (current ${currentOrb}).`;
-        return { success: false as const, code: 'TECH_REQUIREMENTS', message: msg, reasons: [msg] } as any;
+        throw new ValidationError(`Requires Orbital Shipyard level ${spec.requiredOrbitalShipyardLevel} at this base (current ${currentOrb}).`, {
+          required: spec.requiredOrbitalShipyardLevel,
+          current: currentOrb
+        });
       }
     }
 
@@ -159,14 +164,16 @@ const techLevels = await TechService.getTechLevels(empireId);
     const credits = Math.max(0, Number((eRes.data as any)?.credits || 0));
     const cost = Math.max(0, Number(spec.creditsCost || 0));
     if (credits < cost) {
-      const msg = `Insufficient credits. Requires ${cost}.`;
-      return { success: false as const, code: 'INSUFFICIENT_RESOURCES', message: msg, reasons: ['insufficient_credits'] } as any;
+      throw new BadRequestError(`Insufficient credits. Requires ${cost}, you have ${credits}.`, {
+        required: cost,
+        available: credits
+      });
     }
 
 const caps = await CapacityService.getBaseCapacities(empireId, baseCoord);
     const perHour = Math.max(0, Number((caps as any)?.production?.value || 0));
     if (!(perHour > 0)) {
-      return { success: false as const, code: 'NO_CAPACITY', message: 'Production capacity is zero at this base.' } as any;
+      throw new BadRequestError('Production capacity is zero at this base.');
     }
 
     const hours = cost / perHour;
@@ -195,14 +202,14 @@ const caps = await CapacityService.getBaseCapacities(empireId, baseCoord);
       // unique violation (23505) -> already in progress idempotency case
       const code = (ins.error as any)?.code;
       if (code === '23505') {
-        return {
-          success: false as const,
-          code: 'ALREADY_IN_PROGRESS',
-          message: 'A similar unit is already queued or in progress.',
-          details: { identityKey },
-        } as any;
+        throw new ConflictError('A similar unit is already queued or in progress.', { unitKey });
       }
-      return { success: false as const, code: 'DB_ERROR', message: ins.error.message } as any;
+      throw new DatabaseError('Failed to create unit queue item', 'INSERT_UNIT_QUEUE', {
+        empireId,
+        baseCoord,
+        unitKey,
+        supabaseError: ins.error.message
+      });
     }
 
     // Deduct credits after successful enqueue
