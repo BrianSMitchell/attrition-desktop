@@ -15,7 +15,7 @@ import {
   computeEnergyBalance
 } from '@game/shared';
 
-const router = createBaseRouter();
+const router: Router = createBaseRouter();
 
 // Add deprecation notice middleware for all building/structure routes
 router.use((req, res, next) => {
@@ -419,7 +419,7 @@ router.post('/:coord/construct/:key', asyncHandler(async (req: AuthRequest, res:
   return res.json({ success: true, data: { coord, key, completesAt }, message: 'Construction started' });
 }));
 
-export const structuresRouter = router;
+export const structuresRouter: Router = router;
 export default router;
 
 

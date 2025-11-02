@@ -1,7 +1,51 @@
 import crypto from 'crypto';
 import https from 'https';
+import type { PeerCertificate } from 'tls';
 import errorLogger from './errorLoggingService.js';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { ENV_VARS } = require('../../../shared/dist/cjs/index.js');
 
+interface PinConfig {
+  pins: string[];
+  enforceInDev: boolean;
+  alertOnChange: boolean;
+}
+
+interface ValidationResult {
+  valid: boolean;
+  reason: string;
+  hostname: string;
+  enforced: boolean;
+  matchedPin?: string;
+  expectedPins?: string[];
+  actualFingerprints?: string[];
+}
+
+interface UpdateResult {
+  success: boolean;
+  hostname: string;
+  oldPins?: string[];
+  newPins?: string[];
+  changed?: boolean;
+  error?: string;
+}
+
+interface TestResult {
+  success: boolean;
+  hostname: string;
+  statusCode?: number;
+  certificate?: {
+    subject: any;
+    issuer: any;
+    validFrom: string;
+    validTo: string;
+    fingerprint: string;
+  };
+  error?: string;
+  code?: string;
+  isPinningError?: boolean;
+}
 
 /**
  * Certificate Pinning Service
@@ -20,7 +64,7 @@ import errorLogger from './errorLoggingService.js';
 /**
  * Certificate pin configuration
  */
-const certificatePins = {
+const certificatePins: Record<string, PinConfig> = {
   // Production API server pins
   'api.yourgame.com': {
     pins: [
@@ -44,10 +88,8 @@ const certificatePins = {
 
 /**
  * Extract SHA-256 fingerprint from certificate
- * @param {Buffer} cert Certificate buffer
- * @returns {string} Base64-encoded SHA-256 fingerprint
  */
-function getCertificateFingerprint(cert) {
+function getCertificateFingerprint(cert: Buffer): string {
   const hash = crypto.createHash('sha256');
   hash.update(cert);
   return hash.digest('base64');
@@ -55,11 +97,8 @@ function getCertificateFingerprint(cert) {
 
 /**
  * Validate certificate against pins
- * @param {string} hostname Server hostname
- * @param {Array} peerCertificateChain Certificate chain from server
- * @returns {Object} Validation result
  */
-function validateCertificatePins(hostname, peerCertificateChain) {
+function validateCertificatePins(hostname: string, peerCertificateChain: PeerCertificate[]): ValidationResult {
   const pinConfig = certificatePins[hostname];
   
   if (!pinConfig || pinConfig.pins.length === 0) {
@@ -118,10 +157,8 @@ function validateCertificatePins(hostname, peerCertificateChain) {
 
 /**
  * Create HTTPS agent with certificate pinning
- * @param {string} hostname Target hostname
- * @returns {https.Agent} HTTPS agent with pinning validation
  */
-export function createPinnedHttpsAgent(hostname) {
+export function createPinnedHttpsAgent(hostname: string): https.Agent {
   return new https.Agent({
     checkServerIdentity: (host, cert) => {
       // Perform standard hostname verification first
@@ -181,11 +218,8 @@ export function createPinnedHttpsAgent(hostname) {
 
 /**
  * Enhanced fetch with certificate pinning
- * @param {string} url Request URL
- * @param {Object} options Fetch options
- * @returns {Promise} Fetch promise with pinning validation
  */
-export async function pinnedFetch(url, options = {}) {
+export async function pinnedFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const urlObj = new URL(url);
   
   if (urlObj.protocol === 'https:') {
@@ -225,11 +259,8 @@ export async function pinnedFetch(url, options = {}) {
 
 /**
  * Validate and update certificate pins configuration
- * @param {string} hostname Hostname to check
- * @param {Array} newPins Array of new certificate pins
- * @returns {Object} Update result
  */
-export function updateCertificatePins(hostname, newPins) {
+export function updateCertificatePins(hostname: string, newPins: string[]): UpdateResult {
   try {
     if (!certificatePins[hostname]) {
       certificatePins[hostname] = {
@@ -268,10 +299,8 @@ export function updateCertificatePins(hostname, newPins) {
 
 /**
  * Get current certificate pins for a hostname
- * @param {string} hostname Hostname to query
- * @returns {Object} Pin configuration
  */
-export function getCertificatePins(hostname) {
+export function getCertificatePins(hostname: string): PinConfig {
   return certificatePins[hostname] || {
     pins: [],
     enforceInDev: false,
@@ -281,11 +310,8 @@ export function getCertificatePins(hostname) {
 
 /**
  * Test certificate pinning by connecting to a server
- * @param {string} hostname Hostname to test
- * @param {number} port Port to connect to (default: 443)
- * @returns {Promise<Object>} Test result
  */
-export async function testCertificatePinning(hostname, port = 443) {
+export async function testCertificatePinning(hostname: string, port: number = 443): Promise<TestResult> {
   return new Promise((resolve) => {
     const agent = createPinnedHttpsAgent(hostname);
     

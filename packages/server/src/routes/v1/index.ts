@@ -9,7 +9,7 @@ import territoryRoutes from './territoryRoutes';
 import unitRoutes from './unitRoutes';
 
 // Create the main router
-const router = Router();
+const router: Router = Router();
 
 // Mount all route modules with their respective prefixes
 // Mount all route modules under their base paths
