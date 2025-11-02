@@ -469,7 +469,9 @@ export function enhancedErrorHandler(
   _next: (err?: unknown) => void
 ): void {
   // Generate correlation ID for request tracing
-  const requestId = req.correlationId || req.headers['x-request-id'] || generateRequestId();
+  const headerRequestId = req.headers['x-request-id'];
+  const requestIdValue = typeof headerRequestId === 'string' ? headerRequestId : undefined;
+  const requestId = req.correlationId || requestIdValue || generateRequestId();
   
   // Standardize the error
   const { errorCode, message, details } = standardizeError(error, 'An internal server error occurred');
@@ -487,12 +489,15 @@ export function enhancedErrorHandler(
     }
   });
   
+  // Extract stack trace if error is an Error object
+  const errorStack = error instanceof Error ? error.stack : undefined;
+  
   // Log the error for debugging (in real apps you'd use a proper logger)
   console.error('[Enhanced Error Handler]', {
     requestId,
     errorCode,
     message,
-    stack: error?.stack,
+    stack: errorStack,
     method: req.method,
     url: req.url
   });
