@@ -3,48 +3,73 @@
  * @author Attrition Development Team
  */
 
-"use strict";
+import { Rule } from 'eslint';
+import { getProjectConfig } from '../utils/metricsIntegration';
 
-// Import metrics integration utilities
-const { getProjectConfig } = require('../utils/metricsIntegration');
+/**
+ * ID pattern tracking structure
+ */
+interface IdPattern {
+  type: string;
+  node: any;
+  code: string;
+}
+
+/**
+ * ID patterns container
+ */
+interface IdPatterns {
+  objectId: IdPattern[];
+  uuid: IdPattern[];
+  mixed: IdPattern[];
+}
+
+/**
+ * Rule configuration options
+ */
+interface IdConsistencyOptions {
+  targetScore?: number;
+  criticalViolations?: string[];
+  allowInMigration?: boolean;
+}
 
 /**
  * Rule to enforce consistent ID patterns across the codebase
  * Critical for migration from ObjectId to UUID patterns
  */
-module.exports = {
+const rule: Rule.RuleModule = {
   meta: {
-    type: "problem",
+    type: 'problem',
     docs: {
-      description: "Enforce consistent ID patterns (ObjectId vs UUID) across codebase",
-      category: "Best Practices",
+      description: 'Enforce consistent ID patterns (ObjectId vs UUID) across codebase',
+      category: 'Best Practices',
       recommended: true,
-      url: "https://github.com/attrition-game/server/blob/main/docs/eslint-rules.md#id-consistency"
+      url: 'https://github.com/attrition-game/server/blob/main/docs/eslint-rules.md#id-consistency'
     },
     fixable: null, // No automatic fix for this complex rule
     schema: [
       {
-        type: "object",
+        type: 'object',
         properties: {
           targetScore: {
-            type: "number",
+            type: 'number',
             minimum: 0,
             maximum: 100,
             default: 90
           },
           criticalViolations: {
-            type: "array",
+            type: 'array',
             items: {
-              type: "string"
+              type: 'string'
             },
             default: [
-              "mongoose\\.Types\\.ObjectId",
-              "new ObjectId",
-              "ObjectId\\("
+              'mongoose\\.Types\\.ObjectId',
+              'new ObjectId',
+              'ObjectId\\('
             ]
           },
           allowInMigration: {
-            type: "boolean",
+            type: 'boolean',
             default: false
           }
         },
@@ -52,40 +77,42 @@ module.exports = {
       }
     ],
     messages: {
-      inconsistentIdUsage: "Inconsistent ID usage detected: {{found}} vs expected {{expected}}. Use UUID for new code.",
-      mixedIdPatterns: "Mixed ID patterns in file: {{patterns}}. Standardize to UUID pattern.",
-      criticalViolation: "Critical violation: {{violation}} found. Use UUID instead of ObjectId.",
-      migrationPhaseWarning: "ID inconsistency during migration phase {{phase}}. Review migration strategy."
+      inconsistentIdUsage:
+        'Inconsistent ID usage detected: {{found}} vs expected {{expected}}. Use UUID for new code.',
+      mixedIdPatterns: 'Mixed ID patterns in file: {{patterns}}. Standardize to UUID pattern.',
+      criticalViolation: 'Critical violation: {{violation}} found. Use UUID instead of ObjectId.',
+      migrationPhaseWarning:
+        'ID inconsistency during migration phase {{phase}}. Review migration strategy.'
     }
   },
 
-  create(context) {
+  create(context: Rule.RuleContext): Rule.RuleListener {
     const config = getProjectConfig();
-    const options = context.options[0] || {};
+    const options: IdConsistencyOptions = context.options[0] || {};
     const targetScore = options.targetScore || 90;
     const criticalViolations = options.criticalViolations || [
-      "mongoose\\.Types\\.ObjectId",
-      "new ObjectId",
-      "ObjectId\\("
+      'mongoose\\.Types\\.ObjectId',
+      'new ObjectId',
+      'ObjectId\\('
     ];
     const allowInMigration = options.allowInMigration || false;
 
     // Track ID patterns found in the file
-    const idPatterns = {
+    const idPatterns: IdPatterns = {
       objectId: [],
       uuid: [],
       mixed: []
     };
 
-    // Regular expressions for detecting ID patterns
-    const patterns = {
-      objectId: /\b(mongoose\.Types\.ObjectId|new ObjectId|ObjectId\()\b/g,
-      uuid: /\b(uuid|UUID)\b/g,
-      mongooseSchema: /mongoose\.Schema|\.ObjectId\b/g,
-      typegooseModel: /\@prop\(\s*{\s*type:\s*(String|Number)\b/g
-    };
-
-    function reportInconsistency(node, found, expected, patterns) {
+    /**
+     * Report an inconsistency violation
+     */
+    function reportInconsistency(
+      node: any,
+      found: string,
+      expected: string,
+      patterns: string[]
+    ): void {
       context.report({
         node,
         messageId: found === 'mixed' ? 'mixedIdPatterns' : 'inconsistentIdUsage',
@@ -97,8 +124,11 @@ module.exports = {
       });
     }
 
-    function isCriticalViolation(code) {
-      return criticalViolations.some(violation => {
+    /**
+     * Check if code contains a critical violation
+     */
+    function isCriticalViolation(code: string): boolean {
+      return criticalViolations.some((violation) => {
         const regex = new RegExp(violation);
         return regex.test(code);
       });
@@ -106,7 +136,7 @@ module.exports = {
 
     return {
       // Check import statements
-      ImportDeclaration(node) {
+      ImportDeclaration(node: any): void {
         const source = node.source.value;
         if (source.includes('mongoose') || source.includes('mongodb')) {
           idPatterns.objectId.push({
@@ -125,7 +155,7 @@ module.exports = {
       },
 
       // Check variable declarations and assignments
-      VariableDeclarator(node) {
+      VariableDeclarator(node: any): void {
         if (node.init && node.init.type === 'CallExpression') {
           const callee = node.init.callee;
           if (callee.name === 'ObjectId' || callee.name === 'require') {
@@ -144,7 +174,7 @@ module.exports = {
       },
 
       // Check function calls
-      CallExpression(node) {
+      CallExpression(node: any): void {
         const callee = node.callee;
 
         // Check for ObjectId() calls
@@ -157,7 +187,11 @@ module.exports = {
         }
 
         // Check for mongoose.Types.ObjectId calls
-        if (callee.object && callee.object.name === 'Types' && callee.property.name === 'ObjectId') {
+        if (
+          callee.object &&
+          callee.object.name === 'Types' &&
+          callee.property.name === 'ObjectId'
+        ) {
           idPatterns.objectId.push({
             type: 'mongoose_call',
             node,
@@ -176,9 +210,13 @@ module.exports = {
       },
 
       // Check property access (like mongoose.Schema.Types.ObjectId)
-      MemberExpression(node) {
-        if (node.object && node.object.name === 'mongoose' &&
-            node.property && node.property.name === 'Schema') {
+      MemberExpression(node: any): void {
+        if (
+          node.object &&
+          node.object.name === 'mongoose' &&
+          node.property &&
+          node.property.name === 'Schema'
+        ) {
           idPatterns.objectId.push({
             type: 'schema_usage',
             node,
@@ -188,7 +226,7 @@ module.exports = {
       },
 
       // Check for string literals that might indicate ID patterns
-      Literal(node) {
+      Literal(node: any): void {
         if (typeof node.value === 'string') {
           // Check for ObjectId in string literals (comments, documentation)
           if (node.value.includes('ObjectId')) {
@@ -210,7 +248,7 @@ module.exports = {
       },
 
       // Check type annotations and JSDoc comments
-      TSTypeReference(node) {
+      TSTypeReference(node: any): void {
         if (node.typeName && node.typeName.name) {
           if (node.typeName.name.includes('ObjectId')) {
             idPatterns.objectId.push({
@@ -223,7 +261,7 @@ module.exports = {
       },
 
       // End of file analysis
-      'Program:exit'() {
+      'Program:exit'(): void {
         const totalObjectId = idPatterns.objectId.length;
         const totalUuid = idPatterns.uuid.length;
 
@@ -246,8 +284,8 @@ module.exports = {
 
         // Calculate consistency score
         const totalIdReferences = totalObjectId + totalUuid;
-        const consistencyScore = totalIdReferences > 0 ?
-          (totalUuid / totalIdReferences) * 100 : 100;
+        const consistencyScore =
+          totalIdReferences > 0 ? (totalUuid / totalIdReferences) * 100 : 100;
 
         // Report if below target score
         if (consistencyScore < targetScore) {
@@ -255,26 +293,31 @@ module.exports = {
           const expected = 'UUID';
 
           // Find the main reporting node (first occurrence)
-          const mainNode = idPatterns.objectId.length > 0 ?
-            idPatterns.objectId[0].node : idPatterns.uuid[0].node;
+          const mainNode =
+            idPatterns.objectId.length > 0
+              ? idPatterns.objectId[0].node
+              : idPatterns.uuid[0].node;
 
           reportInconsistency(
             mainNode,
             found,
             expected,
-            [...idPatterns.objectId.map(p => p.type), ...idPatterns.uuid.map(p => p.type)]
+            [
+              ...idPatterns.objectId.map((p) => p.type),
+              ...idPatterns.uuid.map((p) => p.type)
+            ]
           );
         }
 
         // Migration phase warning if configured
-        if (allowInMigration && config.projectRules?.migrationPhase) {
+        if (allowInMigration && config.projectRules?.legacyPatterns) {
           const hasMixedPatterns = totalObjectId > 0 && totalUuid > 0;
           if (hasMixedPatterns) {
             context.report({
               node: idPatterns.objectId[0]?.node || idPatterns.uuid[0]?.node,
               messageId: 'migrationPhaseWarning',
               data: {
-                phase: config.projectRules.migrationPhase
+                phase: config.projectRules.legacyPatterns.migrationPhase
               }
             });
           }
@@ -283,3 +326,5 @@ module.exports = {
     };
   }
 };
+
+export default rule;
