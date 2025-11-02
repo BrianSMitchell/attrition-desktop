@@ -3,7 +3,7 @@
  * These routes showcase the migration from old response formats to new standardized ones
  */
 
-import express, { Request, Response } from 'express';
+import express, { Router, Request, Response } from 'express';
 import { 
   createSuccessResponse, 
   createErrorResponse, 
@@ -13,7 +13,7 @@ import {
   standardizeError
 } from '@game/shared';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 /**
  * GET /api/test/hello - Simple success response demonstration

@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
@@ -6,7 +6,7 @@ import { supabase } from '../config/supabase';
 import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 import { HTTP_STATUS, RESPONSE_FORMAT } from '../constants/response-formats';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 // Get message summary (unread count, etc.)
 router.get('/summary', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {

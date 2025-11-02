@@ -8,7 +8,7 @@ import { HTTP_STATUS } from '@game/shared';
 import { DefenseKey, getDefensesList } from '@game/shared';
 import { EmpireResolutionService } from '../../services/empire/EmpireResolutionService';
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate);
 

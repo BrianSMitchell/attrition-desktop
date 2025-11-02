@@ -3,8 +3,8 @@ import { authenticate, AuthRequest } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/errorHandler';
 
 // Create base router with authentication
-const createBaseRouter = () => {
-  const router = Router();
+const createBaseRouter = (): Router => {
+  const router: Router = Router();
   router.use(authenticate); // All game routes require authentication
   return router;
 };

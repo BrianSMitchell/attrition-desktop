@@ -9,7 +9,7 @@ import { asyncHandler } from '../../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../../middleware/auth';
 import { EmpireResolutionService } from '../../services/empire/EmpireResolutionService';
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate);
 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import gameRouter from '../game/tech';
 
-const router = Router();
+const router: Router = Router();
 
 // Add deprecation notice middleware
 router.use((req, res, next) => {

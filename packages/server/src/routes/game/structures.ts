@@ -12,7 +12,7 @@ import { BuildingKey } from '@game/shared';
 import { StructureService } from '../../services/structures/StructureService';
 import { EmpireResolutionService } from '../../services/empire/EmpireResolutionService';
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate);
 

@@ -7,7 +7,7 @@ import { supabase } from '../config/supabase';
 
 import { HTTP_STATUS } from '@game/shared';
 import { GAME_CONSTANTS } from '@game/shared';
-const router = Router();
+const router: Router = Router();
 
 function requireAdminSecret(req: Request, res: Response): boolean {
   const secret = process.env[ENV_VARS.ADMIN_MAINTENANCE_SECRET];

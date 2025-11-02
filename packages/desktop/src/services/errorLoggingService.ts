@@ -1,11 +1,11 @@
 import { app } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
+import type { Logger, LoggerContext } from '../types/index.js';
 import desktopDb from '../db.js';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { ENV_VARS } = require('../../../shared/dist/cjs/index.js');
-
 
 // Error categories for classification
 export const ErrorCategory = {
@@ -20,7 +20,9 @@ export const ErrorCategory = {
   EXTERNAL_SERVICE: 'EXTERNAL_SERVICE',
   SYSTEM: 'SYSTEM',
   RENDERER: 'RENDERER'
-};
+} as const;
+
+export type ErrorCategoryType = typeof ErrorCategory[keyof typeof ErrorCategory];
 
 // Error severity levels
 export const ErrorSeverity = {
@@ -29,11 +31,41 @@ export const ErrorSeverity = {
   WARN: 'WARN',
   ERROR: 'ERROR',
   FATAL: 'FATAL'
-};
+} as const;
+
+export type ErrorSeverityType = typeof ErrorSeverity[keyof typeof ErrorSeverity];
+
+interface ErrorLogEntryData {
+  id?: string;
+  timestamp?: string;
+  level?: ErrorSeverityType;
+  category?: ErrorCategoryType;
+  message?: string;
+  error?: any;
+  context?: LoggerContext;
+  correlationId?: string;
+  process?: string;
+  fileName?: string;
+  lineNumber?: number;
+  columnNumber?: number;
+}
 
 // Error log entry structure
 export class ErrorLogEntry {
-  constructor(data) {
+  id: string;
+  timestamp: string;
+  level: ErrorSeverityType;
+  category: ErrorCategoryType;
+  message: string;
+  error?: any;
+  context: LoggerContext;
+  correlationId?: string;
+  process: string;
+  fileName?: string;
+  lineNumber?: number;
+  columnNumber?: number;
+
+  constructor(data: ErrorLogEntryData) {
     this.id = data.id || this.generateId();
     this.timestamp = data.timestamp || new Date().toISOString();
     this.level = data.level || ErrorSeverity.ERROR;
@@ -73,11 +105,25 @@ function redactSensitive(input) {
   }
 }
 
+interface LogOptions {
+  correlationId?: string;
+  process?: string;
+  fileName?: string;
+  lineNumber?: number;
+  columnNumber?: number;
+}
+
 /**
  * Desktop Error Logging Service
  * Provides structured error logging with file persistence and database storage
  */
-class DesktopErrorLogger {
+class DesktopErrorLogger implements Logger {
+  private logDir: string;
+  private logFile: string;
+  private maxFileSizeMB: number;
+  private maxLogFiles: number;
+  private logLevel: ErrorSeverityType;
+
   constructor() {
     this.logDir = path.join(app.getPath('userData'), 'logs');
     this.logFile = path.join(this.logDir, 'desktop-errors.log');
@@ -104,7 +150,7 @@ class DesktopErrorLogger {
   /**
    * Log an error with structured data
    */
-  log(level, category, message, error = null, context = {}, options = {}) {
+  log(level: ErrorSeverityType, category: ErrorCategoryType, message: string, error: Error | null = null, context: LoggerContext = {}, options: LogOptions = {}): string | undefined {
     try {
       // Check if we should log based on severity level
       if (!this.shouldLog(level)) {
@@ -314,24 +360,24 @@ class DesktopErrorLogger {
   /**
    * Convenience methods for different log levels
    */
-  debug(message, context = {}, category = ErrorCategory.SYSTEM) {
-    return this.log(ErrorSeverity.DEBUG, category, message, null, context);
+  debug(message: string, error: Error | null = null, context: LoggerContext = {}): void {
+    this.log(ErrorSeverity.DEBUG, ErrorCategory.SYSTEM, message, error, context);
   }
 
-  info(message, context = {}, category = ErrorCategory.SYSTEM) {
-    return this.log(ErrorSeverity.INFO, category, message, null, context);
+  info(message: string, error: Error | null = null, context: LoggerContext = {}): void {
+    this.log(ErrorSeverity.INFO, ErrorCategory.SYSTEM, message, error, context);
   }
 
-  warn(message, error = null, context = {}, category = ErrorCategory.SYSTEM) {
-    return this.log(ErrorSeverity.WARN, category, message, error, context);
+  warn(message: string, error: Error | null = null, context: LoggerContext = {}): void {
+    this.log(ErrorSeverity.WARN, ErrorCategory.SYSTEM, message, error, context);
   }
 
-  error(message, error = null, context = {}, category = ErrorCategory.SYSTEM) {
-    return this.log(ErrorSeverity.ERROR, category, message, error, context);
+  error(message: string, error: Error | unknown = null, context: LoggerContext = {}): void {
+    this.log(ErrorSeverity.ERROR, ErrorCategory.SYSTEM, message, error as Error | null, context);
   }
 
-  fatal(message, error = null, context = {}, category = ErrorCategory.SYSTEM) {
-    return this.log(ErrorSeverity.FATAL, category, message, error, context);
+  fatal(message: string, error: Error | unknown = null, context: LoggerContext = {}): void {
+    this.log(ErrorSeverity.FATAL, ErrorCategory.SYSTEM, message, error as Error | null, context);
   }
 
   /**

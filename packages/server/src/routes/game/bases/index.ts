@@ -20,7 +20,7 @@ import {
 } from '@game/shared';
 import { EmpireResolutionService } from '../../../services/EmpireResolutionService';
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate);
 
