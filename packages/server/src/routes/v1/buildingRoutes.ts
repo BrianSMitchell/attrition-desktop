@@ -6,6 +6,7 @@ import { supabase } from '../../config/supabase';
 import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { HTTP_STATUS, ERROR_MESSAGES } from '../../constants/response-formats';
 import { createBaseRouter, asyncHandler } from './baseRouter';
+import { createSuccessResponse, createErrorResponse } from '../../utils/responseBuilder';
 import {
   getBuildingsList,
   BuildingKey,

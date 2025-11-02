@@ -3,6 +3,7 @@ import { getIO } from '../../index';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
 import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { getUnitSpec } from '@game/shared';
+import { ValidationError, NotFoundError, DatabaseError, BadRequestError, ConflictError } from '../../types/error.types';
 export interface CoordinateParsed {
   server: string;
   galaxy: number;
@@ -43,7 +44,7 @@ export class FleetMovementService {
   static parseCoordinate(coord: string): CoordinateParsed {
     const match = coord.match(/^([A-Z])(\d{2}):(\d{2}):(\d{2}):(\d{2})$/);
     if (!match) {
-      throw new Error(`Invalid coordinate format: ${coord}`);
+      throw new ValidationError(`Invalid coordinate format: ${coord}`, { coordinate: coord });
     }
 
     return {
