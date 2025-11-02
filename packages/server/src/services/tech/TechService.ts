@@ -3,6 +3,7 @@ import { CapacityService } from '../bases/CapacityService';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
 import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { getTechnologyList, getTechSpec, canStartTechLevel, getTechCreditCostForLevel, TechnologyKey } from '@game/shared';
+import { NotFoundError, ValidationError, ConflictError, BadRequestError, DatabaseError } from '../../types/error.types';
 export class TechService {
   static async getTechLevels(empireId: string): Promise<Record<string, number>> {
     const { data } = await supabase
@@ -79,15 +80,12 @@ export class TechService {
     
     // Ownership
     const loc = await supabase.from(DB_TABLES.LOCATIONS).select(DB_FIELDS.LOCATIONS.OWNER_ID).eq('coord', baseCoord).maybeSingle();
-    console.log('[SupabaseTechService.start] Location check:', { found: !!loc.data, ownerId: loc.data?.owner_id });
     
     if (!loc.data) {
-      console.log('[SupabaseTechService.start] Location not found');
-      return { success: false as const, code: ERROR_MESSAGES.NOT_FOUND, message: ERROR_MESSAGES.LOCATION_NOT_FOUND };
+      throw new NotFoundError('Location', baseCoord);
     }
     if (String(loc.data.owner_id || '') !== String(userId)) {
-      console.log('[SupabaseTechService.start] Not owner:', { expected: userId, actual: loc.data.owner_id });
-      return { success: false as const, code: 'NOT_OWNER', message: 'You do not own this location' };
+      throw new ConflictError('You do not own this location', { baseCoord });
     }
 
     // State
@@ -110,30 +108,23 @@ export class TechService {
 
     // Check eligibility
     const check = canStartTechLevel({ techLevels, baseLabTotal, credits }, spec, desiredLevel);
-    console.log('[SupabaseTechService.start] Eligibility check:', check);
     
     if (!check.canStart) {
-      console.log('[SupabaseTechService.start] Requirements not met:', check.reasons);
-      return { success: false as const, code: 'TECH_REQUIREMENTS', message: check.reasons.join(' ') };
+      throw new ValidationError('Technology requirements not met', { reasons: check.reasons });
     }
 
     // Capacity & cost
-    console.log('[SupabaseTechService.start] Getting capacities...');
     let caps;
     try {
       caps = await CapacityService.getBaseCapacities(empireId, baseCoord);
-      console.log('[SupabaseTechService.start] Capacities:', caps);
     } catch (error) {
-      console.error('[SupabaseTechService.start] Error getting capacities:', error);
-      return { success: false as const, code: 'CAPACITY_ERROR', message: `Failed to get capacity: ${error}` };
+      throw new BadRequestError(`Failed to get capacity: ${error}`);
     }
     
     const perHour = Math.max(0, Number((caps as any)?.research?.value || 0));
-    console.log('[SupabaseTechService.start] Research capacity per hour:', perHour);
     
     if (!(perHour > 0)) {
-      console.log('[SupabaseTechService.start] No research capacity');
-      return { success: false as const, code: 'NO_CAPACITY', message: 'Research capacity is zero at this base.' };
+      throw new BadRequestError('Research capacity is zero at this base.');
     }
 
     const cost = getTechCreditCostForLevel(spec, desiredLevel);

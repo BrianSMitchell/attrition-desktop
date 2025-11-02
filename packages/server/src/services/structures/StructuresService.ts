@@ -12,6 +12,13 @@ import {
   getStructureCreditCostForLevel,
   computeEnergyBalance,
 } from '@game/shared';
+import {
+  NotFoundError,
+  DatabaseError,
+  ValidationError,
+  ConflictError,
+  BadRequestError,
+} from '../../types/error.types';
 
 /**
  * Helper to map tech levels from Supabase empire
@@ -109,8 +116,15 @@ export class StructuresService {
       .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
-    if (error || !empire) {
-      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
+    if (error) {
+      throw new DatabaseError('Failed to fetch empire tech levels', 'GET_EMPIRE_TECH', {
+        empireId,
+        supabaseError: error.message
+      });
+    }
+
+    if (!empire) {
+      throw new NotFoundError('Empire', empireId);
     }
 
     const techLevels = mapTechLevels(empire.tech_levels);
@@ -143,13 +157,7 @@ export class StructuresService {
   static async start(empireId: string, locationCoord: string, buildingKey: BuildingKey): Promise<ServiceResult> {
     // Validate buildingKey
     if (!buildingKey || (typeof buildingKey === 'string' && buildingKey.trim().length === 0)) {
-      return {
-        success: false as const,
-        code: 'INVALID_REQUEST',
-        message: 'catalogKey is required',
-        details: { field: 'catalogKey' },
-        error: 'catalogKey is required',
-      };
+      throw new ValidationError('catalogKey is required', { field: 'catalogKey' });
     }
 
     // Load empire
@@ -159,8 +167,15 @@ export class StructuresService {
       .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
-    if (empireError || !empire) {
-      return formatError(ERROR_MESSAGES.NOT_FOUND, ERROR_MESSAGES.EMPIRE_NOT_FOUND);
+    if (empireError) {
+      throw new DatabaseError('Failed to fetch empire', 'GET_EMPIRE', {
+        empireId,
+        supabaseError: empireError.message
+      });
+    }
+
+    if (!empire) {
+      throw new NotFoundError('Empire', empireId);
     }
 
     // Validate location exists and is owned by this empire's user
@@ -170,12 +185,19 @@ export class StructuresService {
       .eq('coord', locationCoord)
       .maybeSingle();
 
-    if (locationError || !location) {
-      return formatError(ERROR_MESSAGES.NOT_FOUND, ERROR_MESSAGES.LOCATION_NOT_FOUND);
+    if (locationError) {
+      throw new DatabaseError('Failed to fetch location', 'GET_LOCATION', {
+        locationCoord,
+        supabaseError: locationError.message
+      });
+    }
+
+    if (!location) {
+      throw new NotFoundError('Location', locationCoord);
     }
 
     if (location.owner !== empire.user_id) {
-      return formatError('NOT_OWNER', 'You do not own this location', { locationCoord });
+      throw new ConflictError('You do not own this location', { locationCoord });
     }
 
     // Get building spec
@@ -185,14 +207,7 @@ export class StructuresService {
     const techLevels = mapTechLevels(empire.tech_levels);
     const techCheck = canStartBuildingByTech(techLevels as any, spec);
     if (!techCheck.ok) {
-      const reasons = techCheck.unmet.map(
-        (u) => `Requires ${u.key} ${u.requiredLevel} (current ${u.currentLevel}).`
-      );
-      return {
-        ...formatError('TECH_REQUIREMENTS', 'Technology requirements not met', { unmet: techCheck.unmet }),
-        error: reasons.join(' '),
-        reasons,
-      };
+      throw new ValidationError('Technology requirements not met', { unmet: techCheck.unmet });
     }
 
     // Check for existing building with this catalog key

@@ -4,6 +4,7 @@ import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { GAME_CONSTANTS } from '@game/shared';
 import { ENV_VARS } from '@game/shared';
 import { EconomyService } from '../economy/EconomyService';
+import { NotFoundError, DatabaseError } from '../../types/error.types';
 
 export class ResourceService {
   /**
@@ -39,8 +40,15 @@ const creditsPerHour = await EconomyService.sumCreditsPerHourForEmpire(empireId)
       .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
-    if (error || !empire) {
-      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
+    if (error) {
+      throw new DatabaseError('Failed to fetch empire', 'GET_EMPIRE', {
+        empireId,
+        supabaseError: error.message
+      });
+    }
+
+    if (!empire) {
+      throw new NotFoundError('Empire', empireId);
     }
 
     const now = new Date();
@@ -79,8 +87,15 @@ const creditsPerHour = await EconomyService.sumCreditsPerHourForEmpire(empireId)
       .eq(DB_FIELDS.BUILDINGS.ID, empireId)
       .maybeSingle();
 
-    if (error || !empire) {
-      throw new Error(ERROR_MESSAGES.EMPIRE_NOT_FOUND);
+    if (error) {
+      throw new DatabaseError('Failed to fetch empire', 'GET_EMPIRE', {
+        empireId,
+        supabaseError: error.message
+      });
+    }
+
+    if (!empire) {
+      throw new NotFoundError('Empire', empireId);
     }
 
     const now = new Date();
