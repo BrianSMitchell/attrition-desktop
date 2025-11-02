@@ -12,7 +12,9 @@ import {
   ApiErrorCode, 
   ApiErrorDetail,
   PaginationMeta,
-  RateLimitInfo
+  RateLimitInfo,
+  OperationStatus,
+  HealthStatus
 } from './types';
 
 /**
@@ -133,18 +135,18 @@ export function createBulkOperationResponse<T>(
 /**
  * Create an async operation response
  */
-export function createAsyncOperationResponse(
+export function createAsyncOperationResponse<T = unknown>(
   operationId: string,
-  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled',
+  status: OperationStatus,
   message: string,
   options?: {
     progress?: number;
     estimatedCompletionTime?: string;
     pollIntervalSeconds?: number;
-    result?: any;
+    result?: T;
     error?: ApiErrorDetail;
   }
-): AsyncOperationResponse {
+): AsyncOperationResponse<T> {
   return {
     operationId,
     status,
@@ -162,12 +164,12 @@ export function createAsyncOperationResponse(
  */
 export function createHealthCheckResponse(
   service: string,
-  status: 'healthy' | 'degraded' | 'unhealthy',
+  status: HealthStatus,
   options?: {
     version?: string;
     uptime?: number;
     dependencies?: Record<string, {
-      status: 'healthy' | 'degraded' | 'unhealthy';
+      status: HealthStatus;
       responseTime?: number;
       message?: string;
     }>;
@@ -365,12 +367,13 @@ export function standardizeError(
 
 /**
  * Wrap async functions with consistent error handling
+ * @template T The async function type to wrap
  */
-export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
+export function withErrorHandling<T extends (...args: Parameters<T>) => Promise<unknown>>(
   fn: T,
   defaultErrorMessage?: string
 ): T {
-  return (async (...args: Parameters<T>) => {
+  return (async (...args: Parameters<T>): Promise<unknown> => {
     try {
       return await fn(...args);
     } catch (error) {
@@ -382,9 +385,12 @@ export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
 
 /**
  * Express middleware helper for consistent response formatting
+ * Sends an API response with appropriate status code
  */
 export function sendApiResponse<T>(
-  res: any, // Express Response object
+  res: {
+    status(code: number): { json(body: unknown): void };
+  },
   response: EnhancedApiResponse<T>
 ): void {
   res.status(response.statusCode).json(response);
@@ -429,14 +435,38 @@ export function mergeApiResponses<T>(responses: EnhancedApiResponse<T>[]): BulkO
 }
 
 /**
+ * Express request-like interface for error handler
+ */
+interface ErrorHandlerRequest {
+  correlationId?: string;
+  headers: Record<string, string | string[] | undefined>;
+  method: string;
+  url: string;
+  get(name: string): string | undefined;
+  ip?: string;
+}
+
+/**
+ * Express response-like interface for error handler
+ */
+interface ErrorHandlerResponse {
+  status(code: number): { json(body: unknown): void };
+}
+
+/**
  * Enhanced error handler middleware for Express.js
  * Converts all errors into standardized API error responses
+ * 
+ * @param error - The error that was thrown
+ * @param req - Express request object
+ * @param res - Express response object
+ * @param _next - Express next function (unused but required for Express middleware signature)
  */
 export function enhancedErrorHandler(
-  error: any,
-  req: any, // Express Request
-  res: any, // Express Response  
-  next: any  // Express NextFunction
+  error: unknown,
+  req: ErrorHandlerRequest,
+  res: ErrorHandlerResponse,
+  _next: (err?: unknown) => void
 ): void {
   // Generate correlation ID for request tracing
   const requestId = req.correlationId || req.headers['x-request-id'] || generateRequestId();

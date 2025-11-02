@@ -201,7 +201,7 @@ export interface BulkOperationResponse<T = any> {
 /**
  * Async operation response (for long-running operations)
  */
-export interface AsyncOperationResponse {
+export interface AsyncOperationResponse<T = unknown> {
   /** Operation ID for tracking */
   operationId: string;
   /** Current status of the operation */
@@ -215,10 +215,20 @@ export interface AsyncOperationResponse {
   /** Polling interval recommendation in seconds */
   pollIntervalSeconds?: number;
   /** Operation results (when completed) */
-  result?: any;
+  result?: T;
   /** Error information (when failed) */
   error?: ApiErrorDetail;
 }
+
+/**
+ * Operating status type for async operations
+ */
+export type OperationStatus = 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
+
+/**
+ * Health status type for service health checks
+ */
+export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy';
 
 /**
  * Health check response
@@ -227,7 +237,7 @@ export interface HealthCheckResponse {
   /** Service name */
   service: string;
   /** Overall health status */
-  status: 'healthy' | 'degraded' | 'unhealthy';
+  status: HealthStatus;
   /** Service version */
   version: string;
   /** Check timestamp */
@@ -236,7 +246,7 @@ export interface HealthCheckResponse {
   uptime: number;
   /** Dependency health status */
   dependencies: Record<string, {
-    status: 'healthy' | 'degraded' | 'unhealthy';
+    status: HealthStatus;
     responseTime?: number;
     message?: string;
   }>;
