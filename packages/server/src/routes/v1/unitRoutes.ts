@@ -5,6 +5,7 @@ import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
 import { HTTP_STATUS } from '@game/shared';
 import { createBaseRouter, AuthRequest, asyncHandler } from './baseRouter';
 import { getUnitsList, UnitKey, getDefensesList, getUnitSpec, DefenseKey } from '@game/shared';
+import { createSuccessResponse, createErrorResponse } from '../../utils/responseBuilder';
 
 const router = createBaseRouter();
 
@@ -13,12 +14,12 @@ const router = createBaseRouter();
  */
 router.get('/catalog', asyncHandler(async (_req: AuthRequest, res: Response) => {
   const catalog = getUnitsList();
-  res.json({ success: true, data: { catalog } });
+  res.json(createSuccessResponse({ catalog }));
 }));
 
 router.get('/defenses/catalog', asyncHandler(async (_req: AuthRequest, res: Response) => {
   const catalog = getDefensesList();
-  res.json({ success: true, data: { catalog } });
+  res.json(createSuccessResponse({ catalog }));
 }));
 
 /**
@@ -36,11 +37,11 @@ router.get('/defenses/status', asyncHandler(async (req: AuthRequest, res: Respon
     const e = await supabase.from(DB_TABLES.EMPIRES).select(DB_FIELDS.BUILDINGS.ID).eq(DB_FIELDS.EMPIRES.USER_ID, userId).maybeSingle();
     if (e.data?.id) empireId = String(e.data.id);
   }
-  if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
+  if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json(createErrorResponse(ERROR_MESSAGES.EMPIRE_NOT_FOUND, 'EMPIRE_NOT_FOUND'));
 
   const { DefensesService } = await import('../../services/defenses/DefensesService');
   const status = await DefensesService.getStatus(empireId);
-  return res.json({ success: true, data: { status } });
+  return res.json(createSuccessResponse({ status }));
 }));
 
 /**
@@ -58,7 +59,7 @@ router.get('/defenses/queue', asyncHandler(async (req: AuthRequest, res: Respons
     const e = await supabase.from(DB_TABLES.EMPIRES).select(DB_FIELDS.BUILDINGS.ID).eq(DB_FIELDS.EMPIRES.USER_ID, userId).maybeSingle();
     if (e.data?.id) empireId = String(e.data.id);
   }
-  if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
+  if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json(createErrorResponse(ERROR_MESSAGES.EMPIRE_NOT_FOUND, 'EMPIRE_NOT_FOUND'));
 
   const locationCoord = String(req.query.locationCoord || '').trim() || undefined;
 
@@ -83,7 +84,7 @@ router.get('/defenses/queue', asyncHandler(async (req: AuthRequest, res: Respons
     baseCoord: String(it.location_coord || '')
   }));
 
-  return res.json({ success: true, data: { queue } });
+  return res.json(createSuccessResponse({ queue }));
 }));
 
 /**
@@ -101,11 +102,11 @@ router.post('/defenses/start', asyncHandler(async (req: AuthRequest, res: Respon
     const e = await supabase.from(DB_TABLES.EMPIRES).select(DB_FIELDS.BUILDINGS.ID).eq(DB_FIELDS.EMPIRES.USER_ID, userId).maybeSingle();
     if (e.data?.id) empireId = String(e.data.id);
   }
-  if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
+  if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json(createErrorResponse(ERROR_MESSAGES.EMPIRE_NOT_FOUND, 'EMPIRE_NOT_FOUND'));
 
   const { locationCoord, defenseKey } = req.body as { locationCoord?: string; defenseKey?: DefenseKey };
   if (!locationCoord || !defenseKey) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'locationCoord and defenseKey are required' });
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(createErrorResponse('locationCoord and defenseKey are required', 'MISSING_FIELDS'));
   }
 
   const { DefensesService } = await import('../../services/defenses/DefensesService');
@@ -123,11 +124,7 @@ router.post('/defenses/start', asyncHandler(async (req: AuthRequest, res: Respon
     return res.status(statusCode).json(errorResponse);
   }
 
-  return res.json({
-    success: true,
-    data: result.data,
-    message: result.message
-  });
+  return res.json(createSuccessResponse(result.data, result.message));
 }));
 
 /**
@@ -145,10 +142,10 @@ router.delete('/defenses/queue/:id', asyncHandler(async (req: AuthRequest, res: 
     const e = await supabase.from(DB_TABLES.EMPIRES).select(DB_FIELDS.BUILDINGS.ID).eq(DB_FIELDS.EMPIRES.USER_ID, userId).maybeSingle();
     if (e.data?.id) empireId = String(e.data.id);
   }
-  if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
+  if (!empireId) return res.status(HTTP_STATUS.NOT_FOUND).json(createErrorResponse(ERROR_MESSAGES.EMPIRE_NOT_FOUND, 'EMPIRE_NOT_FOUND'));
 
   const id = String(req.params.id || '').trim();
-  if (!id) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Invalid queue item id' });
+  if (!id) return res.status(HTTP_STATUS.BAD_REQUEST).json(createErrorResponse('Invalid queue item id', 'INVALID_ID'));
 
   // Fetch the queue item
   const { data: qItem } = await supabase
@@ -158,20 +155,16 @@ router.delete('/defenses/queue/:id', asyncHandler(async (req: AuthRequest, res: 
     .maybeSingle();
 
   if (!qItem || String((qItem as any).empire_id) !== empireId) {
-    return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.QUEUE_ITEM_NOT_FOUND });
+    return res.status(HTTP_STATUS.NOT_FOUND).json(createErrorResponse(ERROR_MESSAGES.QUEUE_ITEM_NOT_FOUND, 'QUEUE_ITEM_NOT_FOUND'));
   }
 
   if (String((qItem as any).status || '') !== 'pending') {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Only pending items can be cancelled' });
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(createErrorResponse('Only pending items can be cancelled', 'INVALID_STATUS'));
   }
 
   await supabase.from(DB_TABLES.DEFENSE_QUEUE).update({ status: 'cancelled' }).eq(DB_FIELDS.BUILDINGS.ID, id);
 
-  return res.json({
-    success: true,
-    data: { cancelledId: id },
-    message: 'Defense queue item cancelled'
-  });
+  return res.json(createSuccessResponse({ cancelledId: id }, 'Defense queue item cancelled'));
 }));
 
 /**
@@ -194,17 +187,12 @@ router.get('/units/status', asyncHandler(async (req: AuthRequest, res: Response)
     .maybeSingle();
 
   if (!userRow?.empire_id) {
-    return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
+    return res.status(HTTP_STATUS.NOT_FOUND).json(createErrorResponse(ERROR_MESSAGES.EMPIRE_NOT_FOUND, 'EMPIRE_NOT_FOUND'));
   }
 
   const locationCoord = String(req.query.locationCoord || '').trim();
   if (!locationCoord) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      code: 'INVALID_REQUEST',
-      message: 'locationCoord parameter is required',
-      details: { field: 'locationCoord' }
-    });
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(createErrorResponse('locationCoord parameter is required', 'INVALID_REQUEST'));
   }
 
   try {
@@ -220,17 +208,10 @@ router.get('/units/status', asyncHandler(async (req: AuthRequest, res: Response)
       count: Number(u.count || 0)
     }));
 
-    return res.json({
-      success: true,
-      data: { units: formattedUnits }
-    });
+    return res.json(createSuccessResponse({ units: formattedUnits }));
   } catch (error) {
     console.error('Error getting unit status:', error);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      code: ERROR_MESSAGES.INTERNAL_ERROR,
-      message: 'Failed to get unit status'
-    });
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(createErrorResponse('Failed to get unit status', 'INTERNAL_ERROR'));
   }
 }));
 
@@ -245,17 +226,12 @@ router.get('/base-units', asyncHandler(async (req: AuthRequest, res: Response) =
     .maybeSingle();
 
   if (!userRow?.empire_id) {
-    return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
+    return res.status(HTTP_STATUS.NOT_FOUND).json(createErrorResponse(ERROR_MESSAGES.EMPIRE_NOT_FOUND, 'EMPIRE_NOT_FOUND'));
   }
   
   const baseCoord = String(req.query.base || '').trim();
   if (!baseCoord) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      code: 'INVALID_REQUEST',
-      message: 'Missing base coordinate (?base=...)',
-      details: { field: 'base' }
-    });
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(createErrorResponse('Missing base coordinate (?base=...)', 'INVALID_REQUEST'));
   }
 
   try {
@@ -279,19 +255,10 @@ router.get('/base-units', asyncHandler(async (req: AuthRequest, res: Response) =
       }
     });
 
-    return res.json({
-      success: true,
-      data: { base: baseCoord, counts, total },
-      message: 'Base units loaded'
-    });
+    return res.json(createSuccessResponse({ base: baseCoord, counts, total }, 'Base units loaded'));
 
   } catch (err) {
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      code: ERROR_MESSAGES.INTERNAL_ERROR,
-      message: 'Failed to load base units',
-      details: { base: baseCoord }
-    });
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(createErrorResponse('Failed to load base units', 'INTERNAL_ERROR'));
   }
 }));
 
@@ -312,7 +279,7 @@ router.get('/units/queue', asyncHandler(async (req: AuthRequest, res: Response) 
     .maybeSingle();
 
   if (!userRow?.empire_id) {
-    return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
+    return res.status(HTTP_STATUS.NOT_FOUND).json(createErrorResponse(ERROR_MESSAGES.EMPIRE_NOT_FOUND, 'EMPIRE_NOT_FOUND'));
   }
 
   const base = String(req.query.base || '').trim();
@@ -341,7 +308,7 @@ router.get('/units/queue', asyncHandler(async (req: AuthRequest, res: Response) 
     };
   });
 
-  return res.json({ success: true, data: { queue: transformed } });
+  return res.json(createSuccessResponse({ queue: transformed }));
 }));
 
 /**
@@ -372,10 +339,10 @@ router.delete('/units/queue/:id', asyncHandler(async (req: AuthRequest, res: Res
     empireRow = byId.data as any;
   }
 
-  if (!empireRow) return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.EMPIRE_NOT_FOUND });
+  if (!empireRow) return res.status(HTTP_STATUS.NOT_FOUND).json(createErrorResponse(ERROR_MESSAGES.EMPIRE_NOT_FOUND, 'EMPIRE_NOT_FOUND'));
 
   const id = String(req.params.id || '').trim();
-  if (!id) return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Invalid queue item id' });
+  if (!id) return res.status(HTTP_STATUS.BAD_REQUEST).json(createErrorResponse('Invalid queue item id', 'INVALID_ID'));
 
   const { data: qItem } = await supabase
     .from(DB_TABLES.UNIT_QUEUE)
@@ -384,11 +351,11 @@ router.delete('/units/queue/:id', asyncHandler(async (req: AuthRequest, res: Res
     .maybeSingle();
 
   if (!qItem || String((qItem as any).empire_id) !== String((empireRow as any).id)) {
-    return res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: ERROR_MESSAGES.QUEUE_ITEM_NOT_FOUND });
+    return res.status(HTTP_STATUS.NOT_FOUND).json(createErrorResponse(ERROR_MESSAGES.QUEUE_ITEM_NOT_FOUND, 'QUEUE_ITEM_NOT_FOUND'));
   }
 
   if (String((qItem as any).status || '') !== 'pending') {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Only pending items can be cancelled' });
+    return res.status(HTTP_STATUS.BAD_REQUEST).json(createErrorResponse('Only pending items can be cancelled', 'INVALID_STATUS'));
   }
 
   // Optional refund
@@ -402,11 +369,7 @@ router.delete('/units/queue/:id', asyncHandler(async (req: AuthRequest, res: Res
 
   await supabase.from(DB_TABLES.UNIT_QUEUE).update({ status: 'cancelled' }).eq(DB_FIELDS.BUILDINGS.ID, id);
 
-  return res.json({
-    success: true,
-    data: { cancelledId: id, refundedCredits },
-    message: 'Unit production cancelled'
-  });
+  return res.json(createSuccessResponse({ cancelledId: id, refundedCredits }, 'Unit production cancelled'));
 }));
 
 export default router;

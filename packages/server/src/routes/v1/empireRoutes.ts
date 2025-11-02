@@ -5,6 +5,7 @@ import { HTTP_STATUS, RESPONSE_FORMAT } from '../../constants/response-formats';
 import { createBaseRouter, AuthRequest, asyncHandler } from './baseRouter';
 import { DashboardService } from '../../services/dashboard/DashboardService';
 import { EmpireResolutionService } from '../../services/empire/EmpireResolutionService';
+import { createSuccessResponse, createErrorResponse } from '../../utils/responseBuilder';
 
 const router = createBaseRouter();
 
@@ -20,7 +21,7 @@ router.get('/dashboard', asyncHandler(async (req: AuthRequest, res: Response) =>
 
   // Get dashboard data using the service
   const dashboardData = await DashboardService.getDashboardData(user);
-  return res.json({ success: true, data: dashboardData });
+  return res.json(createSuccessResponse(dashboardData));
 }));
 
 /**
@@ -28,10 +29,12 @@ router.get('/dashboard', asyncHandler(async (req: AuthRequest, res: Response) =>
  * Empire creation is now automatic during registration.
  */
 router.post('/empire', asyncHandler(async (_req: AuthRequest, res: Response) => {
-  return res.status(HTTP_STATUS.GONE).json({
-    success: false,
-    error: 'Empire creation is automatic. This endpoint is deprecated.'
-  });
+  return res.status(HTTP_STATUS.GONE).json(
+    createErrorResponse(
+      'Empire creation is automatic. This endpoint is deprecated.',
+      'DEPRECATED_ENDPOINT'
+    )
+  );
 }));
 
 /**
@@ -45,7 +48,7 @@ router.get('/empire', asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user! as any;
   const { DashboardService } = await import('../../services/dashboard/DashboardService');
   const dashboardData = await DashboardService.getDashboardData(user);
-  res.json({ success: true, data: dashboardData });
+  res.json(createSuccessResponse(dashboardData));
 }));
 
 /**
@@ -70,7 +73,7 @@ router.get('/credits/history', asyncHandler(async (req: AuthRequest, res: Respon
   const { EmpireService } = await import('../../services/empire/EmpireService');
   const history = await EmpireService.getCreditHistory(req.user! as any, { limit: Number(limit) });
   
-  return res.json({ success: true, data: { history } });
+  return res.json(createSuccessResponse({ history }));
 }));
 
 
