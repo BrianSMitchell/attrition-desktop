@@ -1,10 +1,7 @@
 import { Response } from 'express';
-import { supabase } from '../../config/supabase';
-import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
-import { HTTP_STATUS, RESPONSE_FORMAT } from '../../constants/response-formats';
+import { HTTP_STATUS } from '../../constants/response-formats';
 import { createBaseRouter, AuthRequest, asyncHandler } from './baseRouter';
 import { DashboardService } from '../../services/dashboard/DashboardService';
-import { EmpireResolutionService } from '../../services/empire/EmpireResolutionService';
 import { createSuccessResponse, createErrorResponse } from '../../utils/responseBuilder';
 
 const router = createBaseRouter();

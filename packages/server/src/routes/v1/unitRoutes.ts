@@ -1,4 +1,4 @@
-import { Response, Router } from 'express';
+import { Response } from 'express';
 import { supabase } from '../../config/supabase';
 import { ERROR_MESSAGES } from '../../constants/response-formats';
 import { DB_TABLES, DB_FIELDS } from '../../constants/database-fields';
