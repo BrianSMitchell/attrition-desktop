@@ -35,4 +35,23 @@ export class EconomyService {
     }
     return Math.max(0, Math.floor(total));
   }
+
+  /**
+   * Compute full empire economy breakdown
+   * Returns total credits per hour from buildings
+   */
+  static async computeEmpireEconomy(empireId: string): Promise<{ totalCreditsPerHour: number }> {
+    const totalCreditsPerHour = await this.sumCreditsPerHourForEmpire(empireId);
+    return { totalCreditsPerHour };
+  }
+
+  /**
+   * Get research credit bonuses for an empire
+   * Returns the sum of all research-related credit bonuses
+   */
+  static async getResearchCreditBonuses(empireId: string): Promise<number> {
+    // TODO: Implement research bonus calculation
+    // For now, return 0 as a placeholder
+    return 0;
+  }
 }

@@ -2,7 +2,7 @@ import { INetworkManager, NetworkState, ConnectionEventCallback, ServiceOptions 
 import { CircuitBreaker } from '../utils/CircuitBreaker';
 import { getCurrentApiConfig } from '../../utils/apiConfig';
 
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { TIMEOUTS } from '@game/shared';
 /**
  * NetworkManager handles network connectivity monitoring without circular dependencies.
  * Uses circuit breaker pattern to prevent API hammering during outages.

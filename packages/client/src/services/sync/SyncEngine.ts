@@ -1,5 +1,5 @@
 // Simple browser-compatible EventEmitter implementation
-import { RETRY_LIMITS, BUFFER_LIMITS } from '@shared/constants/magic-numbers';
+import { RETRY_LIMITS, BUFFER_LIMITS } from '@game/shared';
 class EventEmitter {
   private listeners: { [event: string]: Function[] } = {};
 

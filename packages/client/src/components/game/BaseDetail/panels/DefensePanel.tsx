@@ -7,7 +7,7 @@ import React from 'react';
 import DefensesBuildTable from '../../DefensesBuildTable';
 import type { DefensesStatusDTO } from '../../../../services/defensesService';
 import type { DefenseSpec, DefenseKey, StructureKey as BuildingKey } from '@game/shared';
-import { LAYOUT_CLASSES } from '../constants/css-constants';
+import { LAYOUT_CLASSES } from '../../../../constants/css-constants';
 
 const formatEta = (date?: string | Date | null) => {
   if (!date) return '';

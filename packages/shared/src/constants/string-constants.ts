@@ -214,6 +214,11 @@ export const DISPLAY_TEXT = {
   PRIVATE: 'Private',
   VISIBLE: 'Visible',
   HIDDEN: 'Hidden',
+  // Status indicators (also available in STATUS_TEXT)
+  ONLINE: 'Online',
+  OFFLINE: 'Offline',
+  UNAVAILABLE: 'Unavailable',
+  AVAILABLE: 'Available',
 } as const;
 
 // All constants combined for convenience

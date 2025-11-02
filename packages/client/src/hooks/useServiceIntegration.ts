@@ -1,4 +1,5 @@
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { useEffect } from 'react';
+import { TIMEOUTS } from '@game/shared';
 import {
   useEnhancedAuth, 
   useEnhancedAuthActions,

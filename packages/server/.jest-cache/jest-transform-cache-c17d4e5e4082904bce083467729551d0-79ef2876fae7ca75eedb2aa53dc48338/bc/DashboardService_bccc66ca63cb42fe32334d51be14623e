@@ -1,0 +1,67 @@
+c5d68f1cdea4804734f22962d576ef96
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DashboardService = void 0;
+const EmpireResolutionService_1 = require("../empire/EmpireResolutionService");
+const ResourceCalculationService_1 = require("../resources/ResourceCalculationService");
+const socketService_1 = require("../socketService");
+/**
+ * DashboardService handles dashboard-related business logic
+ */
+class DashboardService {
+    /**
+     * Gets dashboard data for an authenticated user
+     * @param user - The authenticated user object
+     * @returns Promise<DashboardData> - Complete dashboard data
+     */
+    static async getDashboardData(user) {
+        const userId = user?._id || user?.id;
+        // Resolve empire using the service (includes auto-bootstrap if needed)
+        let empireRow = await EmpireResolutionService_1.EmpireResolutionService.resolveEmpireByUserObject(user);
+        // If no empire after service resolution, return new-player payload
+        if (!empireRow) {
+            return this.createNewPlayerResponse(user);
+        }
+        // Use ResourceCalculationService to handle complex resource calculations
+        const { resourcesGained, creditsPerHour, profile, updatedEmpire } = await ResourceCalculationService_1.ResourceCalculationService.calculateDashboardResources(empireRow, userId);
+        // Update empireRow with any changes from the calculation service 
+        empireRow = updatedEmpire;
+        return {
+            user,
+            empire: empireRow,
+            resourcesGained,
+            creditsPerHour,
+            profile,
+            isNewPlayer: false,
+            serverInfo: {
+                name: 'Alpha Server',
+                version: '1.0.0',
+                playersOnline: (0, socketService_1.getOnlineUniqueUsersCount)(),
+                universeSize: { width: 100, height: 100 }
+            }
+        };
+    }
+    /**
+     * Creates the response for new players without an empire
+     * @param user - The authenticated user object
+     * @returns DashboardData - New player response data
+     */
+    static createNewPlayerResponse(user) {
+        return {
+            user,
+            empire: null,
+            resourcesGained: 0,
+            creditsPerHour: 0,
+            profile: null,
+            isNewPlayer: true,
+            serverInfo: {
+                name: 'Alpha Server',
+                version: '1.0.0',
+                playersOnline: (0, socketService_1.getOnlineUniqueUsersCount)(),
+                universeSize: { width: 100, height: 100 }
+            }
+        };
+    }
+}
+exports.DashboardService = DashboardService;
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFByb2plY3RzXFxBdHRyaXRpb25cXHBhY2thZ2VzXFxzZXJ2ZXJcXHNyY1xcc2VydmljZXNcXGRhc2hib2FyZFxcRGFzaGJvYXJkU2VydmljZS50cyIsIm1hcHBpbmdzIjoiOzs7QUFDQSwrRUFBNEU7QUFDNUUsd0ZBQXFGO0FBQ3JGLG9EQUE2RDtBQUU3RDs7R0FFRztBQUNILE1BQWEsZ0JBQWdCO0lBQzNCOzs7O09BSUc7SUFDSCxNQUFNLENBQUMsS0FBSyxDQUFDLGdCQUFnQixDQUFDLElBQVM7UUFDckMsTUFBTSxNQUFNLEdBQUcsSUFBSSxFQUFFLEdBQUcsSUFBSSxJQUFJLEVBQUUsRUFBRSxDQUFDO1FBRXJDLHVFQUF1RTtRQUN2RSxJQUFJLFNBQVMsR0FBRyxNQUFNLGlEQUF1QixDQUFDLHlCQUF5QixDQUFDLElBQUksQ0FBQyxDQUFDO1FBRTlFLG1FQUFtRTtRQUNuRSxJQUFJLENBQUMsU0FBUyxFQUFFLENBQUM7WUFDZixPQUFPLElBQUksQ0FBQyx1QkFBdUIsQ0FBQyxJQUFJLENBQUMsQ0FBQztRQUM1QyxDQUFDO1FBRUQseUVBQXlFO1FBQ3pFLE1BQU0sRUFBRSxlQUFlLEVBQUUsY0FBYyxFQUFFLE9BQU8sRUFBRSxhQUFhLEVBQUUsR0FBRyxNQUFNLHVEQUEwQixDQUFDLDJCQUEyQixDQUFDLFNBQVMsRUFBRSxNQUFNLENBQUMsQ0FBQztRQUVwSixrRUFBa0U7UUFDbEUsU0FBUyxHQUFHLGFBQWEsQ0FBQztRQUUxQixPQUFPO1lBQ0wsSUFBSTtZQUNKLE1BQU0sRUFBRSxTQUFTO1lBQ2pCLGVBQWU7WUFDZixjQUFjO1lBQ2QsT0FBTztZQUNQLFdBQVcsRUFBRSxLQUFLO1lBQ2xCLFVBQVUsRUFBRTtnQkFDVixJQUFJLEVBQUUsY0FBYztnQkFDcEIsT0FBTyxFQUFFLE9BQU87Z0JBQ2hCLGFBQWEsRUFBRSxJQUFBLHlDQUF5QixHQUFFO2dCQUMxQyxZQUFZLEVBQUUsRUFBRSxLQUFLLEVBQUUsR0FBRyxFQUFFLE1BQU0sRUFBRSxHQUFHLEVBQUU7YUFDMUM7U0FDRixDQUFDO0lBQ0osQ0FBQztJQUVEOzs7O09BSUc7SUFDSyxNQUFNLENBQUMsdUJBQXVCLENBQUMsSUFBUztRQUM5QyxPQUFPO1lBQ0wsSUFBSTtZQUNKLE1BQU0sRUFBRSxJQUFJO1lBQ1osZUFBZSxFQUFFLENBQUM7WUFDbEIsY0FBYyxFQUFFLENBQUM7WUFDakIsT0FBTyxFQUFFLElBQUk7WUFDYixXQUFXLEVBQUUsSUFBSTtZQUNqQixVQUFVLEVBQUU7Z0JBQ1YsSUFBSSxFQUFFLGNBQWM7Z0JBQ3BCLE9BQU8sRUFBRSxPQUFPO2dCQUNoQixhQUFhLEVBQUUsSUFBQSx5Q0FBeUIsR0FBRTtnQkFDMUMsWUFBWSxFQUFFLEVBQUUsS0FBSyxFQUFFLEdBQUcsRUFBRSxNQUFNLEVBQUUsR0FBRyxFQUFFO2FBQzFDO1NBQ0YsQ0FBQztJQUNKLENBQUM7Q0FDRjtBQTVERCw0Q0E0REMiLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFByb2plY3RzXFxBdHRyaXRpb25cXHBhY2thZ2VzXFxzZXJ2ZXJcXHNyY1xcc2VydmljZXNcXGRhc2hib2FyZFxcRGFzaGJvYXJkU2VydmljZS50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBSZXNwb25zZSB9IGZyb20gJ2V4cHJlc3MnO1xyXG5pbXBvcnQgeyBFbXBpcmVSZXNvbHV0aW9uU2VydmljZSB9IGZyb20gJy4uL2VtcGlyZS9FbXBpcmVSZXNvbHV0aW9uU2VydmljZSc7XHJcbmltcG9ydCB7IFJlc291cmNlQ2FsY3VsYXRpb25TZXJ2aWNlIH0gZnJvbSAnLi4vcmVzb3VyY2VzL1Jlc291cmNlQ2FsY3VsYXRpb25TZXJ2aWNlJztcclxuaW1wb3J0IHsgZ2V0T25saW5lVW5pcXVlVXNlcnNDb3VudCB9IGZyb20gJy4uL3NvY2tldFNlcnZpY2UnO1xyXG5cclxuLyoqXHJcbiAqIERhc2hib2FyZFNlcnZpY2UgaGFuZGxlcyBkYXNoYm9hcmQtcmVsYXRlZCBidXNpbmVzcyBsb2dpYyBcclxuICovXHJcbmV4cG9ydCBjbGFzcyBEYXNoYm9hcmRTZXJ2aWNlIHtcclxuICAvKipcclxuICAgKiBHZXRzIGRhc2hib2FyZCBkYXRhIGZvciBhbiBhdXRoZW50aWNhdGVkIHVzZXJcclxuICAgKiBAcGFyYW0gdXNlciAtIFRoZSBhdXRoZW50aWNhdGVkIHVzZXIgb2JqZWN0XHJcbiAgICogQHJldHVybnMgUHJvbWlzZTxEYXNoYm9hcmREYXRhPiAtIENvbXBsZXRlIGRhc2hib2FyZCBkYXRhXHJcbiAgICovXHJcbiAgc3RhdGljIGFzeW5jIGdldERhc2hib2FyZERhdGEodXNlcjogYW55KTogUHJvbWlzZTxEYXNoYm9hcmREYXRhPiB7XHJcbiAgICBjb25zdCB1c2VySWQgPSB1c2VyPy5faWQgfHwgdXNlcj8uaWQ7XHJcblxyXG4gICAgLy8gUmVzb2x2ZSBlbXBpcmUgdXNpbmcgdGhlIHNlcnZpY2UgKGluY2x1ZGVzIGF1dG8tYm9vdHN0cmFwIGlmIG5lZWRlZClcclxuICAgIGxldCBlbXBpcmVSb3cgPSBhd2FpdCBFbXBpcmVSZXNvbHV0aW9uU2VydmljZS5yZXNvbHZlRW1waXJlQnlVc2VyT2JqZWN0KHVzZXIpO1xyXG5cclxuICAgIC8vIElmIG5vIGVtcGlyZSBhZnRlciBzZXJ2aWNlIHJlc29sdXRpb24sIHJldHVybiBuZXctcGxheWVyIHBheWxvYWRcclxuICAgIGlmICghZW1waXJlUm93KSB7XHJcbiAgICAgIHJldHVybiB0aGlzLmNyZWF0ZU5ld1BsYXllclJlc3BvbnNlKHVzZXIpO1xyXG4gICAgfVxyXG5cclxuICAgIC8vIFVzZSBSZXNvdXJjZUNhbGN1bGF0aW9uU2VydmljZSB0byBoYW5kbGUgY29tcGxleCByZXNvdXJjZSBjYWxjdWxhdGlvbnNcclxuICAgIGNvbnN0IHsgcmVzb3VyY2VzR2FpbmVkLCBjcmVkaXRzUGVySG91ciwgcHJvZmlsZSwgdXBkYXRlZEVtcGlyZSB9ID0gYXdhaXQgUmVzb3VyY2VDYWxjdWxhdGlvblNlcnZpY2UuY2FsY3VsYXRlRGFzaGJvYXJkUmVzb3VyY2VzKGVtcGlyZVJvdywgdXNlcklkKTtcclxuXHJcbiAgICAvLyBVcGRhdGUgZW1waXJlUm93IHdpdGggYW55IGNoYW5nZXMgZnJvbSB0aGUgY2FsY3VsYXRpb24gc2VydmljZSBcclxuICAgIGVtcGlyZVJvdyA9IHVwZGF0ZWRFbXBpcmU7XHJcblxyXG4gICAgcmV0dXJuIHtcclxuICAgICAgdXNlcixcclxuICAgICAgZW1waXJlOiBlbXBpcmVSb3csXHJcbiAgICAgIHJlc291cmNlc0dhaW5lZCxcclxuICAgICAgY3JlZGl0c1BlckhvdXIsXHJcbiAgICAgIHByb2ZpbGUsXHJcbiAgICAgIGlzTmV3UGxheWVyOiBmYWxzZSxcclxuICAgICAgc2VydmVySW5mbzoge1xyXG4gICAgICAgIG5hbWU6ICdBbHBoYSBTZXJ2ZXInLFxyXG4gICAgICAgIHZlcnNpb246ICcxLjAuMCcsXHJcbiAgICAgICAgcGxheWVyc09ubGluZTogZ2V0T25saW5lVW5pcXVlVXNlcnNDb3VudCgpLFxyXG4gICAgICAgIHVuaXZlcnNlU2l6ZTogeyB3aWR0aDogMTAwLCBoZWlnaHQ6IDEwMCB9XHJcbiAgICAgIH1cclxuICAgIH07XHJcbiAgfVxyXG5cclxuICAvKipcclxuICAgKiBDcmVhdGVzIHRoZSByZXNwb25zZSBmb3IgbmV3IHBsYXllcnMgd2l0aG91dCBhbiBlbXBpcmVcclxuICAgKiBAcGFyYW0gdXNlciAtIFRoZSBhdXRoZW50aWNhdGVkIHVzZXIgb2JqZWN0XHJcbiAgICogQHJldHVybnMgRGFzaGJvYXJkRGF0YSAtIE5ldyBwbGF5ZXIgcmVzcG9uc2UgZGF0YVxyXG4gICAqL1xyXG4gIHByaXZhdGUgc3RhdGljIGNyZWF0ZU5ld1BsYXllclJlc3BvbnNlKHVzZXI6IGFueSk6IERhc2hib2FyZERhdGEge1xyXG4gICAgcmV0dXJuIHtcclxuICAgICAgdXNlcixcclxuICAgICAgZW1waXJlOiBudWxsLFxyXG4gICAgICByZXNvdXJjZXNHYWluZWQ6IDAsXHJcbiAgICAgIGNyZWRpdHNQZXJIb3VyOiAwLFxyXG4gICAgICBwcm9maWxlOiBudWxsLFxyXG4gICAgICBpc05ld1BsYXllcjogdHJ1ZSxcclxuICAgICAgc2VydmVySW5mbzoge1xyXG4gICAgICAgIG5hbWU6ICdBbHBoYSBTZXJ2ZXInLFxyXG4gICAgICAgIHZlcnNpb246ICcxLjAuMCcsXHJcbiAgICAgICAgcGxheWVyc09ubGluZTogZ2V0T25saW5lVW5pcXVlVXNlcnNDb3VudCgpLFxyXG4gICAgICAgIHVuaXZlcnNlU2l6ZTogeyB3aWR0aDogMTAwLCBoZWlnaHQ6IDEwMCB9XHJcbiAgICAgIH1cclxuICAgIH07XHJcbiAgfVxyXG59XHJcblxyXG4vKipcclxuICogSW50ZXJmYWNlIGRlZmluaXRpb25zIGZvciBkYXNoYm9hcmQgZGF0YSBzdHJ1Y3R1cmVzXHJcbiAqL1xyXG5leHBvcnQgaW50ZXJmYWNlIERhc2hib2FyZERhdGEge1xyXG4gIHVzZXI6IGFueTtcclxuICBlbXBpcmU6IGFueTtcclxuICByZXNvdXJjZXNHYWluZWQ6IG51bWJlcjtcclxuICBjcmVkaXRzUGVySG91cjogbnVtYmVyO1xyXG4gIHByb2ZpbGU6IGFueTtcclxuICBpc05ld1BsYXllcjogYm9vbGVhbjtcclxuICBzZXJ2ZXJJbmZvOiB7XHJcbiAgICBuYW1lOiBzdHJpbmc7XHJcbiAgICB2ZXJzaW9uOiBzdHJpbmc7XHJcbiAgICBwbGF5ZXJzT25saW5lOiBudW1iZXI7XHJcbiAgICB1bml2ZXJzZVNpemU6IHsgd2lkdGg6IG51bWJlcjsgaGVpZ2h0OiBudW1iZXIgfTtcclxuICB9O1xyXG59Il0sInZlcnNpb24iOjN9

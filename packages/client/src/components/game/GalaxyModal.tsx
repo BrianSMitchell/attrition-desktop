@@ -3,7 +3,7 @@ import { Empire, getColonizationCost } from '@game/shared';
 import { useNavigate } from 'react-router-dom';
 import { useModalStore } from '../../stores/modalStore';
 import { useEnhancedAppStore } from '../../stores/enhancedAppStore';
-import { LAYOUT_CLASSES } from '../constants/css-constants';
+import { LAYOUT_CLASSES } from '../../constants/css-constants';
 
 // Enhanced store compatible types
 interface UniverseLocationData {

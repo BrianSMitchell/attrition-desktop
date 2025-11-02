@@ -3,7 +3,7 @@ import { getSocket } from '../../services/socket';
 import { Message } from '../../services/messageService';
 import { Link } from 'react-router-dom';
 
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { TIMEOUTS } from '@game/shared';
 interface ToastMessage {
   id: string;
   message: Message;

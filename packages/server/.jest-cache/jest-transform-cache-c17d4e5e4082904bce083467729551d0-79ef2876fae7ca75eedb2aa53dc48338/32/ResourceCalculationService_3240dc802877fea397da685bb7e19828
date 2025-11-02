@@ -1,0 +1,178 @@
+fac4515d788d4f2a077b7f4fbc98b2ce
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ResourceCalculationService = void 0;
+const supabase_1 = require("../../config/supabase");
+const shared_1 = require("@game/shared");
+const EconomyService_1 = require("../economy/EconomyService");
+const database_fields_1 = require("../../constants/database-fields");
+const shared_2 = require("@game/shared");
+const shared_3 = require("@game/shared");
+/**
+ * Service for handling complex resource and economy calculations.
+ * Extracted from dashboard route to centralize resource computation logic.
+ */
+class ResourceCalculationService {
+    /**
+     * Computes technology score from researched technologies in an empire.
+     * @param empire - Empire object containing techLevels Map
+     * @returns Total technology score based on researched technology costs
+     */
+    static computeTechnologyScore(empire) {
+        const techLevels = empire.techLevels;
+        if (!techLevels)
+            return shared_3.STATUS_CODES.SUCCESS;
+        let totalScore = 0;
+        for (const [techKey, level] of techLevels.entries()) {
+            if (level >= 1) {
+                try {
+                    const spec = (0, shared_1.getTechSpec)(techKey);
+                    totalScore += spec.creditsCost;
+                }
+                catch (error) {
+                    // Skip unknown tech keys
+                    console.warn(`Unknown tech key: ${techKey}`);
+                }
+            }
+        }
+        return totalScore;
+    }
+    /**
+     * Computes economy per hour from active buildings using a simple catalog mapping.
+     * @param buildings - Array of building objects with catalog_key, level, and is_active properties
+     * @returns Total economy per hour from active buildings
+     */
+    static computeEconomyPerHourFromBuildings(buildings) {
+        let total = 0;
+        for (const b of buildings) {
+            if (!b.is_active)
+                continue;
+            const key = (b.catalog_key || '').toLowerCase();
+            const lvl = Number(b.level || 1);
+            // Simple mapping (can be refined later or loaded from shared catalog)
+            switch (key) {
+                case 'urban_structures':
+                case 'habitat':
+                    total += 50 * lvl; // placeholder yield per hour per level
+                    break;
+                default:
+                    break;
+            }
+        }
+        return total;
+    }
+    /**
+     * Performs complex credit accrual calculation with time-based increments and database updates.
+     * @param empire - Empire object with credits, last_resource_update, and credits_remainder_milli
+     * @param creditsPerHour - Credits per hour rate for the empire
+     * @returns Object containing resourcesGained amount and updated empire data
+     */
+    static async performCreditAccrual(empire, creditsPerHour) {
+        let resourcesGained = 0;
+        try {
+            const nowTs = Date.now();
+            const lastUpdateRaw = empire.last_resource_update;
+            const lastTs = lastUpdateRaw ? new Date(lastUpdateRaw).getTime() : nowTs;
+            let elapsedMs = Math.max(0, nowTs - (Number.isFinite(lastTs) ? lastTs : nowTs));
+            // Carry remainder milliseconds
+            let carryMs = Math.max(0, Number(empire.credits_remainder_milli || 0));
+            if (creditsPerHour > 0) {
+                const totalMs = elapsedMs + carryMs;
+                const fractional = creditsPerHour * (totalMs / 3600000);
+                const increment = Math.floor(fractional);
+                const remainderMs = totalMs % 3600000;
+                if (increment > 0 || elapsedMs > 0 || carryMs !== remainderMs) {
+                    const oldCredits = Math.max(0, Number(empire.credits || 0));
+                    const newCredits = Math.max(0, oldCredits + increment);
+                    resourcesGained = increment;
+                    const t0 = Date.now();
+                    const upd = await supabase_1.supabase
+                        .from(database_fields_1.DB_TABLES.EMPIRES)
+                        .update({
+                        credits: newCredits,
+                        last_resource_update: new Date(nowTs).toISOString(),
+                        credits_remainder_milli: remainderMs,
+                    })
+                        .eq(database_fields_1.DB_FIELDS.BUILDINGS.ID, empire.id)
+                        .select('id, credits, last_resource_update, credits_remainder_milli')
+                        .single();
+                    const dt = Date.now() - t0;
+                    if (!upd.error && upd.data) {
+                        empire.credits = upd.data.credits;
+                        empire.last_resource_update = upd.data.last_resource_update;
+                        empire.credits_remainder_milli = upd.data.credits_remainder_milli;
+                    }
+                    if (process.env[shared_2.ENV_VARS.ECONOMY_DEBUG] === 'true') {
+                        console.log('[ACCRUAL]', {
+                            empireId: String(empire.id),
+                            creditsPerHour,
+                            elapsedMs,
+                            carryMs,
+                            increment,
+                            remainderMs,
+                            oldCredits,
+                            newCredits,
+                            updateMs: dt,
+                        });
+                    }
+                }
+            }
+            else {
+                // No economy rate; still advance the timestamp and clear remainder to avoid unbounded carry
+                if (elapsedMs > 0 || carryMs !== 0 || !empire.last_resource_update) {
+                    await supabase_1.supabase
+                        .from(database_fields_1.DB_TABLES.EMPIRES)
+                        .update({
+                        last_resource_update: new Date(nowTs).toISOString(),
+                        credits_remainder_milli: 0,
+                    })
+                        .eq(database_fields_1.DB_FIELDS.BUILDINGS.ID, empire.id);
+                    empire.last_resource_update = new Date(nowTs).toISOString();
+                    empire.credits_remainder_milli = 0;
+                }
+            }
+        }
+        catch {
+            // Non-fatal: leave credits unchanged
+        }
+        return { resourcesGained, updatedEmpire: empire };
+    }
+    /**
+     * Calculates comprehensive dashboard resources including accrual, profile, and current state.
+     * @param empire - Empire object
+     * @param userId - User ID for context (currently unused but reserved for future features)
+     * @returns Dashboard resources object with computed values
+     */
+    static async calculateDashboardResources(empire, userId) {
+        // Compute credits per hour from Supabase buildings via catalog yields
+        const creditsPerHour = await EconomyService_1.EconomyService.sumCreditsPerHourForEmpire(String(empire.id));
+        // Perform credit accrual calculation
+        const { resourcesGained, updatedEmpire } = await this.performCreditAccrual(empire, creditsPerHour);
+        // Calculate profile scores (fleet score is currently hardcoded to 0)
+        const technologyScore = this.computeTechnologyScore(empire);
+        const fleetScore = 0;
+        const level = Math.pow(creditsPerHour * 100 + fleetScore + technologyScore, 0.25);
+        const profile = {
+            economyPerHour: creditsPerHour,
+            fleetScore,
+            technologyScore,
+            level,
+        };
+        return {
+            resourcesGained,
+            creditsPerHour,
+            profile,
+            updatedEmpire,
+        };
+    }
+    /**
+     * Legacy method for backward compatibility - computes credits per hour for a specific empire.
+     * @param empireId - Empire ID string
+     * @returns Credits per hour for the empire
+     */
+    static async computeCreditsPerHour(empireId) {
+        return await EconomyService_1.EconomyService.sumCreditsPerHourForEmpire(empireId);
+    }
+}
+exports.ResourceCalculationService = ResourceCalculationService;
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFByb2plY3RzXFxBdHRyaXRpb25cXHBhY2thZ2VzXFxzZXJ2ZXJcXHNyY1xcc2VydmljZXNcXHJlc291cmNlc1xcUmVzb3VyY2VDYWxjdWxhdGlvblNlcnZpY2UudHMiLCJtYXBwaW5ncyI6Ijs7O0FBQUEsb0RBQWlEO0FBQ2pELHlDQUEwRDtBQUMxRCw4REFBMkQ7QUFDM0QscUVBQXVFO0FBQ3ZFLHlDQUF3QztBQUN4Qyx5Q0FBNEM7QUFDNUM7OztHQUdHO0FBQ0gsTUFBYSwwQkFBMEI7SUFFckM7Ozs7T0FJRztJQUNILE1BQU0sQ0FBQyxzQkFBc0IsQ0FBQyxNQUFXO1FBQ3ZDLE1BQU0sVUFBVSxHQUFHLE1BQU0sQ0FBQyxVQUE2QyxDQUFDO1FBQ3hFLElBQUksQ0FBQyxVQUFVO1lBQUUsT0FBTyxxQkFBWSxDQUFDLE9BQU8sQ0FBQztRQUU3QyxJQUFJLFVBQVUsR0FBRyxDQUFDLENBQUM7UUFDbkIsS0FBSyxNQUFNLENBQUMsT0FBTyxFQUFFLEtBQUssQ0FBQyxJQUFJLFVBQVUsQ0FBQyxPQUFPLEVBQUUsRUFBRSxDQUFDO1lBQ3BELElBQUksS0FBSyxJQUFJLENBQUMsRUFBRSxDQUFDO2dCQUNmLElBQUksQ0FBQztvQkFDSCxNQUFNLElBQUksR0FBRyxJQUFBLG9CQUFXLEVBQUMsT0FBd0IsQ0FBQyxDQUFDO29CQUNuRCxVQUFVLElBQUksSUFBSSxDQUFDLFdBQVcsQ0FBQztnQkFDakMsQ0FBQztnQkFBQyxPQUFPLEtBQUssRUFBRSxDQUFDO29CQUNmLHlCQUF5QjtvQkFDekIsT0FBTyxDQUFDLElBQUksQ0FBQyxxQkFBcUIsT0FBTyxFQUFFLENBQUMsQ0FBQztnQkFDL0MsQ0FBQztZQUNILENBQUM7UUFDSCxDQUFDO1FBQ0QsT0FBTyxVQUFVLENBQUM7SUFDcEIsQ0FBQztJQUVEOzs7O09BSUc7SUFDSCxNQUFNLENBQUMsa0NBQWtDLENBQUMsU0FBK0U7UUFDdkgsSUFBSSxLQUFLLEdBQUcsQ0FBQyxDQUFDO1FBQ2QsS0FBSyxNQUFNLENBQUMsSUFBSSxTQUFTLEVBQUUs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ZixLQUFLO1NBQ04sQ0FBQztRQUVGLE9BQU87WUFDTCxlQUFlO1lBQ2YsY0FBYztZQUNkLE9BQU87WUFDUCxhQUFhO1NBQ2QsQ0FBQztJQUNKLENBQUM7SUFFRDs7OztPQUlHO0lBQ0gsTUFBTSxDQUFDLEtBQUssQ0FBQyxxQkFBcUIsQ0FBQyxRQUFnQjtRQUNqRCxPQUFPLE1BQU0sK0JBQWMsQ0FBQywwQkFBMEIsQ0FBQyxRQUFRLENBQUMsQ0FBQztJQUNuRSxDQUFDO0NBQ0Y7QUF4TEQsZ0VBd0xDIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxQcm9qZWN0c1xcQXR0cml0aW9uXFxwYWNrYWdlc1xcc2VydmVyXFxzcmNcXHNlcnZpY2VzXFxyZXNvdXJjZXNcXFJlc291cmNlQ2FsY3VsYXRpb25TZXJ2aWNlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IHN1cGFiYXNlIH0gZnJvbSAnLi4vLi4vY29uZmlnL3N1cGFiYXNlJztcbmltcG9ydCB7IGdldFRlY2hTcGVjLCBUZWNobm9sb2d5S2V5IH0gZnJvbSAnQGdhbWUvc2hhcmVkJztcbmltcG9ydCB7IEVjb25vbXlTZXJ2aWNlIH0gZnJvbSAnLi4vZWNvbm9teS9FY29ub215U2VydmljZSc7XG5pbXBvcnQgeyBEQl9UQUJMRVMsIERCX0ZJRUxEUyB9IGZyb20gJy4uLy4uL2NvbnN0YW50cy9kYXRhYmFzZS1maWVsZHMnO1xuaW1wb3J0IHsgRU5WX1ZBUlMgfSBmcm9tICdAZ2FtZS9zaGFyZWQnO1xuaW1wb3J0IHsgU1RBVFVTX0NPREVTIH0gZnJvbSAnQGdhbWUvc2hhcmVkJztcbi8qKlxuICogU2VydmljZSBmb3IgaGFuZGxpbmcgY29tcGxleCByZXNvdXJjZSBhbmQgZWNvbm9teSBjYWxjdWxhdGlvbnMuXG4gKiBFeHRyYWN0ZWQgZnJvbSBkYXNoYm9hcmQgcm91dGUgdG8gY2VudHJhbGl6ZSByZXNvdXJjZSBjb21wdXRhdGlvbiBsb2dpYy5cbiAqL1xuZXhwb3J0IGNsYXNzIFJlc291cmNlQ2FsY3VsYXRpb25TZXJ2aWNlIHtcblxuICAvKipcbiAgICogQ29tcHV0ZXMgdGVjaG5vbG9neSBzY29yZSBmcm9tIHJlc2VhcmNoZWQgdGVjaG5vbG9naWVzIGluIGFuIGVtcGlyZS5cbiAgICogQHBhcmFtIGVtcGlyZSAtIEVtcGlyZSBvYmplY3QgY29udGFpbmluZyB0ZWNoTGV2ZWxzIE1hcFxuICAgKiBAcmV0dXJucyBUb3RhbCB0ZWNobm9sb2d5IHNjb3JlIGJhc2VkIG9uIHJlc2VhcmNoZWQgdGVjaG5vbG9neSBjb3N0c1xuICAgKi9cbiAgc3RhdGljIGNvbXB1dGVUZWNobm9sb2d5U2NvcmUoZW1waXJlOiBhbnkpOiBudW1iZXIge1xuICAgIGNvbnN0IHRlY2hMZXZlbHMgPSBlbXBpcmUudGVjaExldmVscyBhcyBNYXA8c3RyaW5nLCBudW1iZXI+IHwgdW5kZWZpbmVkO1xuICAgIGlmICghdGVjaExldmVscykgcmV0dXJuIFNUQVRVU19DT0RFUy5TVUNDRVNTO1xuXG4gICAgbGV0IHRvdGFsU2NvcmUgPSAwO1xuICAgIGZvciAoY29uc3QgW3RlY2hLZXksIGxldmVsXSBvZiB0ZWNoTGV2ZWxzLmVudHJpZXMoKSkge1xuICAgICAgaWYgKGxldmVsID49IDEpIHtcbiAgICAgICAgdHJ5IHtcbiAgICAgICAgICBjb25zdCBzcGVjID0gZ2V0VGVjaFNwZWModGVjaEtleSBhcyBUZWNobm9sb2d5S2V5KTtcbiAgICAgICAgICB0b3RhbFNjb3JlICs9IHNwZWMuY3JlZGl0c0Nvc3Q7XG4gICAgICAgIH0gY2F0Y2ggKGVycm9yKSB7XG4gICAgICAgICAgLy8gU2tpcCB1bmtub3duIHRlY2gga2V5c1xuICAgICAgICAgIGNvbnNvbGUud2FybihgVW5rbm93biB0ZWNoIGtleTogJHt0ZWNoS2V5fWApO1xuICAgICAgICB9XG4gICAgICB9XG4gICAgfVxuICAgIHJldHVybiB0b3RhbFNjb3JlO1xuICB9XG5cbiAgLyoqXG4gICAqIENvbXB1dGVzIGVjb25vbXkgcGVyIGhvdXIgZnJvbSBhY3RpdmUgYnVpbGRpbmdzIHVzaW5nIGEgc2ltcGxlIGNhdGFsb2cgbWFwcGluZy5cbiAgICogQHBhcmFtIGJ1aWxkaW5ncyAtIEFycmF5IG9mIGJ1aWxkaW5nIG9iamVjdHMgd2l0aCBjYXRhbG9nX2tleSwgbGV2ZWwsIGFuZCBpc19hY3RpdmUgcHJvcGVydGllc1xuICAgKiBAcmV0dXJucyBUb3RhbCBlY29ub215IHBlciBob3VyIGZyb20gYWN0aXZlIGJ1aWxkaW5nc1xuICAgKi9cbiAgc3RhdGljIGNvbXB1dGVFY29ub215UGVySG91ckZyb21CdWlsZGluZ3MoYnVpbGRpbmdzOiBBcnJheTx7IGNhdGFsb2dfa2V5Pzogc3RyaW5nOyBsZXZlbD86IG51bWJlcjsgaXNfYWN0aXZlPzogYm9vbGVhbiB9Pik6IG51bWJlciB7XG4gICAgbGV0IHRvdGFsID0gMDtcbiAgICBmb3IgKGNvbnN0IGIgb2YgYnVpbGRpbmdzKSB7XG4gICAgICBpZiAoIWIuaXNfYWN0aXZlKSBjb250aW51ZTtcbiAgICAgIGNvbnN0IGtleSA9IChiLmNhdGFsb2dfa2V5IHx8ICcnKS50b0xvd2VyQ2FzZSgpO1xuICAgICAgY29uc3QgbHZsID0gTnVtYmVyKGIubGV2ZWwgfHwgMSk7XG4gICAgICAvLyBTaW1wbGUgbWFwcGluZyAoY2FuIGJlIHJlZmluZWQgbGF0ZXIgb3IgbG9hZGVkIGZyb20gc2hhcmVkIGNhdGFsb2cpXG4gICAgICBzd2l0Y2ggKGtleSkge1xuICAgICAgICBjYXNlICd1cmJhbl9zdHJ1Y3R1cmVzJzpcbiAgICAgICAgY2FzZSAnaGFiaXRhdCc6XG4gICAgICAgICAgdG90YWwgKz0gNTAgKiBsdmw7IC8vIHBsYWNlaG9sZGVyIHlpZWxkIHBlciBob3VyIHBlciBsZXZlbFxuICAgICAgICAgIGJyZWFrO1xuICAgICAgICBkZWZhdWx0OlxuICAgICAgICAgIGJyZWFrO1xuICAgICAgfVxuICAgIH1cbiAgICByZXR1cm4gdG90YWw7XG4gIH1cblxuICAvKipcbiAgICogUGVyZm9ybXMgY29tcGxleCBjcmVkaXQgYWNjcnVhbCBjYWxjdWxhdGlvbiB3aXRoIHRpbWUtYmFzZWQgaW5jcmVtZW50cyBhbmQgZGF0YWJhc2UgdXBkYXRlcy5cbiAgICogQHBhcmFtIGVtcGlyZSAtIEVtcGlyZSBvYmplY3Qgd2l0aCBjcmVkaXRzLCBsYXN0X3Jlc291cmNlX3VwZGF0ZSwgYW5kIGNyZWRpdHNfcmVtYWluZGVyX21pbGxpXG4gICAqIEBwYXJhbSBjcmVkaXRzUGVySG91ciAtIENyZWRpdHMgcGVyIGhvdXIgcmF0ZSBmb3IgdGhlIGVtcGlyZVxuICAgKiBAcmV0dXJucyBPYmplY3QgY29udGFpbmluZyByZXNvdXJjZXNHYWluZWQgYW1vdW50IGFuZCB1cGRhdGVkIGVtcGlyZSBkYXRhXG4gICAqL1xuICBzdGF0aWMgYXN5bmMgcGVyZm9ybUNyZWRpdEFjY3J1YWwoZW1waXJlOiBhbnksIGNyZWRpdHNQZXJIb3VyOiBudW1iZXIpOiBQcm9taXNlPHsgcmVzb3VyY2VzR2FpbmVkOiBudW1iZXI7IHVwZGF0ZWRFbXBpcmU6IGFueSB9PiB7XG4gICAgbGV0IHJlc291cmNlc0dhaW5lZCA9IDA7XG5cbiAgICB0cnkge1xuICAgICAgY29uc3Qgbm93VHMgPSBEYXRlLm5vdygpO1xuICAgICAgY29uc3QgbGFzdFVwZGF0ZVJhdyA9IChlbXBpcmUgYXMgYW55KS5sYXN0X3Jlc291cmNlX3VwZGF0ZSBhcyBzdHJpbmcgfCBudWxsIHwgdW5kZWZpbmVkO1xuICAgICAgY29uc3QgbGFzdFRzID0gbGFzdFVwZGF0ZVJhdyA/IG5ldyBEYXRlKGxhc3RVcGRhdGVSYXcpLmdldFRpbWUoKSA6IG5vd1RzO1xuICAgICAgbGV0IGVsYXBzZWRNcyA9IE1hdGgubWF4KDAsIG5vd1RzIC0gKE51bWJlci5pc0Zpbml0ZShsYXN0VHMpID8gbGFzdFRzIDogbm93VHMpKTtcblxuICAgICAgLy8gQ2FycnkgcmVtYWluZGVyIG1pbGxpc2Vjb25kc1xuICAgICAgbGV0IGNhcnJ5TXMgPSBNYXRoLm1heCgwLCBOdW1iZXIoKGVtcGlyZSBhcyBhbnkpLmNyZWRpdHNfcmVtYWluZGVyX21pbGxpIHx8IDApKTtcblxuICAgICAgaWYgKGNyZWRpdHNQZXJIb3VyID4gMCkge1xuICAgICAgICBjb25zdCB0b3RhbE1zID0gZWxhcHNlZE1zICsgY2FycnlNcztcbiAgICAgICAgY29uc3QgZnJhY3Rpb25hbCA9IGNyZWRpdHNQZXJIb3VyICogKHRvdGFsTXMgLyAzNjAwMDAwKTtcbiAgICAgICAgY29uc3QgaW5jcmVtZW50ID0gTWF0aC5mbG9vcihmcmFjdGlvbmFsKTtcbiAgICAgICAgY29uc3QgcmVtYWluZGVyTXMgPSB0b3RhbE1zICUgMzYwMDAwMDtcblxuICAgICAgICBpZiAoaW5jcmVtZW50ID4gMCB8fCBlbGFwc2VkTXMgPiAwIHx8IGNhcnJ5TXMgIT09IHJlbWFpbmRlck1zKSB7XG4gICAgICAgICAgY29uc3Qgb2xkQ3JlZGl0cyA9IE1hdGgubWF4KDAsIE51bWJlcigoZW1waXJlIGFzIGFueSkuY3JlZGl0cyB8fCAwKSk7XG4gICAgICAgICAgY29uc3QgbmV3Q3JlZGl0cyA9IE1hdGgubWF4KDAsIG9sZENyZWRpdHMgKyBpbmNyZW1lbnQpO1xuICAgICAgICAgIHJlc291cmNlc0dhaW5lZCA9IGluY3JlbWVudDtcblxuICAgICAgICAgIGNvbnN0IHQwID0gRGF0ZS5ub3coKTtcbiAgICAgICAgICBjb25zdCB1cGQgPSBhd2FpdCBzdXBhYmFzZVxuICAgICAgICAgICAgLmZyb20oREJfVEFCTEVTLkVNUElSRVMpXG4gICAgICAgICAgICAudXBkYXRlKHtcbiAgICAgICAgICAgICAgY3JlZGl0czogbmV3Q3JlZGl0cyxcbiAgICAgICAgICAgICAgbGFzdF9yZXNvdXJjZV91cGRhdGU6IG5ldyBEYXRlKG5vd1RzKS50b0lTT1N0cmluZygpLFxuICAgICAgICAgICAgICBjcmVkaXRzX3JlbWFpbmRlcl9taWxsaTogcmVtYWluZGVyTXMsXG4gICAgICAgICAgICB9KVxuICAgICAgICAgICAgLmVxKERCX0ZJRUxEUy5CVUlMRElOR1MuSUQsIChlbXBpcmUgYXMgYW55KS5pZClcbiAgICAgICAgICAgIC5zZWxlY3QoJ2lkLCBjcmVkaXRzLCBsYXN0X3Jlc291cmNlX3VwZGF0ZSwgY3JlZGl0c19yZW1haW5kZXJfbWlsbGknKVxuICAgICAgICAgICAgLnNpbmdsZSgpO1xuICAgICAgICAgIGNvbnN0IGR0ID0gRGF0ZS5ub3coKSAtIHQwO1xuXG4gICAgICAgICAgaWYgKCF1cGQuZXJyb3IgJiYgdXBkLmRhdGEpIHtcbiAgICAgICAgICAgIChlbXBpcmUgYXMgYW55KS5jcmVkaXRzID0gdXBkLmRhdGEuY3JlZGl0cztcbiAgICAgICAgICAgIChlbXBpcmUgYXMgYW55KS5sYXN0X3Jlc291cmNlX3VwZGF0ZSA9IHVwZC5kYXRhLmxhc3RfcmVzb3VyY2VfdXBkYXRlO1xuICAgICAgICAgICAgKGVtcGlyZSBhcyBhbnkpLmNyZWRpdHNfcmVtYWluZGVyX21pbGxpID0gdXBkLmRhdGEuY3JlZGl0c19yZW1haW5kZXJfbWlsbGk7XG4gICAgICAgICAgfVxuXG4gICAgICAgICAgaWYgKHByb2Nlc3MuZW52W0VOVl9WQVJTLkVDT05PTVlfREVCVUddID09PSAndHJ1ZScpIHtcbiAgICAgICAgICAgIGNvbnNvbGUubG9nKCdbQUNDUlVBTF0nLCB7XG4gICAgICAgICAgICAgIGVtcGlyZUlkOiBTdHJpbmcoKGVtcGlyZSBhcyBhbnkpLmlkKSxcbiAgICAgICAgICAgICAgY3JlZGl0c1BlckhvdXIsXG4gICAgICAgICAgICAgIGVsYXBzZWRNcyxcbiAgICAgICAgICAgICAgY2FycnlNcyxcbiAgICAgICAgICAgICAgaW5jcmVtZW50LFxuICAgICAgICAgICAgICByZW1haW5kZXJNcyxcbiAgICAgICAgICAgICAgb2xkQ3JlZGl0cyxcbiAgICAgICAgICAgICAgbmV3Q3JlZGl0cyxcbiAgICAgICAgICAgICAgdXBkYXRlTXM6IGR0LFxuICAgICAgICAgICAgfSk7XG4gICAgICAgICAgfVxuICAgICAgICB9XG4gICAgICB9IGVsc2Uge1xuICAgICAgICAvLyBObyBlY29ub215IHJhdGU7IHN0aWxsIGFkdmFuY2UgdGhlIHRpbWVzdGFtcCBhbmQgY2xlYXIgcmVtYWluZGVyIHRvIGF2b2lkIHVuYm91bmRlZCBjYXJyeVxuICAgICAgICBpZiAoZWxhcHNlZE1zID4gMCB8fCBjYXJyeU1zICE9PSAwIHx8ICEoZW1waXJlIGFzIGFueSkubGFzdF9yZXNvdXJjZV91cGRhdGUpIHtcbiAgICAgICAgICBhd2FpdCBzdXBhYmFzZVxuICAgICAgICAgICAgLmZyb20oREJfVEFCTEVTLkVNUElSRVMpXG4gICAgICAgICAgICAudXBkYXRlKHtcbiAgICAgICAgICAgICAgbGFzdF9yZXNvdXJjZV91cGRhdGU6IG5ldyBEYXRlKG5vd1RzKS50b0lTT1N0cmluZygpLFxuICAgICAgICAgICAgICBjcmVkaXRzX3JlbWFpbmRlcl9taWxsaTogMCxcbiAgICAgICAgICAgIH0pXG4gICAgICAgICAgICAuZXEoREJfRklFTERTLkJVSUxESU5HUy5JRCwgKGVtcGlyZSBhcyBhbnkpLmlkKTtcbiAgICAgICAgICAoZW1waXJlIGFzIGFueSkubGFzdF9yZXNvdXJjZV91cGRhdGUgPSBuZXcgRGF0ZShub3dUcykudG9JU09TdHJpbmcoKTtcbiAgICAgICAgICAoZW1waXJlIGFzIGFueSkuY3JlZGl0c19yZW1haW5kZXJfbWlsbGkgPSAwO1xuICAgICAgICB9XG4gICAgICB9XG4gICAgfSBjYXRjaCB7XG4gICAgICAvLyBOb24tZmF0YWw6IGxlYXZlIGNyZWRpdHMgdW5jaGFuZ2VkXG4gICAgfVxuXG4gICAgcmV0dXJuIHsgcmVzb3VyY2VzR2FpbmVkLCB1cGRhdGVkRW1waXJlOiBlbXBpcmUgfTtcbiAgfVxuXG4gIC8qKlxuICAgKiBDYWxjdWxhdGVzIGNvbXByZWhlbnNpdmUgZGFzaGJvYXJkIHJlc291cmNlcyBpbmNsdWRpbmcgYWNjcnVhbCwgcHJvZmlsZSwgYW5kIGN1cnJlbnQgc3RhdGUuXG4gICAqIEBwYXJhbSBlbXBpcmUgLSBFbXBpcmUgb2JqZWN0XG4gICAqIEBwYXJhbSB1c2VySWQgLSBVc2VyIElEIGZvciBjb250ZXh0IChjdXJyZW50bHkgdW51c2VkIGJ1dCByZXNlcnZlZCBmb3IgZnV0dXJlIGZlYXR1cmVzKVxuICAgKiBAcmV0dXJucyBEYXNoYm9hcmQgcmVzb3VyY2VzIG9iamVjdCB3aXRoIGNvbXB1dGVkIHZhbHVlc1xuICAgKi9cbiAgc3RhdGljIGFzeW5jIGNhbGN1bGF0ZURhc2hib2FyZFJlc291cmNlcyhlbXBpcmU6IGFueSwgdXNlcklkOiBzdHJpbmcpOiBQcm9taXNlPHtcbiAgICByZXNvdXJjZXNHYWluZWQ6IG51bWJlcjtcbiAgICBjcmVkaXRzUGVySG91cjogbnVtYmVyO1xuICAgIHByb2ZpbGU6IHtcbiAgICAgIGVjb25vbXlQZXJIb3VyOiBudW1iZXI7XG4gICAgICBmbGVldFNjb3JlOiBudW1iZXI7XG4gICAgICB0ZWNobm9sb2d5U2NvcmU6IG51bWJlcjtcbiAgICAgIGxldmVsOiBudW1iZXI7XG4gICAgfTtcbiAgICB1cGRhdGVkRW1waXJlOiBhbnk7XG4gIH0+IHtcbiAgICAvLyBDb21wdXRlIGNyZWRpdHMgcGVyIGhvdXIgZnJvbSBTdXBhYmFzZSBidWlsZGluZ3MgdmlhIGNhdGFsb2cgeWllbGRzXG4gICAgY29uc3QgY3JlZGl0c1BlckhvdXIgPSBhd2FpdCBFY29ub215U2VydmljZS5zdW1DcmVkaXRzUGVySG91ckZvckVtcGlyZShTdHJpbmcoKGVtcGlyZSBhcyBhbnkpLmlkKSk7XG5cbiAgICAvLyBQZXJmb3JtIGNyZWRpdCBhY2NydWFsIGNhbGN1bGF0aW9uXG4gICAgY29uc3QgeyByZXNvdXJjZXNHYWluZWQsIHVwZGF0ZWRFbXBpcmUgfSA9IGF3YWl0IHRoaXMucGVyZm9ybUNyZWRpdEFjY3J1YWwoZW1waXJlLCBjcmVkaXRzUGVySG91cik7XG5cbiAgICAvLyBDYWxjdWxhdGUgcHJvZmlsZSBzY29yZXMgKGZsZWV0IHNjb3JlIGlzIGN1cnJlbnRseSBoYXJkY29kZWQgdG8gMClcbiAgICBjb25zdCB0ZWNobm9sb2d5U2NvcmUgPSB0aGlzLmNvbXB1dGVUZWNobm9sb2d5U2NvcmUoZW1waXJlKTtcbiAgICBjb25zdCBmbGVldFNjb3JlID0gMDtcbiAgICBjb25zdCBsZXZlbCA9IE1hdGgucG93KGNyZWRpdHNQZXJIb3VyICogMTAwICsgZmxlZXRTY29yZSArIHRlY2hub2xvZ3lTY29yZSwgMC4yNSk7XG5cbiAgICBjb25zdCBwcm9maWxlID0ge1xuICAgICAgZWNvbm9teVBlckhvdXI6IGNyZWRpdHNQZXJIb3VyLFxuICAgICAgZmxlZXRTY29yZSxcbiAgICAgIHRlY2hub2xvZ3lTY29yZSxcbiAgICAgIGxldmVsLFxuICAgIH07XG5cbiAgICByZXR1cm4ge1xuICAgICAgcmVzb3VyY2VzR2FpbmVkLFxuICAgICAgY3JlZGl0c1BlckhvdXIsXG4gICAgICBwcm9maWxlLFxuICAgICAgdXBkYXRlZEVtcGlyZSxcbiAgICB9O1xuICB9XG5cbiAgLyoqXG4gICAqIExlZ2FjeSBtZXRob2QgZm9yIGJhY2t3YXJkIGNvbXBhdGliaWxpdHkgLSBjb21wdXRlcyBjcmVkaXRzIHBlciBob3VyIGZvciBhIHNwZWNpZmljIGVtcGlyZS5cbiAgICogQHBhcmFtIGVtcGlyZUlkIC0gRW1waXJlIElEIHN0cmluZ1xuICAgKiBAcmV0dXJucyBDcmVkaXRzIHBlciBob3VyIGZvciB0aGUgZW1waXJlXG4gICAqL1xuICBzdGF0aWMgYXN5bmMgY29tcHV0ZUNyZWRpdHNQZXJIb3VyKGVtcGlyZUlkOiBzdHJpbmcpOiBQcm9taXNlPG51bWJlcj4ge1xuICAgIHJldHVybiBhd2FpdCBFY29ub215U2VydmljZS5zdW1DcmVkaXRzUGVySG91ckZvckVtcGlyZShlbXBpcmVJZCk7XG4gIH1cbn1cbiJdLCJ2ZXJzaW9uIjozfQ==

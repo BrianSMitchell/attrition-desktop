@@ -1,7 +1,7 @@
 ﻿import * as React from "react";
 import { useUpdate } from "../../contexts/UpdateContext";
 import { useUIActions } from '../../stores/enhancedAppStore';
-import { LAYOUT_CLASSES } from '../constants/css-constants';
+import { LAYOUT_CLASSES } from '../../constants/css-constants';
 
 /**
  * UpdateSettings Component

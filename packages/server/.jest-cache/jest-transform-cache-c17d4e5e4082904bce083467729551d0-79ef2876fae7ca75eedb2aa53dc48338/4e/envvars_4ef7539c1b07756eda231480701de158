@@ -1,0 +1,150 @@
+89aaf7a76b10bd992d67bfe4c271a2b7
+"use strict";
+/**
+ * Environment Variables Constants
+ *
+ * Centralized constants for all environment variable names used throughout the application.
+ * This helps eliminate hardcoded environment variable names and provides better maintainability.
+ *
+ * Usage:
+ * - Import the required constants: import { ENV_VARS } from '@shared/constants/env-vars'
+ * - Use instead of hardcoded strings: process.env[ENV_VARS.NODE_ENV] instead of process.env.NODE_ENV
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ENV_VARS = void 0;
+exports.getEnvVar = getEnvVar;
+exports.getRequiredEnvVar = getRequiredEnvVar;
+exports.getEnvVarWithDefault = getEnvVarWithDefault;
+exports.ENV_VARS = {
+    // Core Node.js Environment
+    NODE_ENV: 'NODE_ENV',
+    PORT: 'PORT',
+    // Database Configuration
+    MONGODB_URI: 'MONGODB_URI',
+    MONGO_URI: 'MONGO_URI',
+    SUPABASE_URL: 'SUPABASE_URL',
+    SUPABASE_ANON_KEY: 'SUPABASE_ANON_KEY',
+    SUPABASE_SERVICE_ROLE_KEY: 'SUPABASE_SERVICE_ROLE_KEY',
+    // Authentication & Security
+    JWT_SECRET: 'JWT_SECRET',
+    JWT_SECRET_PREVIOUS: 'JWT_SECRET_PREVIOUS',
+    ADMIN_MAINTENANCE_SECRET: 'ADMIN_MAINTENANCE_SECRET',
+    DEVICE_BINDING_THRESHOLD: 'DEVICE_BINDING_THRESHOLD',
+    DEVICE_BINDING_STRICT: 'DEVICE_BINDING_STRICT',
+    ENABLE_DEVICE_BINDING: 'ENABLE_DEVICE_BINDING',
+    // SSL/TLS Configuration
+    HTTPS_PORT: 'HTTPS_PORT',
+    FORCE_HTTPS: 'FORCE_HTTPS',
+    USE_REVERSE_PROXY_SSL: 'USE_REVERSE_PROXY_SSL',
+    SSL_KEY_PATH: 'SSL_KEY_PATH',
+    SSL_CERT_PATH: 'SSL_CERT_PATH',
+    SSL_CA_PATH: 'SSL_CA_PATH',
+    SSL_KEY_PASSPHRASE: 'SSL_KEY_PASSPHRASE',
+    // TLS Session Management
+    TLS_DISABLE_SESSION_RESUMPTION: 'TLS_DISABLE_SESSION_RESUMPTION',
+    TLS_SESSION_TIMEOUT: 'TLS_SESSION_TIMEOUT',
+    TLS_SESSION_CACHE_SIZE: 'TLS_SESSION_CACHE_SIZE',
+    TLS_SESSION_METRICS: 'TLS_SESSION_METRICS',
+    TLS_OCSP_STAPLING: 'TLS_OCSP_STAPLING',
+    // TLS Certificate Pinning
+    TLS_CERT_PINNING_ENABLED: 'TLS_CERT_PINNING_ENABLED',
+    TLS_PINNED_CERTIFICATES: 'TLS_PINNED_CERTIFICATES',
+    TLS_PINNED_PUBLIC_KEYS: 'TLS_PINNED_PUBLIC_KEYS',
+    TLS_CERT_PINNING_STRICT: 'TLS_CERT_PINNING_STRICT',
+    TLS_CERT_PINNING_REPORT_URL: 'TLS_CERT_PINNING_REPORT_URL',
+    TLS_CERT_PINNING_MAX_AGE: 'TLS_CERT_PINNING_MAX_AGE',
+    TLS_CERT_PINNING_INCLUDE_SUBDOMAINS: 'TLS_CERT_PINNING_INCLUDE_SUBDOMAINS',
+    // TLS Monitoring & Alerts
+    TLS_MONITORING_ENABLED: 'TLS_MONITORING_ENABLED',
+    TLS_ALERTS_ENABLED: 'TLS_ALERTS_ENABLED',
+    TLS_HANDSHAKE_FAILURE_THRESHOLD: 'TLS_HANDSHAKE_FAILURE_THRESHOLD',
+    TLS_WEAK_CIPHER_THRESHOLD: 'TLS_WEAK_CIPHER_THRESHOLD',
+    TLS_OLD_PROTOCOL_THRESHOLD: 'TLS_OLD_PROTOCOL_THRESHOLD',
+    TLS_CERT_EXPIRATION_DAYS: 'TLS_CERT_EXPIRATION_DAYS',
+    TLS_METRICS_RETENTION_HOURS: 'TLS_METRICS_RETENTION_HOURS',
+    TLS_ALERTS_RETENTION_HOURS: 'TLS_ALERTS_RETENTION_HOURS',
+    // CORS & Security Headers
+    CORS_ORIGIN: 'CORS_ORIGIN',
+    SECURITY_REPORT_URI: 'SECURITY_REPORT_URI',
+    // Rate Limiting
+    RATE_LIMIT_ENABLED: 'RATE_LIMIT_ENABLED',
+    RATE_LIMIT_WINDOW_MS: 'RATE_LIMIT_WINDOW_MS',
+    RATE_LIMIT_MAX_REQUESTS: 'RATE_LIMIT_MAX_REQUESTS',
+    RATE_LIMIT_SKIP_AUTH: 'RATE_LIMIT_SKIP_AUTH',
+    RATE_LIMIT_SKIP_GAME: 'RATE_LIMIT_SKIP_GAME',
+    // Security Monitoring
+    SECURITY_EVENTS_RETENTION: 'SECURITY_EVENTS_RETENTION',
+    MAX_SESSIONS_PER_USER: 'MAX_SESSIONS_PER_USER',
+    DEVICE_FINGERPRINT_THRESHOLD: 'DEVICE_FINGERPRINT_THRESHOLD',
+    AUTO_REVOKE_ON_SUSPICIOUS: 'AUTO_REVOKE_ON_SUSPICIOUS',
+    FAILED_LOGIN_THRESHOLD: 'FAILED_LOGIN_THRESHOLD',
+    DEVICE_CHANGE_THRESHOLD: 'DEVICE_CHANGE_THRESHOLD',
+    IP_CHANGE_THRESHOLD: 'IP_CHANGE_THRESHOLD',
+    CONCURRENT_SESSION_THRESHOLD: 'CONCURRENT_SESSION_THRESHOLD',
+    // Game Configuration
+    GAME_LOOP_ENABLED: 'GAME_LOOP_ENABLED',
+    CREDIT_PAYOUT_PERIOD_MINUTES: 'CREDIT_PAYOUT_PERIOD_MINUTES',
+    CITIZEN_PAYOUT_PERIOD_MINUTES: 'CITIZEN_PAYOUT_PERIOD_MINUTES',
+    // Debug & Logging
+    DEBUG_RESOURCES: 'DEBUG_RESOURCES',
+    LOG_LEVEL: 'LOG_LEVEL',
+    DEBUG_PATCH_LOG: 'DEBUG_PATCH_LOG',
+    ECONOMY_DEBUG: 'ECONOMY_DEBUG',
+    ENABLE_ERROR_SYNC: 'ENABLE_ERROR_SYNC',
+    METRICS_CONFIG_PATH: 'METRICS_CONFIG_PATH',
+    // Deployment & Platform
+    RENDER: 'RENDER',
+    CI: 'CI',
+    GITHUB_REF_NAME: 'GITHUB_REF_NAME',
+    GITHUB_SHA: 'GITHUB_SHA',
+    GITHUB_STEP_SUMMARY: 'GITHUB_STEP_SUMMARY',
+    // System & Platform
+    HOME: 'HOME',
+    APPDATA: 'APPDATA',
+    TZ: 'TZ',
+    XDG_CONFIG_HOME: 'XDG_CONFIG_HOME',
+    // Desktop/Electron App
+    ELECTRON_IS_DEV: 'ELECTRON_IS_DEV',
+    ELECTRON_ENABLE_LOGGING: 'ELECTRON_ENABLE_LOGGING',
+    DEBUG: 'DEBUG',
+    ADMIN_MODE: 'ADMIN_MODE',
+    API_BASE_URL: 'API_BASE_URL',
+    PRODUCTION_API_HOST: 'PRODUCTION_API_HOST',
+    ATTRITION_LAUNCHED_BY_LAUNCHER: 'ATTRITION_LAUNCHED_BY_LAUNCHER',
+    // Application Version
+    REACT_APP_VERSION: 'REACT_APP_VERSION',
+    // Health Checks & Monitoring
+    HTTPS_HEALTH_CHECK_INTERVAL_MINUTES: 'HTTPS_HEALTH_CHECK_INTERVAL_MINUTES',
+    // Email & Notifications
+    SMTP_HOST: 'SMTP_HOST',
+    SMTP_PORT: 'SMTP_PORT',
+    SMTP_USERNAME: 'SMTP_USERNAME',
+    SMTP_PASSWORD: 'SMTP_PASSWORD',
+    EMAIL_FROM: 'EMAIL_FROM',
+    EMAIL_RECIPIENTS: 'EMAIL_RECIPIENTS',
+    // Slack Integration
+    SLACK_WEBHOOK_URL: 'SLACK_WEBHOOK_URL',
+    SLACK_CHANNEL: 'SLACK_CHANNEL',
+    SLACK_USERNAME: 'SLACK_USERNAME',
+    // Testing Configuration
+    TEST_ADMIN_TOKEN: 'TEST_ADMIN_TOKEN',
+    TEST_USER_EMAIL: 'TEST_USER_EMAIL',
+    TEST_USER_PASSWORD: 'TEST_USER_PASSWORD',
+};
+// Helper function to get environment variable with type safety
+function getEnvVar(key) {
+    return process.env[exports.ENV_VARS[key]];
+}
+// Helper function to get required environment variable
+function getRequiredEnvVar(key) {
+    const value = process.env[exports.ENV_VARS[key]];
+    if (value === undefined) {
+        throw new Error(`Required environment variable ${exports.ENV_VARS[key]} is not defined`);
+    }
+    return value;
+}
+// Helper function to get environment variable with default value
+function getEnvVarWithDefault(key, defaultValue) {
+    return process.env[exports.ENV_VARS[key]] || defaultValue;
+}
+//# sourceMappingURL=env-vars.js.map

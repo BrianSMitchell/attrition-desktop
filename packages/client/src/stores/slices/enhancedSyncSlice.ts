@@ -2,7 +2,7 @@ import { StateCreator } from 'zustand';
 import { getServices } from '../../services/core';
 import { SyncState as ServiceSyncState } from '../../services/core/types';
 
-import { STATUS_CODES } from '@shared/constants/magic-numbers';
+import { STATUS_CODES } from '@game/shared';
 export type SyncState = 'idle' | 'syncing' | 'error';
 
 export interface SyncStatus {

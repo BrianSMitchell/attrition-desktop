@@ -1,6 +1,6 @@
 ﻿import * as React from "react";
 import { useSync, useUIActions } from '../../stores/enhancedAppStore';
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 
 /**

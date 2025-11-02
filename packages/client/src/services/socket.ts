@@ -1,7 +1,7 @@
 ﻿import { Socket } from "socket.io-client";
 import { SocketManager } from "./core/SocketManager";
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VARS } from '@game/shared';
+import { ENV_VALUES } from '@game/shared';
 
 
 // Singleton socket instance - initialized lazily to prevent race conditions

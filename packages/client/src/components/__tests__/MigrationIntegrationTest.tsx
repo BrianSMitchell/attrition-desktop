@@ -1,6 +1,9 @@
 /**
+ * Integration Test for Migrated Components
+ */
 
-import { HTTP_STATUS } from '@shared/response-formats';
+import { HTTP_STATUS } from '@game/shared';
+
 /**
  * Integration Test for Migrated Components
  * 
@@ -340,3 +343,5 @@ export const testComponentLogic = () => {
 
 // Export for manual testing
 export default testComponentLogic;
+
+

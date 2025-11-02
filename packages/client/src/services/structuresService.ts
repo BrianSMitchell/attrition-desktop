@@ -1,6 +1,6 @@
 ﻿import api, { ApiError } from "./api";
 import { ApiResponse, BuildingKey, BuildingSpec } from "@game/shared";
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 
 // Keep DTO type for UI typing (read-only usage during decommission)

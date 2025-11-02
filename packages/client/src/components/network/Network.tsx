@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useServiceNetwork, useServiceToasts } from '../../hooks/useServiceIntegration';
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 
-import { STATUS_CODES } from '@shared/constants/magic-numbers';
+import { STATUS_CODES } from '@game/shared';
 /**
  * Network status indicator component showing connection state
  */

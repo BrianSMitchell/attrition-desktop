@@ -1,0 +1,56 @@
+9c25b5da9195b7471e252a9c54488946
+"use strict";
+/**
+ * Jest Setup File
+ * Runs before each test suite
+ * Use for global test configuration, mocks, and utilities
+ */
+// Mock Supabase client (if not using real database in tests)
+// This is optional - remove or modify based on your test needs
+jest.mock('@supabase/supabase-js', () => ({
+    createClient: jest.fn(() => ({
+        from: jest.fn(),
+        auth: {
+            getUser: jest.fn(),
+            signInWithPassword: jest.fn(),
+            signUp: jest.fn(),
+            signOut: jest.fn(),
+        },
+        realtime: {
+            on: jest.fn(),
+            subscribe: jest.fn(),
+        },
+    })),
+}));
+// Suppress console output in tests (unless explicitly logged)
+if (process.env.DEBUG !== 'true') {
+    global.console = {
+        ...console,
+        log: jest.fn(),
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+    };
+}
+// Set test environment variables
+process.env.NODE_ENV = 'test';
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/attrition_test';
+// Jest timeout for integration tests
+jest.setTimeout(10000);
+// Custom matchers
+expect.extend({
+    toBeValidId(received) {
+        const isValid = typeof received === 'string' && received.length > 0;
+        return {
+            pass: isValid,
+            message: () => `Expected ${received} to be a valid ID`,
+        };
+    },
+});
+// Cleanup after all tests
+afterAll(async () => {
+    // Add any cleanup code here
+    // E.g., close database connections, clear mocks
+});
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFByb2plY3RzXFxBdHRyaXRpb25cXHBhY2thZ2VzXFxzZXJ2ZXJcXHNyY1xcX190ZXN0c19fXFxzZXR1cFxcamVzdC5zZXR1cC50cyIsIm1hcHBpbmdzIjoiO0FBQUE7Ozs7R0FJRztBQXlDSCw2REFBNkQ7QUFDN0QsK0RBQStEO0FBQy9ELElBQUksQ0FBQyxJQUFJLENBQUMsdUJBQXVCLEVBQUUsR0FBRyxFQUFFLENBQUMsQ0FBQztJQUN4QyxZQUFZLEVBQUUsSUFBSSxDQUFDLEVBQUUsQ0FBQyxHQUFHLEVBQUUsQ0FBQyxDQUFDO1FBQzNCLElBQUksRUFBRSxJQUFJLENBQUMsRUFBRSxFQUFFO1FBQ2YsSUFBSSxFQUFFO1lBQ0osT0FBTyxFQUFFLElBQUksQ0FBQyxFQUFFLEVBQUU7WUFDbEIsa0JBQWtCLEVBQUUsSUFBSSxDQUFDLEVBQUUsRUFBRTtZQUM3QixNQUFNLEVBQUUsSUFBSSxDQUFDLEVBQUUsRUFBRTtZQUNqQixPQUFPLEVBQUUsSUFBSSxDQUFDLEVBQUUsRUFBRTtTQUNuQjtRQUNELFFBQVEsRUFBRTtZQUNSLEVBQUUsRUFBRSxJQUFJLENBQUMsRUFBRSxFQUFFO1lBQ2IsU0FBUyxFQUFFLElBQUksQ0FBQyxFQUFFLEVBQUU7U0FDckI7S0FDRixDQUFDLENBQUM7Q0FDSixDQUFDLENBQUMsQ0FBQztBQXZESiw4REFBOEQ7QUFDOUQsSUFBSSxPQUFPLENBQUMsR0FBRyxDQUFDLEtBQUssS0FBSyxNQUFNLEVBQUUsQ0FBQztJQUNqQyxNQUFNLENBQUMsT0FBTyxHQUFHO1FBQ2YsR0FBRyxPQUFPO1FBQ1YsR0FBRyxFQUFFLElBQUksQ0FBQyxFQUFFLEVBQUU7UUFDZCxLQUFLLEVBQUUsSUFBSSxDQUFDLEVBQUUsRUFBRTtRQUNoQixJQUFJLEVBQUUsSUFBSSxDQUFDLEVBQUUsRUFBRTtRQUNmLElBQUksRUFBRSxJQUFJLENBQUMsRUFBRSxFQUFFO1FBQ2YsS0FBSyxFQUFFLElBQUksQ0FBQyxFQUFFLEVBQUU7S0FDakIsQ0FBQztBQUNKLENBQUM7QUFFRCxpQ0FBaUM7QUFDakMsT0FBTyxDQUFDLEdBQUcsQ0FBQyxRQUFRLEdBQUcsTUFBTSxDQUFDO0FBQzlCLE9BQU8sQ0FBQyxHQUFHLENBQUMsWUFBWSxHQUFHLE9BQU8sQ0FBQyxHQUFHLENBQUMsWUFBWSxJQUFJLHNEQUFzRCxDQUFDO0FBRTlHLHFDQUFxQztBQUNyQyxJQUFJLENBQUMsVUFBVSxDQUFDLEtBQUssQ0FBQyxDQUFDO0FBV3ZCLGtCQUFrQjtBQUNsQixNQUFNLENBQUMsTUFBTSxDQUFDO0lBQ1osV0FBVyxDQUFDLFFBQVE7UUFDbEIsTUFBTSxPQUFPLEdBQUcsT0FBTyxRQUFRLEtBQUssUUFBUSxJQUFJLFFBQVEsQ0FBQyxNQUFNLEdBQUcsQ0FBQyxDQUFDO1FBQ3BFLE9BQU87WUFDTCxJQUFJLEVBQUUsT0FBTztZQUNiLE9BQU8sRUFBRSxHQUFHLEVBQUUsQ0FBQyxZQUFZLFFBQVEsbUJBQW1CO1NBQ3ZELENBQUM7SUFDSixDQUFDO0NBQ0YsQ0FBQyxDQUFDO0FBb0JILDBCQUEwQjtBQUMxQixRQUFRLENBQUMsS0FBSyxJQUFJLEVBQUU7SUFDbEIsNEJBQTRCO0lBQzVCLGdEQUFnRDtBQUNsRCxDQUFDLENBQUMsQ0FBQyIsIm5hbWVzIjpbXSwic291cmNlcyI6WyJDOlxcUHJvamVjdHNcXEF0dHJpdGlvblxccGFja2FnZXNcXHNlcnZlclxcc3JjXFxfX3Rlc3RzX19cXHNldHVwXFxqZXN0LnNldHVwLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8qKlxyXG4gKiBKZXN0IFNldHVwIEZpbGVcclxuICogUnVucyBiZWZvcmUgZWFjaCB0ZXN0IHN1aXRlXHJcbiAqIFVzZSBmb3IgZ2xvYmFsIHRlc3QgY29uZmlndXJhdGlvbiwgbW9ja3MsIGFuZCB1dGlsaXRpZXNcclxuICovXHJcblxyXG4vLyBTdXBwcmVzcyBjb25zb2xlIG91dHB1dCBpbiB0ZXN0cyAodW5sZXNzIGV4cGxpY2l0bHkgbG9nZ2VkKVxyXG5pZiAocHJvY2Vzcy5lbnYuREVCVUcgIT09ICd0cnVlJykge1xyXG4gIGdsb2JhbC5jb25zb2xlID0ge1xyXG4gICAgLi4uY29uc29sZSxcclxuICAgIGxvZzogamVzdC5mbigpLFxyXG4gICAgZGVidWc6IGplc3QuZm4oKSxcclxuICAgIGluZm86IGplc3QuZm4oKSxcclxuICAgIHdhcm46IGplc3QuZm4oKSxcclxuICAgIGVycm9yOiBqZXN0LmZuKCksXHJcbiAgfTtcclxufVxyXG5cclxuLy8gU2V0IHRlc3QgZW52aXJvbm1lbnQgdmFyaWFibGVzXHJcbnByb2Nlc3MuZW52Lk5PREVfRU5WID0gJ3Rlc3QnO1xyXG5wcm9jZXNzLmVudi5EQVRBQkFTRV9VUkwgPSBwcm9jZXNzLmVudi5EQVRBQkFTRV9VUkwgfHwgJ3Bvc3RncmVzcWw6Ly90ZXN0OnRlc3RAbG9jYWxob3N0OjU0MzIvYXR0cml0aW9uX3Rlc3QnO1xyXG5cclxuLy8gSmVzdCB0aW1lb3V0IGZvciBpbnRlZ3JhdGlvbiB0ZXN0c1xyXG5qZXN0LnNldFRpbWVvdXQoMTAwMDApO1xyXG5cclxuLy8gR2xvYmFsIHRlc3QgdXRpbGl0aWVzXHJcbmRlY2xhcmUgZ2xvYmFsIHtcclxuICBuYW1lc3BhY2UgamVzdCB7XHJcbiAgICBpbnRlcmZhY2UgTWF0Y2hlcnM8Uj4ge1xyXG4gICAgICB0b0JlVmFsaWRJZCgpOiBSO1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG5cclxuLy8gQ3VzdG9tIG1hdGNoZXJzXHJcbmV4cGVjdC5leHRlbmQoe1xyXG4gIHRvQmVWYWxpZElkKHJlY2VpdmVkKSB7XHJcbiAgICBjb25zdCBpc1ZhbGlkID0gdHlwZW9mIHJlY2VpdmVkID09PSAnc3RyaW5nJyAmJiByZWNlaXZlZC5sZW5ndGggPiAwO1xyXG4gICAgcmV0dXJuIHtcclxuICAgICAgcGFzczogaXNWYWxpZCxcclxuICAgICAgbWVzc2FnZTogKCkgPT4gYEV4cGVjdGVkICR7cmVjZWl2ZWR9IHRvIGJlIGEgdmFsaWQgSURgLFxyXG4gICAgfTtcclxuICB9LFxyXG59KTtcclxuXHJcbi8vIE1vY2sgU3VwYWJhc2UgY2xpZW50IChpZiBub3QgdXNpbmcgcmVhbCBkYXRhYmFzZSBpbiB0ZXN0cylcclxuLy8gVGhpcyBpcyBvcHRpb25hbCAtIHJlbW92ZSBvciBtb2RpZnkgYmFzZWQgb24geW91ciB0ZXN0IG5lZWRzXHJcbmplc3QubW9jaygnQHN1cGFiYXNlL3N1cGFiYXNlLWpzJywgKCkgPT4gKHtcclxuICBjcmVhdGVDbGllbnQ6IGplc3QuZm4oKCkgPT4gKHtcclxuICAgIGZyb206IGplc3QuZm4oKSxcclxuICAgIGF1dGg6IHtcclxuICAgICAgZ2V0VXNlcjogamVzdC5mbigpLFxyXG4gICAgICBzaWduSW5XaXRoUGFzc3dvcmQ6IGplc3QuZm4oKSxcclxuICAgICAgc2lnblVwOiBqZXN0LmZuKCksXHJcbiAgICAgIHNpZ25PdXQ6IGplc3QuZm4oKSxcclxuICAgIH0sXHJcbiAgICByZWFsdGltZToge1xyXG4gICAgICBvbjogamVzdC5mbigpLFxyXG4gICAgICBzdWJzY3JpYmU6IGplc3QuZm4oKSxcclxuICAgIH0sXHJcbiAgfSkpLFxyXG59KSk7XHJcblxyXG4vLyBDbGVhbnVwIGFmdGVyIGFsbCB0ZXN0c1xyXG5hZnRlckFsbChhc3luYyAoKSA9PiB7XHJcbiAgLy8gQWRkIGFueSBjbGVhbnVwIGNvZGUgaGVyZVxyXG4gIC8vIEUuZy4sIGNsb3NlIGRhdGFiYXNlIGNvbm5lY3Rpb25zLCBjbGVhciBtb2Nrc1xyXG59KTtcclxuIl0sInZlcnNpb24iOjN9

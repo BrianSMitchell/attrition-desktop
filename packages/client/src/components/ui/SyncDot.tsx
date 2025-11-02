@@ -1,5 +1,5 @@
 ﻿import * as React from "react";
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 
 type SyncState = "idle" | "syncing" | "error";

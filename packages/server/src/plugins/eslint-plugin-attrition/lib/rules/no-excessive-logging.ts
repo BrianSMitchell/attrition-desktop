@@ -3,7 +3,7 @@
  * @author Attrition Development Team
  */
 
-import { Rule } from 'eslint';
+import type { TSESLint } from '@typescript-eslint/utils';
 import { countConsoleStatements } from '../utils/astHelpers';
 import { getProjectConfig } from '../utils/metricsIntegration';
 
@@ -25,13 +25,12 @@ interface LoggingOptions {
   requireLoggingLevels?: boolean;
 }
 
-const rule: Rule.RuleModule = {
+const rule: TSESLint.RuleModule<any, any> = {
+  defaultOptions: [],
   meta: {
     type: 'problem',
     docs: {
       description: 'Prevent excessive console.log usage and enforce logging best practices',
-      category: 'Best Practices',
-      recommended: true,
       url: 'https://github.com/attrition-game/server/blob/main/docs/eslint-rules.md#no-excessive-logging'
     },
     fixable: 'code',
@@ -69,7 +68,7 @@ const rule: Rule.RuleModule = {
     }
   },
 
-  create(context: Rule.RuleContext): Rule.RuleListener {
+  create(context: any): any {
     const options: LoggingOptions = context.options[0] || {};
     const maxConsoleStatements = options.maxConsoleStatements || 3;
     const allowInDevelopment = options.allowInDevelopment !== false;
@@ -191,7 +190,7 @@ const rule: Rule.RuleModule = {
             node: mainNode,
             messageId: 'excessiveConsoleUsage',
             data: { count: totalConsoleCount, max: maxConsoleStatements },
-            fix(fixer) {
+            fix(fixer: any) {
               const fixes = [];
               if (totalConsoleCount > maxConsoleStatements) {
                 const statementsToRemove = consoleStatements.slice(maxConsoleStatements);

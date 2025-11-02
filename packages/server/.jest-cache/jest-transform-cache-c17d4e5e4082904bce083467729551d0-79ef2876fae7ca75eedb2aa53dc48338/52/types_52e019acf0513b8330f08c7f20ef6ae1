@@ -1,0 +1,5 @@
+919a7f55cad5f5ed2baf8604d56a5086
+"use strict";
+// Message system types and interfaces for user-facing text
+Object.defineProperty(exports, "__esModule", { value: true });
+//# sourceMappingURL=types.js.map

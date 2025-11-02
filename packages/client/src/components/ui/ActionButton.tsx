@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { TIMEOUTS } from '@game/shared';
 import {
   useServiceNetwork, 
   useServiceSync, 

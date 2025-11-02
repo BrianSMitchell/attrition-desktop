@@ -498,6 +498,7 @@ export const MESSAGE_TEMPLATES_BY_CATEGORY: Record<MessageCategory, Record<strin
   research: RESEARCH_MESSAGES,
   fleet: FLEET_MESSAGES,
   combat: COMBAT_MESSAGES,
+  resource: {}, // TODO: Add resource messages
   trade: {}, // TODO: Add trade messages
   diplomacy: {}, // TODO: Add diplomacy messages
   exploration: {}, // TODO: Add exploration messages

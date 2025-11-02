@@ -3,7 +3,7 @@
  * @author Attrition Development Team
  */
 
-import { Rule } from 'eslint';
+import type { TSESLint } from '@typescript-eslint/utils';
 import { getProjectConfig } from '../utils/metricsIntegration';
 
 /**
@@ -37,16 +37,14 @@ interface IdConsistencyOptions {
  * Rule to enforce consistent ID patterns across the codebase
  * Critical for migration from ObjectId to UUID patterns
  */
-const rule: Rule.RuleModule = {
+const rule: TSESLint.RuleModule<any, any> = {
+  defaultOptions: [],
   meta: {
     type: 'problem',
     docs: {
       description: 'Enforce consistent ID patterns (ObjectId vs UUID) across codebase',
-      category: 'Best Practices',
-      recommended: true,
       url: 'https://github.com/attrition-game/server/blob/main/docs/eslint-rules.md#id-consistency'
     },
-    fixable: null, // No automatic fix for this complex rule
     schema: [
       {
         type: 'object',
@@ -86,7 +84,7 @@ const rule: Rule.RuleModule = {
     }
   },
 
-  create(context: Rule.RuleContext): Rule.RuleListener {
+  create(context: any): any {
     const config = getProjectConfig();
     const options: IdConsistencyOptions = context.options[0] || {};
     const targetScore = options.targetScore || 90;

@@ -3,7 +3,8 @@
  * @author Attrition Development Team
  */
 
-import { Rule } from 'eslint';
+import type { TSESLint } from '@typescript-eslint/utils';
+import type { Node } from 'estree';
 import { calculateComplexity } from '../utils/astHelpers';
 
 /**
@@ -60,16 +61,14 @@ interface ServiceExtractionOptions {
  * Rule to enforce service extraction pattern and prevent route bloat
  * Ensures proper separation of concerns between routes and business logic
  */
-const rule: Rule.RuleModule = {
+const rule: TSESLint.RuleModule<any, any> = {
+  defaultOptions: [],
   meta: {
     type: 'problem',
     docs: {
       description: 'Enforce service extraction pattern for routes and prevent mixed concerns',
-      category: 'Best Practices',
-      recommended: true,
       url: 'https://github.com/attrition-game/server/blob/main/docs/eslint-rules.md#service-extraction-required'
     },
-    fixable: null, // Complex refactoring not suitable for auto-fix
     schema: [
       {
         type: 'object',
@@ -114,7 +113,7 @@ const rule: Rule.RuleModule = {
     }
   },
 
-  create(context: Rule.RuleContext): Rule.RuleListener {
+  create(context: any): any {
     /**
      * Parses rule options with defaults
      */

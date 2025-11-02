@@ -363,6 +363,74 @@ export function deduplicateMessages(messages: GameMessage[]): GameMessage[] {
 }
 
 /**
+ * Type guard to check if an object is a valid GameMessage
+ */
+export function isGameMessage(obj: any): obj is GameMessage {
+  if (!obj || typeof obj !== 'object') {
+    return false;
+  }
+  
+  return (
+    typeof obj.id === 'string' &&
+    typeof obj.category === 'string' &&
+    typeof obj.severity === 'string' &&
+    typeof obj.message === 'string'
+  );
+}
+
+/**
+ * Validate a GameMessage object and return validation errors
+ */
+export function validateGameMessage(message: any): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  if (!message || typeof message !== 'object') {
+    errors.push('Message must be an object');
+    return { valid: false, errors };
+  }
+  
+  // Required fields
+  if (!message.id || typeof message.id !== 'string') {
+    errors.push('Message must have a valid id (string)');
+  }
+  
+  if (!message.category || typeof message.category !== 'string') {
+    errors.push('Message must have a valid category (string)');
+  }
+  
+  if (!message.severity || typeof message.severity !== 'string') {
+    errors.push('Message must have a valid severity (string)');
+  }
+  
+  if (!message.message || typeof message.message !== 'string') {
+    errors.push('Message must have a valid message (string)');
+  }
+  
+  // Optional fields type checking
+  if (message.description !== undefined && typeof message.description !== 'string') {
+    errors.push('Message description must be a string');
+  }
+  
+  if (message.code !== undefined && typeof message.code !== 'string') {
+    errors.push('Message code must be a string');
+  }
+  
+  if (message.persistent !== undefined && typeof message.persistent !== 'boolean') {
+    errors.push('Message persistent must be a boolean');
+  }
+  
+  if (message.timeout !== undefined && typeof message.timeout !== 'number') {
+    errors.push('Message timeout must be a number');
+  }
+  
+  if (message.actions !== undefined && !Array.isArray(message.actions)) {
+    errors.push('Message actions must be an array');
+  }
+  
+  return { valid: errors.length === 0, errors };
+}
+
+/**
  * Convert message to display format
  */
 export function messageToDisplayFormat(message: GameMessage): {

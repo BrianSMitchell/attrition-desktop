@@ -1,4 +1,4 @@
-import { DIRECTORY_PATHS } from './file-paths';
+// Removed import to avoid circular dependency - DIRECTORY_PATHS not used in this file
 
 /**
  * Configuration Keys Constants
@@ -20,8 +20,8 @@ import { DIRECTORY_PATHS } from './file-paths';
  * - Application Configuration Keys
  */
 
-// Re-export environment variable names for convenience
-export { ENV_VARS } from './env-vars';
+// Note: ENV_VARS is exported directly from './env-vars' via index.ts
+// Removed duplicate re-export to fix: SyntaxError: Identifier 'ENV_VARS' has already been declared
 
 /**
  * Common Environment Values
@@ -242,7 +242,7 @@ export const TEST_CONFIG_KEYS = {
   TEST_ENV: 'testEnv',
   TEST_TIMEOUT: 'testTimeout',
   SETUP_FILES: 'setupFiles',
-  COVERAGE: DIRECTORY_PATHS.COVERAGE,
+  COVERAGE: 'coverage',
   MOCK_MODULES: 'mockModules',
   TEST_MATCH: 'testMatch',
   IGNORE_PATTERNS: 'ignorePatterns',

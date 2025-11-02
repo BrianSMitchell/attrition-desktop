@@ -23,33 +23,92 @@ function cleanupDevProcesses() {
 }
 
 function cleanupWindowsProcesses() {
+  console.log('🔍 Detecting running processes...');
+
   const commands = [
-    // Kill Node.js processes related to Attrition
-    'taskkill /FI "IMAGENAME eq node.exe" /FI "WINDOWTITLE eq *attrition*" 2>nul',
-    'taskkill /F /FI "IMAGENAME eq node.exe" /FI "WINDOWTITLE eq *server*" 2>nul',
-    'taskkill /F /FI "IMAGENAME eq node.exe" /FI "WINDOWTITLE eq *desktop*" 2>nul',
-    'taskkill /F /FI "IMAGENAME eq node.exe" /FI "WINDOWTITLE eq *client*" 2>nul',
-    
-    // Kill Electron processes
-    'taskkill /F /IM electron.exe 2>nul',
-    
-    // Kill any remaining Node.js processes (fallback)
-    'taskkill /F /FI "IMAGENAME eq node.exe" /FI "COMMANDLINE eq *attrition*" 2>nul'
+    // Enhanced Node.js process detection and termination
+    {
+      name: 'Attrition main processes',
+      cmd: 'taskkill /FI "IMAGENAME eq node.exe" /FI "WINDOWTITLE eq *attrition*" /T /F 2>nul'
+    },
+    {
+      name: 'Server processes',
+      cmd: 'taskkill /FI "IMAGENAME eq node.exe" /FI "WINDOWTITLE eq *server*" /T /F 2>nul'
+    },
+    {
+      name: 'Desktop processes',
+      cmd: 'taskkill /FI "IMAGENAME eq node.exe" /FI "WINDOWTITLE eq *desktop*" /T /F 2>nul'
+    },
+    {
+      name: 'Client processes',
+      cmd: 'taskkill /FI "IMAGENAME eq node.exe" /FI "WINDOWTITLE eq *client*" /T /F 2>nul'
+    },
+
+    // Kill Electron processes with tree termination
+    {
+      name: 'Electron processes',
+      cmd: 'taskkill /IM electron.exe /T /F 2>nul'
+    },
+
+    // Kill by command line patterns (more reliable detection)
+    {
+      name: 'Processes by command line',
+      cmd: 'taskkill /FI "IMAGENAME eq node.exe" /FI "COMMANDLINE eq *dev-with-cleanup.js*" /T /F 2>nul'
+    },
+    {
+      name: 'PNPM dev processes',
+      cmd: 'taskkill /FI "IMAGENAME eq node.exe" /FI "COMMANDLINE eq *pnpm*dev*" /T /F 2>nul'
+    },
+
+    // Additional cleanup for common ports
+    {
+      name: 'Processes on port 3001',
+      cmd: 'for /f "tokens=5" %a in (\'netstat -aon ^| findstr :3001 ^| findstr LISTENING\') do taskkill /PID %a /T /F 2>nul'
+    },
+    {
+      name: 'Processes on port 5173',
+      cmd: 'for /f "tokens=5" %a in (\'netstat -aon ^| findstr :5173 ^| findstr LISTENING\') do taskkill /PID %a /T /F 2>nul'
+    },
+    {
+      name: 'Processes on port 5174',
+      cmd: 'for /f "tokens=5" %a in (\'netstat -aon ^| findstr :5174 ^| findstr LISTENING\') do taskkill /PID %a /T /F 2>nul'
+    }
   ];
-  
+
   let successCount = 0;
-  
-  commands.forEach(command => {
+  let errorCount = 0;
+
+  commands.forEach(({ name, cmd }) => {
     try {
-      execSync(command, { stdio: 'pipe' });
+      console.log(`🔫 Terminating ${name}...`);
+      execSync(cmd, { stdio: 'pipe' });
+      console.log(`  ✅ ${name} terminated successfully`);
       successCount++;
     } catch (error) {
-      // Ignore errors - process might not exist
+      // Only log errors if not "process not found" (exit code 128)
+      if (error.status !== 128 && error.status !== 1) {
+        console.log(`  ⚠️  ${name} - Error: ${error.message}`);
+        errorCount++;
+      } else {
+        console.log(`  ℹ️  ${name} - No processes found`);
+      }
     }
   });
-  
-  console.log(`✅ Attempted to kill ${successCount} process groups`);
-  console.log('✅ Development environment cleanup completed');
+
+  // Additional cleanup for stubborn processes
+  console.log('🧹 Performing final cleanup sweep...');
+  try {
+    // Kill any remaining node processes with 'attrition' in command line
+    execSync('taskkill /FI "IMAGENAME eq node.exe" /FI "COMMANDLINE eq *attrition*" /T /F 2>nul', { stdio: 'pipe' });
+    console.log('  ✅ Final sweep completed');
+  } catch (error) {
+    console.log('  ℹ️  Final sweep - No additional processes found');
+  }
+
+  console.log(`\n📊 Cleanup Summary:`);
+  console.log(`  ✅ Successful terminations: ${successCount}`);
+  console.log(`  ⚠️  Errors encountered: ${errorCount}`);
+  console.log('✅ Windows development environment cleanup completed');
 }
 
 function cleanupUnixProcesses() {

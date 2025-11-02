@@ -2,7 +2,7 @@
 import { FleetsListDTO } from '../../services/fleetsService';
 import FleetManagement from './fleet/FleetManagement';
 import { useUIActions, useGameApi } from '../../stores/enhancedAppStore';
-import { LAYOUT_CLASSES } from '../constants/css-constants';
+import { LAYOUT_CLASSES } from '../../constants/css-constants';
 
 interface FleetModalProps {
   onUpdate: () => void;

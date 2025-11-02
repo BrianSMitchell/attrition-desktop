@@ -1,6 +1,10 @@
 /**
-export default BaseDetail;
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
+ * Enhanced BaseDetail component
+ * Uses the unified enhanced store system - no legacy services
+ */
+
+import { TIMEOUTS } from '@game/shared';
+
 /**
  * Enhanced BaseDetail component
  * Uses the unified enhanced store system - no legacy services
@@ -462,3 +466,4 @@ export const BaseDetail: React.FC<BaseDetailProps> = ({
 };
 
 export default BaseDetail;
+

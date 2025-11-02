@@ -3,7 +3,7 @@ import { User, Empire } from '@game/shared';
 import { getServices } from '../../services/core';
 import { AuthState as ServiceAuthState } from '../../services/core/types';
 
-import { ERROR_MESSAGES } from '@shared/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 interface AuthState {
   user: Omit<User, 'passwordHash'> | null;

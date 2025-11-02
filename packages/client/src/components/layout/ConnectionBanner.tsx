@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useEnhancedNetwork } from '../../stores/enhancedAppStore';
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
-
-
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { ERROR_MESSAGES, TIMEOUTS } from '@game/shared';
 const ConnectionBanner: React.FC = () => {
   const network = useEnhancedNetwork();
   const [isVisible, setIsVisible] = useState(false);
@@ -85,5 +82,6 @@ const ConnectionBanner: React.FC = () => {
 };
 
 export default ConnectionBanner;
+
 
 

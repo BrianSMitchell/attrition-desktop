@@ -3,10 +3,8 @@ import { ERROR_MESSAGES } from '../constants/response-formats';
 // Constants imports for eliminating hardcoded values
 
 import { supabase } from '../config/supabase';
-
-import { DB_FIELDS } from '../../../constants/database-fields';
 import { ENV_VARS } from '@game/shared';
-import { EconomyService } from '../services/economy/EconomyService';
+import { EconomyService } from './economy/EconomyService';
 import { DB_TABLES, DB_FIELDS } from '../constants/database-fields';
 
 /**

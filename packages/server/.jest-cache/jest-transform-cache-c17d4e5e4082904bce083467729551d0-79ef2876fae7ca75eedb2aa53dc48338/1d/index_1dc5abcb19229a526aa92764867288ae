@@ -1,0 +1,20 @@
+174b82f47db688c844547aefe12cacb7
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const tech_1 = __importDefault(require("../game/tech"));
+const router = (0, express_1.Router)();
+// Add deprecation notice middleware
+router.use((req, res, next) => {
+    res.setHeader('X-Deprecated-Path', 'This path is deprecated. Use /api/game/tech/* instead.');
+    res.setHeader('X-New-Path', req.path.replace('/tech', '/game/tech'));
+    next();
+});
+// Mount all game routes - the tech routes will match from /api/tech/tech/*
+// while other game routes will 404 (since /api/tech/game/* won't match in game router)
+router.use('/', tech_1.default);
+exports.default = router;
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFByb2plY3RzXFxBdHRyaXRpb25cXHBhY2thZ2VzXFxzZXJ2ZXJcXHNyY1xccm91dGVzXFx0ZWNoXFxpbmRleC50cyIsIm1hcHBpbmdzIjoiOzs7OztBQUFBLHFDQUFpQztBQUNqQyx3REFBc0M7QUFFdEMsTUFBTSxNQUFNLEdBQUcsSUFBQSxnQkFBTSxHQUFFLENBQUM7QUFFeEIsb0NBQW9DO0FBQ3BDLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyxHQUFHLEVBQUUsR0FBRyxFQUFFLElBQUksRUFBRSxFQUFFO0lBQzVCLEdBQUcsQ0FBQyxTQUFTLENBQUMsbUJBQW1CLEVBQUUsd0RBQXdELENBQUMsQ0FBQztJQUM3RixHQUFHLENBQUMsU0FBUyxDQUFDLFlBQVksRUFBRSxHQUFHLENBQUMsSUFBSSxDQUFDLE9BQU8sQ0FBQyxPQUFPLEVBQUUsWUFBWSxDQUFDLENBQUMsQ0FBQztJQUNyRSxJQUFJLEVBQUUsQ0FBQztBQUNULENBQUMsQ0FBQyxDQUFDO0FBRUgsMkVBQTJFO0FBQzNFLHVGQUF1RjtBQUN2RixNQUFNLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxjQUFVLENBQUMsQ0FBQztBQUU1QixrQkFBZSxNQUFNLENBQUMiLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFByb2plY3RzXFxBdHRyaXRpb25cXHBhY2thZ2VzXFxzZXJ2ZXJcXHNyY1xccm91dGVzXFx0ZWNoXFxpbmRleC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBSb3V0ZXIgfSBmcm9tICdleHByZXNzJztcclxuaW1wb3J0IGdhbWVSb3V0ZXIgZnJvbSAnLi4vZ2FtZS90ZWNoJztcclxuXHJcbmNvbnN0IHJvdXRlciA9IFJvdXRlcigpO1xyXG5cclxuLy8gQWRkIGRlcHJlY2F0aW9uIG5vdGljZSBtaWRkbGV3YXJlXHJcbnJvdXRlci51c2UoKHJlcSwgcmVzLCBuZXh0KSA9PiB7XHJcbiAgcmVzLnNldEhlYWRlcignWC1EZXByZWNhdGVkLVBhdGgnLCAnVGhpcyBwYXRoIGlzIGRlcHJlY2F0ZWQuIFVzZSAvYXBpL2dhbWUvdGVjaC8qIGluc3RlYWQuJyk7XHJcbiAgcmVzLnNldEhlYWRlcignWC1OZXctUGF0aCcsIHJlcS5wYXRoLnJlcGxhY2UoJy90ZWNoJywgJy9nYW1lL3RlY2gnKSk7XHJcbiAgbmV4dCgpO1xyXG59KTtcclxuXHJcbi8vIE1vdW50IGFsbCBnYW1lIHJvdXRlcyAtIHRoZSB0ZWNoIHJvdXRlcyB3aWxsIG1hdGNoIGZyb20gL2FwaS90ZWNoL3RlY2gvKlxyXG4vLyB3aGlsZSBvdGhlciBnYW1lIHJvdXRlcyB3aWxsIDQwNCAoc2luY2UgL2FwaS90ZWNoL2dhbWUvKiB3b24ndCBtYXRjaCBpbiBnYW1lIHJvdXRlcilcclxucm91dGVyLnVzZSgnLycsIGdhbWVSb3V0ZXIpO1xyXG5cclxuZXhwb3J0IGRlZmF1bHQgcm91dGVyOyJdLCJ2ZXJzaW9uIjozfQ==

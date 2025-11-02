@@ -3,7 +3,7 @@ import { render, RenderOptions } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 
 // Mock service integration hooks for testing
-import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
+import { GAME_CONSTANTS } from '@game/shared';
 export const createMockServiceHooks = () => ({
   useServiceAuth: jest.fn(() => ({
     user: {

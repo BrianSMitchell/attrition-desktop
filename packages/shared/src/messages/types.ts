@@ -15,6 +15,7 @@ export type MessageCategory =
   | 'research'       // Technology research
   | 'fleet'          // Fleet and ship management
   | 'combat'         // Combat and warfare
+  | 'resource'       // Resource management
   | 'trade'          // Trading and economy
   | 'diplomacy'      // Diplomatic actions
   | 'exploration'    // Exploration and colonization
@@ -36,6 +37,8 @@ export interface MessageContext {
   locationCoord?: string;
   /** Additional metadata */
   metadata?: Record<string, any>;
+  /** Allow any additional string-keyed properties */
+  [key: string]: any;
 }
 
 /**
@@ -72,10 +75,12 @@ export interface MessageAction {
   id: string;
   /** Action label */
   label: string;
-  /** Action type */
-  type: 'primary' | 'secondary' | 'danger';
-  /** Handler function name or route */
-  handler: string;
+  /** Action style */
+  style?: 'primary' | 'secondary' | 'danger';
+  /** Handler function */
+  handler?: () => void;
+  /** Whether to dismiss message after action */
+  dismissAfterAction?: boolean;
   /** Additional parameters */
   params?: Record<string, any>;
 }

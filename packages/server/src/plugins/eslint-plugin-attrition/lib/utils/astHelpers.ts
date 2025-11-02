@@ -3,7 +3,7 @@
  * @author Attrition Development Team
  */
 
-import { Rule } from 'eslint';
+import type { TSESLint } from '@typescript-eslint/utils';
 
 /**
  * ESLint SourceCode object interface

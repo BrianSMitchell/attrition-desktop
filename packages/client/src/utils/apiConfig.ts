@@ -1,4 +1,4 @@
-import { DIRECTORY_PATHS } from '../../../shared/src/constants/file-paths';
+import { DIRECTORY_PATHS } from '@game/shared';
 
 /**
  * Desktop API Configuration
@@ -7,7 +7,7 @@ import { DIRECTORY_PATHS } from '../../../shared/src/constants/file-paths';
  * This is NOT a browser application - it runs embedded in Electron.
  */
 
-import { ENV_VALUES, VITE_CONFIG_KEYS, API_CONFIG_KEYS, URL_PATTERNS, HOST_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VALUES, VITE_CONFIG_KEYS, URL_PATTERNS, HOST_VALUES } from '@game/shared';
 
 export interface ApiConfig {
   /** API base URL */
@@ -78,7 +78,7 @@ function getApiBaseUrl(): string {
   let baseUrl: string;
   
   if (import.meta.env[VITE_CONFIG_KEYS.VITE_API_URL]) {
-    baseUrl = import.meta.env[VITE_CONFIG_KEYS.VITE_API_URL];
+    baseUrl = import.meta.env[VITE_CONFIG_KEYS.VITE_API_URL] as string;
   } else if (isProduction) {
     // Production: Use HTTPS with configurable host
     const productionHost = import.meta.env[VITE_CONFIG_KEYS.VITE_PRODUCTION_HOST] || 'attrition-game.onrender.com';

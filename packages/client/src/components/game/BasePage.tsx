@@ -10,8 +10,8 @@ import type { Building, BuildingType } from '@game/shared';
 import { getBuildingSpec } from '@game/shared';
 import { useFleetSocketEvents } from '../../hooks/useFleetSocketEvents';
 import { FleetDebug } from '../debug/FleetDebug';
-import { LAYOUT_CLASSES } from '../constants/css-constants';
-import { LOADING_MESSAGES, GAME_TEXT, STATUS_TEXT, ERROR_TEXT } from '@shared/constants/string-constants';
+import { LAYOUT_CLASSES } from '../../constants/css-constants';
+import { LOADING_MESSAGES, GAME_TEXT } from '@game/shared';
 
 // Type definitions for API data
 type BaseStatsDTO = any;

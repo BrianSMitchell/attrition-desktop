@@ -1,8 +1,8 @@
 ﻿import { StateCreator } from 'zustand';
 import { initializeServices, getServices, cleanupServices } from '../../services/core';
 import { gameApi } from '../services/gameApi';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VARS } from '@game/shared';
+import { ENV_VALUES } from '@game/shared';
 
 
 // Singleton guard for service initialization

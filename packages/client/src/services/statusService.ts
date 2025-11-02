@@ -1,7 +1,7 @@
 ﻿import api, { ApiError } from "./api";
 import { ApiResponse } from "@game/shared";
 import { API_ENDPOINTS } from '../constants/api-endpoints';
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 
 

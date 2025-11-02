@@ -7,7 +7,7 @@ import React from 'react';
 import { ConnectionIndicator } from '../../ui/indicators/ConnectionIndicator';
 import { SyncIndicator } from '../../ui/indicators/SyncIndicator';
 import { useEnhancedNetwork, useEnhancedSync } from '../../../stores/enhancedAppStore';
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 
 export const ConnectionStatus: React.FC = () => {

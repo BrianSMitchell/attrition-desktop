@@ -1,5 +1,5 @@
 ﻿import * as React from 'react';
-import { CARD_CLASSES, LAYOUT_CLASSES } from '../constants/css-constants';
+import { CARD_CLASSES, LAYOUT_CLASSES } from '../../constants/css-constants';
 
 const HOURS_OPTIONS = [1, 6, 24, 168]; // 1h, 6h, 24h, 7d
 

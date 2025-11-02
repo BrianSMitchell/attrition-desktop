@@ -3,6 +3,15 @@ import winston from 'winston';
 import { v4 as uuidv4 } from 'uuid';
 import { HTTP_STATUS, ERROR_MESSAGES } from '../constants/response-formats';
 import { ENV_VARS, ENV_VALUES } from '@game/shared';
+import {
+  ApplicationError,
+  ValidationError,
+  AuthenticationError,
+  AuthorizationError,
+  BadRequestError,
+  DatabaseError,
+  ExternalServiceError,
+} from '../types/error.types';
 
 
 // Create Winston logger instance
@@ -46,7 +55,7 @@ export enum ErrorCategory {
 
 // Enhanced error handler middleware
 export const errorHandler = (
-  error: AppError,
+  error: any,
   req: Request,
   res: Response,
   next: NextFunction
@@ -56,52 +65,77 @@ export const errorHandler = (
   error.correlationId = correlationId;
 
   // Default error values
-  let {
-    statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR,
-    message = ERROR_MESSAGES.INTERNAL_ERROR,
-    errorCode = ERROR_MESSAGES.INTERNAL_ERROR
-  } = error;
+  let statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+  let message: string = ERROR_MESSAGES.INTERNAL_ERROR;
+  let errorCode: string = ERROR_MESSAGES.INTERNAL_ERROR;
+  let category: ErrorCategory = ErrorCategory.SYSTEM;
 
-  // Enhanced error categorization
-  let category = ErrorCategory.SYSTEM;
-
-  // Generic validation error
-  if (error.name === 'ValidationError') {
-    statusCode = HTTP_STATUS.BAD_REQUEST;
-    message = ERROR_MESSAGES.VALIDATION_ERROR;
+  // Check for ApplicationError type instances
+  if (error instanceof ValidationError) {
+    statusCode = 400;
+    message = error.message;
     errorCode = 'VALIDATION_ERROR';
     category = ErrorCategory.VALIDATION;
-  }
-
-  // Database constraint errors (Supabase/PostgreSQL)
-  if ((error as any).code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
-    statusCode = HTTP_STATUS.BAD_REQUEST;
-    message = 'Duplicate field value';
-    errorCode = 'DUPLICATE_VALUE';
-    category = ErrorCategory.DATABASE;
-  }
-
-  // JWT errors
-  if (error.name === 'JsonWebTokenError') {
-    statusCode = HTTP_STATUS.UNAUTHORIZED;
-    message = ERROR_MESSAGES.TOKEN_INVALID;
-    errorCode = 'INVALID_TOKEN';
+  } else if (error instanceof AuthenticationError) {
+    statusCode = 401;
+    message = error.message;
+    errorCode = 'AUTHENTICATION_ERROR';
     category = ErrorCategory.AUTHENTICATION;
-  }
-
-  if (error.name === 'TokenExpiredError') {
-    statusCode = HTTP_STATUS.UNAUTHORIZED;
-    message = ERROR_MESSAGES.TOKEN_EXPIRED;
-    errorCode = 'TOKEN_EXPIRED';
-    category = ErrorCategory.AUTHENTICATION;
-  }
-
-  // Database connection errors (Supabase)
-  if (error.message?.includes('connection') || error.message?.includes('timeout')) {
-    statusCode = 503;
-    message = 'Database unavailable';
-    errorCode = 'DATABASE_UNAVAILABLE';
+  } else if (error instanceof AuthorizationError) {
+    statusCode = 403;
+    message = error.message;
+    errorCode = 'AUTHORIZATION_ERROR';
+    category = ErrorCategory.AUTHORIZATION;
+  } else if (error instanceof DatabaseError) {
+    statusCode = 500;
+    message = error.message;
+    errorCode = 'DATABASE_ERROR';
     category = ErrorCategory.DATABASE;
+  } else if (error instanceof ExternalServiceError) {
+    statusCode = 502;
+    message = error.message;
+    errorCode = 'EXTERNAL_SERVICE_ERROR';
+    category = ErrorCategory.EXTERNAL_SERVICE;
+  } else if (error instanceof ApplicationError) {
+    statusCode = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    message = error.message;
+    errorCode = error.code || 'APPLICATION_ERROR';
+    category = ErrorCategory.SYSTEM;
+  } else {
+    // Handle standard Error types and other errors
+    // Generic validation error
+    if (error.name === 'ValidationError') {
+      statusCode = HTTP_STATUS.BAD_REQUEST;
+      message = ERROR_MESSAGES.VALIDATION_ERROR;
+      errorCode = 'VALIDATION_ERROR';
+      category = ErrorCategory.VALIDATION;
+    }
+    // Database constraint errors (Supabase/PostgreSQL)
+    else if ((error as any).code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
+      statusCode = HTTP_STATUS.BAD_REQUEST;
+      message = 'Duplicate field value';
+      errorCode = 'DUPLICATE_VALUE';
+      category = ErrorCategory.DATABASE;
+    }
+    // JWT errors
+    else if (error.name === 'JsonWebTokenError') {
+      statusCode = HTTP_STATUS.UNAUTHORIZED;
+      message = ERROR_MESSAGES.TOKEN_INVALID;
+      errorCode = 'INVALID_TOKEN';
+      category = ErrorCategory.AUTHENTICATION;
+    } else if (error.name === 'TokenExpiredError') {
+      statusCode = HTTP_STATUS.UNAUTHORIZED;
+      message = ERROR_MESSAGES.TOKEN_EXPIRED;
+      errorCode = 'TOKEN_EXPIRED';
+      category = ErrorCategory.AUTHENTICATION;
+    }
+    // Database connection errors (Supabase)
+    else if (error.message?.includes('connection') || error.message?.includes('timeout')) {
+      statusCode = 503;
+      message = 'Database unavailable';
+      errorCode = 'DATABASE_UNAVAILABLE';
+      category = ErrorCategory.DATABASE;
+    }
   }
 
   // Log error with structured format
@@ -152,54 +186,44 @@ export const asyncHandler = (fn: Function) => (req: Request, res: Response, next
 };
 
 // Validation error handler
-export const handleValidationError = (error: any, fieldName: string) => {
-  const appError: AppError = new Error(`Invalid ${fieldName}`);
-  appError.statusCode = HTTP_STATUS.BAD_REQUEST;
-  appError.errorCode = 'VALIDATION_ERROR';
-  appError.context = { field: fieldName, originalError: error.message };
-  return appError;
+export const handleValidationError = (message: string, details?: Record<string, any>) => {
+  return new ValidationError(message, details);
 };
 
 // Database error handler
-export const handleDatabaseError = (error: any, operation: string) => {
-  const appError: AppError = new Error(`Database operation failed: ${operation}`);
-  appError.statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR;
-  appError.errorCode = 'DATABASE_ERROR';
-  appError.context = { operation, originalError: error.message };
-  
+export const handleDatabaseError = (operation: string, originalError: any) => {
   // Log database errors with higher severity
   logger.error(ERROR_MESSAGES.DATABASE_ERROR, {
     operation,
-    error: error.message,
-    stack: error.stack
+    error: originalError.message,
+    stack: originalError.stack
   });
   
-  return appError;
+  return new DatabaseError(
+    `Database operation failed: ${operation}`,
+    operation,
+    { originalError: originalError.message }
+  );
 };
 
 // Business logic error handler
-export const handleBusinessLogicError = (message: string, errorCode: string = 'BUSINESS_LOGIC_ERROR') => {
-  const appError: AppError = new Error(message);
-  appError.statusCode = HTTP_STATUS.BAD_REQUEST;
-  appError.errorCode = errorCode;
-  appError.isOperational = true;
-  return appError;
+export const handleBusinessLogicError = (message: string, details?: Record<string, any>) => {
+  return new BadRequestError(message, details);
 };
 
 // External service error handler
-export const handleExternalServiceError = (service: string, error: any) => {
-  const appError: AppError = new Error(`External service error: ${service}`);
-  appError.statusCode = 502;
-  appError.errorCode = 'EXTERNAL_SERVICE_ERROR';
-  appError.context = { service, originalError: error.message };
-  
+export const handleExternalServiceError = (service: string, originalError: any) => {
   logger.error('External Service Error', {
     service,
-    error: error.message,
-    stack: error.stack
+    error: originalError.message,
+    stack: originalError.stack
   });
   
-  return appError;
+  return new ExternalServiceError(
+    service,
+    originalError.message,
+    { service }
+  );
 };
 
 // Get logger instance for use in other modules

@@ -2,9 +2,20 @@ import { defineConfig, splitVendorChunkPlugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { visualizer } from 'rollup-plugin-visualizer'
 import { fileURLToPath, URL } from 'node:url'
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
-import { DIRECTORY_PATHS } from '../../../shared/src/constants/file-paths';
+// Configuration constants (inlined for Vite config)
+const ENV_VARS = {
+  NODE_ENV: 'NODE_ENV'
+} as const;
+
+const ENV_VALUES = {
+  DEVELOPMENT: 'development',
+  PRODUCTION: 'production'
+} as const;
+
+const DIRECTORY_PATHS = {
+  DIST: 'dist',
+  NODE_MODULES: 'node_modules'
+} as const;
 
 
 
@@ -88,7 +99,7 @@ export default defineConfig(({ mode }) => {
     // keep default chunkSizeWarningLimit (500k) so we can track improvements
   },
   define: {
-    'process.env[ENV_VARS.NODE_ENV]': JSON.stringify(process.env[ENV_VARS.NODE_ENV] || mode || 'development'),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || mode || 'development'),
     'import.meta.env.DESKTOP_MODE': 'true',
     'import.meta.env.VITE_FORCE_DEV_MODE': JSON.stringify(mode === ENV_VALUES.DEVELOPMENT ? 'true' : 'false'),
     'import.meta.env.MODE': JSON.stringify(mode),

@@ -2,7 +2,7 @@
 import { useServiceAuth, useServiceToasts } from '../../hooks/useServiceIntegration';
 import { withAuthMigration } from '../ServiceMigrationWrapper';
 
-import { ERROR_MESSAGES } from '@shared/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 /**
  * Migrated Login component using service-integrated auth

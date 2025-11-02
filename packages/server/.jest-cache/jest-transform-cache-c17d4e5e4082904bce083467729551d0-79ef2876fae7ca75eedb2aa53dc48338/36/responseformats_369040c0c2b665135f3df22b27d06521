@@ -1,0 +1,241 @@
+4421be2979163d860f05fa78f547d24f
+"use strict";
+/**
+ * Shared Response Format Constants
+ *
+ * HTTP Status codes and common response formats used across both client and server
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ERROR_MESSAGES = exports.ApiErrorCode = exports.RESPONSE_FORMAT = exports.HTTP_STATUS = void 0;
+exports.createSuccessResponse = createSuccessResponse;
+exports.createErrorResponse = createErrorResponse;
+exports.sendApiResponse = sendApiResponse;
+exports.sendApiErrorResponse = sendApiErrorResponse;
+exports.standardizeError = standardizeError;
+/**
+ * HTTP Status codes
+ */
+exports.HTTP_STATUS = {
+    // 2xx Success
+    OK: 200,
+    CREATED: 201,
+    ACCEPTED: 202,
+    NO_CONTENT: 204,
+    // 3xx Redirection
+    MOVED_PERMANENTLY: 301,
+    FOUND: 302,
+    NOT_MODIFIED: 304,
+    // 4xx Client Error
+    BAD_REQUEST: 400,
+    UNAUTHORIZED: 401,
+    FORBIDDEN: 403,
+    NOT_FOUND: 404,
+    METHOD_NOT_ALLOWED: 405,
+    NOT_ACCEPTABLE: 406,
+    CONFLICT: 409,
+    GONE: 410,
+    UNPROCESSABLE_ENTITY: 422,
+    UPGRADE_REQUIRED: 426,
+    TOO_MANY_REQUESTS: 429,
+    // 5xx Server Error
+    INTERNAL_SERVER_ERROR: 500,
+    NOT_IMPLEMENTED: 501,
+    BAD_GATEWAY: 502,
+    SERVICE_UNAVAILABLE: 503,
+    GATEWAY_TIMEOUT: 504
+};
+/**
+ * Response format builders
+ */
+exports.RESPONSE_FORMAT = {
+    /**
+     * Success response builder
+     */
+    SUCCESS: (data, message) => ({
+        success: true,
+        data,
+        ...(message && { message })
+    }),
+    /**
+     * Error response builder
+     */
+    ERROR: (error, code) => ({
+        success: false,
+        error,
+        ...(code && { code })
+    }),
+    /**
+     * Success response with message only (no data)
+     */
+    SUCCESS_MESSAGE: (message) => ({
+        success: true,
+        message
+    }),
+    /**
+     * Not found error response
+     */
+    NOT_FOUND: (resource) => ({
+        success: false,
+        error: `${resource} not found`,
+        code: 'NOT_FOUND'
+    }),
+    /**
+     * Validation error response
+     */
+    VALIDATION_ERROR: (error) => ({
+        success: false,
+        error,
+        code: 'VALIDATION_ERROR'
+    }),
+    /**
+     * Unauthorized error response
+     */
+    UNAUTHORIZED: (message) => ({
+        success: false,
+        error: message || 'Authentication is required',
+        code: 'UNAUTHORIZED'
+    }),
+    /**
+     * Forbidden error response
+     */
+    FORBIDDEN: (message) => ({
+        success: false,
+        error: message || 'Access denied',
+        code: 'FORBIDDEN'
+    }),
+    /**
+     * Internal server error response
+     */
+    INTERNAL_ERROR: (message) => ({
+        success: false,
+        error: message || 'Internal server error',
+        code: 'INTERNAL_ERROR'
+    })
+};
+/**
+ * API Error Code enum
+ */
+exports.ApiErrorCode = {
+    // Authentication errors
+    UNAUTHORIZED: 'UNAUTHORIZED',
+    FORBIDDEN: 'FORBIDDEN',
+    INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+    // Resource errors
+    NOT_FOUND: 'NOT_FOUND',
+    ALREADY_EXISTS: 'ALREADY_EXISTS',
+    INSUFFICIENT_RESOURCES: 'INSUFFICIENT_RESOURCES',
+    INSUFFICIENT_ENERGY: 'INSUFFICIENT_ENERGY',
+    INSUFFICIENT_POPULATION: 'INSUFFICIENT_POPULATION',
+    INSUFFICIENT_AREA: 'INSUFFICIENT_AREA',
+    ALREADY_IN_PROGRESS: 'ALREADY_IN_PROGRESS',
+    NOT_OWNER: 'NOT_OWNER',
+    // Validation errors
+    VALIDATION_ERROR: 'VALIDATION_ERROR',
+    INVALID_REQUEST: 'INVALID_REQUEST',
+    MISSING_REQUIRED_FIELD: 'MISSING_REQUIRED_FIELD',
+    INVALID_FORMAT: 'INVALID_FORMAT',
+    // Server errors
+    INTERNAL_ERROR: 'INTERNAL_ERROR',
+    SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+    DATABASE_ERROR: 'DATABASE_ERROR',
+    // Game-specific errors
+    TECH_REQUIREMENTS: 'TECH_REQUIREMENTS',
+    NO_CAPACITY: 'NO_CAPACITY'
+};
+/**
+ * Helper function to create success responses
+ */
+function createSuccessResponse(data, message) {
+    return {
+        success: true,
+        data,
+        ...(message && { message })
+    };
+}
+/**
+ * Helper function to create error responses
+ */
+function createErrorResponse(error, code, details) {
+    return {
+        success: false,
+        error,
+        ...(code && { code }),
+        ...(details && { details })
+    };
+}
+/**
+ * Send standardized API response (utility for Express handlers)
+ */
+function sendApiResponse(res, data, message, statusCode = exports.HTTP_STATUS.OK) {
+    res.status(statusCode).json(createSuccessResponse(data, message));
+}
+/**
+ * Send standardized error response
+ */
+function sendApiErrorResponse(res, error, code, statusCode = exports.HTTP_STATUS.BAD_REQUEST, details) {
+    res.status(statusCode).json(createErrorResponse(error, code, details));
+}
+/**
+ * Common error messages used across the application
+ */
+exports.ERROR_MESSAGES = {
+    // Authentication errors
+    UNAUTHORIZED: 'Authentication required',
+    FORBIDDEN: 'Access denied',
+    INVALID_CREDENTIALS: 'Invalid email or password',
+    LOGIN_FAILED: 'Login failed. Please check your credentials',
+    TOKEN_EXPIRED: 'Your session has expired. Please log in again',
+    TOKEN_INVALID: 'Invalid authentication token',
+    // Resource errors
+    NOT_FOUND: 'Resource not found',
+    ALREADY_EXISTS: 'Resource already exists',
+    INSUFFICIENT_RESOURCES: 'Insufficient resources',
+    INSUFFICIENT_ENERGY: 'Insufficient energy',
+    INSUFFICIENT_POPULATION: 'Insufficient population',
+    INSUFFICIENT_AREA: 'Insufficient area',
+    NOT_OWNER: 'You do not own this resource',
+    // Validation errors
+    VALIDATION_ERROR: 'Validation error',
+    INVALID_REQUEST: 'Invalid request',
+    MISSING_REQUIRED_FIELD: 'Required field is missing',
+    INVALID_FORMAT: 'Invalid format',
+    // Server errors
+    INTERNAL_ERROR: 'Internal server error',
+    SERVICE_UNAVAILABLE: 'Service temporarily unavailable',
+    DATABASE_ERROR: 'Database error occurred',
+    NETWORK_ERROR: 'Network error occurred',
+    CONNECTION_ERROR: 'Connection error',
+    TIMEOUT: 'Request timed out',
+    // Game-specific errors
+    TECH_REQUIREMENTS: 'Technology requirements not met',
+    NO_CAPACITY: 'No capacity available',
+    ALREADY_IN_PROGRESS: 'Action already in progress',
+    FLEET_NOT_FOUND: 'Fleet not found',
+    INSUFFICIENT_CREDITS: 'Insufficient credits',
+    // Sync and data errors
+    SYNC_ERROR: 'Synchronization error occurred',
+    FAILED_TO_LOAD_MESSAGE_SUMMARY: 'Failed to load message summary',
+    // Network connectivity errors
+    FAILED_TO_CHECK_NETWORK_CONNECTIVITY: 'Failed to check network connectivity',
+    CONNECTION_LOST: 'Connection to server lost',
+    NO_INTERNET_CONNECTION: 'No internet connection',
+    // Generic
+    UNKNOWN_ERROR: 'An unknown error occurred',
+    SOMETHING_WRONG: 'Something went wrong'
+};
+/**
+ * Standardize error objects for consistent error responses
+ */
+function standardizeError(error) {
+    if (typeof error === 'string') {
+        return { message: error };
+    }
+    if (error instanceof Error) {
+        return { message: error.message };
+    }
+    if (typeof error === 'object' && error !== null && 'message' in error) {
+        return { message: error.message };
+    }
+    return { message: 'An unknown error occurred' };
+}
+//# sourceMappingURL=response-formats.js.map

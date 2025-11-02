@@ -231,6 +231,62 @@ export function sendApiErrorResponse(
 }
 
 /**
+ * Common error messages used across the application
+ */
+export const ERROR_MESSAGES = {
+  // Authentication errors
+  UNAUTHORIZED: 'Authentication required',
+  FORBIDDEN: 'Access denied',
+  INVALID_CREDENTIALS: 'Invalid email or password',
+  LOGIN_FAILED: 'Login failed. Please check your credentials',
+  TOKEN_EXPIRED: 'Your session has expired. Please log in again',
+  TOKEN_INVALID: 'Invalid authentication token',
+
+  // Resource errors
+  NOT_FOUND: 'Resource not found',
+  ALREADY_EXISTS: 'Resource already exists',
+  INSUFFICIENT_RESOURCES: 'Insufficient resources',
+  INSUFFICIENT_ENERGY: 'Insufficient energy',
+  INSUFFICIENT_POPULATION: 'Insufficient population',
+  INSUFFICIENT_AREA: 'Insufficient area',
+  NOT_OWNER: 'You do not own this resource',
+
+  // Validation errors
+  VALIDATION_ERROR: 'Validation error',
+  INVALID_REQUEST: 'Invalid request',
+  MISSING_REQUIRED_FIELD: 'Required field is missing',
+  INVALID_FORMAT: 'Invalid format',
+
+  // Server errors
+  INTERNAL_ERROR: 'Internal server error',
+  SERVICE_UNAVAILABLE: 'Service temporarily unavailable',
+  DATABASE_ERROR: 'Database error occurred',
+  NETWORK_ERROR: 'Network error occurred',
+  CONNECTION_ERROR: 'Connection error',
+  TIMEOUT: 'Request timed out',
+
+  // Game-specific errors
+  TECH_REQUIREMENTS: 'Technology requirements not met',
+  NO_CAPACITY: 'No capacity available',
+  ALREADY_IN_PROGRESS: 'Action already in progress',
+  FLEET_NOT_FOUND: 'Fleet not found',
+  INSUFFICIENT_CREDITS: 'Insufficient credits',
+
+  // Sync and data errors
+  SYNC_ERROR: 'Synchronization error occurred',
+  FAILED_TO_LOAD_MESSAGE_SUMMARY: 'Failed to load message summary',
+
+  // Network connectivity errors
+  FAILED_TO_CHECK_NETWORK_CONNECTIVITY: 'Failed to check network connectivity',
+  CONNECTION_LOST: 'Connection to server lost',
+  NO_INTERNET_CONNECTION: 'No internet connection',
+
+  // Generic
+  UNKNOWN_ERROR: 'An unknown error occurred',
+  SOMETHING_WRONG: 'Something went wrong'
+} as const;
+
+/**
  * Standardize error objects for consistent error responses
  */
 export function standardizeError(error: unknown): { message: string; code?: ApiErrorCodeType } {

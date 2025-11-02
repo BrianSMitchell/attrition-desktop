@@ -61,9 +61,9 @@ interface AnalysisConfig {
  * Reporting configuration interface
  */
 interface ReportingConfig {
-  outputFormat: string;
+  outputFormat: 'json' | 'xml' | 'html' | 'console';
   includeRecommendations: boolean;
-  groupBy: string;
+  groupBy: 'file' | 'directory' | 'severity' | 'category';
 }
 
 /**

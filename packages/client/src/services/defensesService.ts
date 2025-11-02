@@ -1,6 +1,5 @@
 ﻿import api from './api';
 import { ApiResponse, DefenseKey, DefenseSpec } from '@game/shared';
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
 
 
 // DTOs

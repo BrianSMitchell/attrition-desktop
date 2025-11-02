@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 import { useServiceAuth, useServiceNetwork, useServiceToasts } from '../../hooks/useServiceIntegration';
 import { withAuthMigration } from '../ServiceMigrationWrapper';
 import spaceBackground from '../../assets/images/space-background.png';
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 
 // Credential storage utilities (unchanged from original)
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
-import { LAYOUT_CLASSES, ALERT_CLASSES, LOADING_CLASSES, INPUT_CLASSES } from '../constants/css-constants';
+import { TIMEOUTS } from '@game/shared';
+import { LAYOUT_CLASSES, ALERT_CLASSES, LOADING_CLASSES, INPUT_CLASSES } from '../../constants/css-constants';
 const CREDENTIALS_KEY = 'attrition-saved-credentials';
 
 interface SavedCredentials {

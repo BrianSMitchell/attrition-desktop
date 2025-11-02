@@ -3,7 +3,7 @@ import { FleetMovement, FleetRecallDTO } from '../../../services/fleetsService';
 import NetworkAwareButton from '../../ui/NetworkAwareButton';
 import { useUIActions } from '../../../stores/enhancedAppStore';
 
-import { TIMEOUTS, GAME_CONSTANTS, STATUS_CODES } from '@shared/constants/magic-numbers';
+import { TIMEOUTS, GAME_CONSTANTS, STATUS_CODES } from '@game/shared';
 interface FleetMovementStatusProps {
   movement: FleetMovement;
   fleetName: string;

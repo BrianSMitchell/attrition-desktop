@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useServiceSync, useServiceToasts } from '../../hooks/useServiceIntegration';
 
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { TIMEOUTS } from '@game/shared';
 /**
  * Sync status indicator showing current sync state and queue count
  */

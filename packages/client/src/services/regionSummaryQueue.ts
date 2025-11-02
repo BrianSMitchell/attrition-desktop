@@ -1,6 +1,6 @@
 import { UniverseRegionSystemsData } from './universeService';
 
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { TIMEOUTS } from '@game/shared';
 type Task = {
   server: string;
   galaxy: number;

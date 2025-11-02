@@ -1,15 +1,63 @@
 import { 
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
-
   ISocketManager, 
   SocketState, 
   ServiceOptions, 
   ConnectionEventCallback 
 } from './types';
+import { ENV_VARS, ENV_VALUES, TIMEOUTS } from '@game/shared';
 import { AsyncMutex } from './AsyncMutex';
 import { createMessageRouter, createHealthMonitor, MessageRouter, ConnectionHealthMonitor } from '../realtime';
 import { getToken } from '../tokenProvider';
+import { getCurrentApiConfig } from '../../utils/apiConfig';
+import { io, Socket } from 'socket.io-client';
+
+// Simple CircuitBreaker implementation
+class CircuitBreaker {
+  private failureCount = 0;
+  private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
+  private lastFailureTime = 0;
+
+  constructor(private options: {
+    failureThreshold: number;
+    resetTimeout: number;
+    monitoringPeriod: number;
+  }) {}
+
+  canExecute(): boolean {
+    if (this.state === 'CLOSED') return true;
+    if (this.state === 'OPEN') {
+      const now = Date.now();
+      if (now - this.lastFailureTime >= this.options.resetTimeout) {
+        this.state = 'HALF_OPEN';
+        return true;
+      }
+      return false;
+    }
+    return true; // HALF_OPEN
+  }
+
+  recordSuccess(): void {
+    this.failureCount = 0;
+    this.state = 'CLOSED';
+  }
+
+  recordFailure(): void {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+    if (this.failureCount >= this.options.failureThreshold) {
+      this.state = 'OPEN';
+    }
+  }
+
+  getState() {
+    return { state: this.state, failureCount: this.failureCount };
+  }
+}
+
+// Desktop bridge stub for web environment
+const desktopBridge = {
+  recordPerformanceMetric: async (..._args: any[]) => {},
+};
 
 /**
  * SocketManager handles WebSocket connection management with built-in resilience.

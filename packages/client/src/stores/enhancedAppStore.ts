@@ -3,7 +3,7 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { persist } from 'zustand/middleware';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VALUES } from '@game/shared';
 
 import createEnhancedAuthSlice, { type EnhancedAuthSlice } from './slices/enhancedAuthSlice';
 import createEnhancedNetworkSlice, { type EnhancedNetworkSlice } from './slices/enhancedNetworkSlice';
@@ -11,7 +11,7 @@ import createEnhancedSyncSlice, { type EnhancedSyncSlice } from './slices/enhanc
 import createServiceSlice, { type ServiceSlice } from './slices/serviceSlice';
 import createUISlice, { type UISlice } from './slices/uiSlice';
 import createGameSlice, { type GameSlice } from './slices/gameSlice';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VARS } from '@game/shared';
 
 
 // Combined enhanced app state interface

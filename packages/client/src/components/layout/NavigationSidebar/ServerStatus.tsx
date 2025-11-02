@@ -1,12 +1,10 @@
 /**
-
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
-/**
  * Server status display component
  * Shows server information, player count, uptime, and network status
  */
 
 import React, { useState, useEffect } from 'react';
+import { TIMEOUTS } from '@game/shared';
 import axios from 'axios';
 import { ServerStatusData } from '../../../services/statusService';
 import { useEnhancedNetwork, useGameApi } from '../../../stores/enhancedAppStore';

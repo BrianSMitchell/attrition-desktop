@@ -1,0 +1,46 @@
+7e5da210b4f35f12c8d2e88dbe94e4a0
+"use strict";
+/**
+ * Comprehensive Type Definitions for Attrition Game
+ *
+ * This file serves as the single source of truth for all exported types
+ * in the shared package. It consolidates types from various modules and
+ * provides clear categorization and documentation.
+ *
+ * Organization:
+ * 1. Authentication & User Management
+ * 2. Empire & Game State
+ * 3. Universe Structure
+ * 4. Locations & Coordinates
+ * 5. Buildings & Infrastructure
+ * 6. Technology & Research
+ * 7. Units & Fleet
+ * 8. Resources & Economy
+ * 9. Events & Logs
+ * 10. API Response Types
+ * 11. Socket Events
+ * 12. Message System
+ * 13. Validation & Schemas
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+/**
+ * Re-export all types from sub-modules for convenience
+ */
+__exportStar(require("../api/types"), exports);
+__exportStar(require("../messages/types"), exports);
+__exportStar(require("../types/test-types"), exports);
+//# sourceMappingURL=index.js.map

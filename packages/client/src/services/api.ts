@@ -1,12 +1,10 @@
 import axios, {
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
-
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
   AxiosError,
   AxiosInstance,
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
+import { ENV_VALUES, TIMEOUTS, ERROR_MESSAGES, HTTP_STATUS } from '@game/shared';
 import { getToken, setToken, clearToken } from "./tokenProvider";
 import { getCurrentApiConfig } from "../utils/apiConfig";
 
@@ -40,9 +38,6 @@ const api: AxiosInstance = axios.create({
     "Content-Type": "application/json",
   },
 });
-
-// Attach dev-only HTTP metrics
-attachMetrics(api, "api");
 
 // Optional request id generator (simple, no deps)
 function createRequestId(): string {

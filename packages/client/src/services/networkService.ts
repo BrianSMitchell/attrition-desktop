@@ -1,5 +1,5 @@
-﻿import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VARS } from '@game/shared';
+import { ENV_VALUES } from '@game/shared';
 
 /**
  * Legacy networkService API - now acts as a compatibility layer that delegates to NetworkManager.

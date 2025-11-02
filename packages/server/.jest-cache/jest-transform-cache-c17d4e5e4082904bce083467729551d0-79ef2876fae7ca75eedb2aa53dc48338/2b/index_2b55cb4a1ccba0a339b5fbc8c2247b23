@@ -1,0 +1,72 @@
+4d4dc61a569e5492a70e0d2e697f270f
+"use strict";
+/* Shared types and utilities for Attrition */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.standardizeError = exports.sendApiErrorResponse = exports.sendApiResponse = exports.createErrorResponse = exports.createSuccessResponse = exports.ApiErrorCode = exports.ERROR_MESSAGES = exports.RESPONSE_FORMAT = exports.HTTP_STATUS = exports.HOST_VALUES = exports.URL_PATTERNS = exports.VITE_CONFIG_KEYS = exports.ENV_VALUES = exports.NETWORK_CONSTANTS = exports.GAME_CONSTANTS = exports.BUFFER_LIMITS = exports.RETRY_LIMITS = exports.TIMEOUTS = exports.STATUS_CODES = exports.DIRECTORY_PATHS = void 0;
+// Re-export comprehensive types from types/index (single source of truth)
+__exportStar(require("./types/index"), exports);
+__exportStar(require("./types/test-types"), exports);
+__exportStar(require("./utils"), exports);
+__exportStar(require("./utils/env-helpers"), exports);
+__exportStar(require("./validation"), exports);
+__exportStar(require("./random"), exports);
+__exportStar(require("./tech"), exports);
+__exportStar(require("./buildings"), exports);
+__exportStar(require("./overhaul"), exports);
+__exportStar(require("./defenses"), exports);
+__exportStar(require("./units"), exports);
+__exportStar(require("./capacities"), exports);
+__exportStar(require("./structureLevels"), exports);
+__exportStar(require("./energyBudget"), exports);
+__exportStar(require("./messages/types"), exports);
+__exportStar(require("./messages/utils"), exports);
+__exportStar(require("./messages/constants"), exports);
+__exportStar(require("./constants/configuration-keys"), exports);
+__exportStar(require("./constants/database-fields"), exports);
+__exportStar(require("./constants/env-vars"), exports);
+__exportStar(require("./constants/file-paths"), exports);
+__exportStar(require("./constants/magic-numbers"), exports);
+__exportStar(require("./constants/string-constants"), exports);
+__exportStar(require("./constants/business-thresholds"), exports);
+__exportStar(require("./constants/validation-rules"), exports);
+// Explicitly re-export commonly used constants for convenience
+var file_paths_1 = require("./constants/file-paths");
+Object.defineProperty(exports, "DIRECTORY_PATHS", { enumerable: true, get: function () { return file_paths_1.DIRECTORY_PATHS; } });
+var magic_numbers_1 = require("./constants/magic-numbers");
+Object.defineProperty(exports, "STATUS_CODES", { enumerable: true, get: function () { return magic_numbers_1.STATUS_CODES; } });
+Object.defineProperty(exports, "TIMEOUTS", { enumerable: true, get: function () { return magic_numbers_1.TIMEOUTS; } });
+Object.defineProperty(exports, "RETRY_LIMITS", { enumerable: true, get: function () { return magic_numbers_1.RETRY_LIMITS; } });
+Object.defineProperty(exports, "BUFFER_LIMITS", { enumerable: true, get: function () { return magic_numbers_1.BUFFER_LIMITS; } });
+Object.defineProperty(exports, "GAME_CONSTANTS", { enumerable: true, get: function () { return magic_numbers_1.GAME_CONSTANTS; } });
+Object.defineProperty(exports, "NETWORK_CONSTANTS", { enumerable: true, get: function () { return magic_numbers_1.NETWORK_CONSTANTS; } });
+var configuration_keys_1 = require("./constants/configuration-keys");
+Object.defineProperty(exports, "ENV_VALUES", { enumerable: true, get: function () { return configuration_keys_1.ENV_VALUES; } });
+Object.defineProperty(exports, "VITE_CONFIG_KEYS", { enumerable: true, get: function () { return configuration_keys_1.VITE_CONFIG_KEYS; } });
+Object.defineProperty(exports, "URL_PATTERNS", { enumerable: true, get: function () { return configuration_keys_1.URL_PATTERNS; } });
+Object.defineProperty(exports, "HOST_VALUES", { enumerable: true, get: function () { return configuration_keys_1.HOST_VALUES; } });
+// Export response formats without ApiResponse to avoid conflict
+var response_formats_1 = require("./constants/response-formats");
+Object.defineProperty(exports, "HTTP_STATUS", { enumerable: true, get: function () { return response_formats_1.HTTP_STATUS; } });
+Object.defineProperty(exports, "RESPONSE_FORMAT", { enumerable: true, get: function () { return response_formats_1.RESPONSE_FORMAT; } });
+Object.defineProperty(exports, "ERROR_MESSAGES", { enumerable: true, get: function () { return response_formats_1.ERROR_MESSAGES; } });
+Object.defineProperty(exports, "ApiErrorCode", { enumerable: true, get: function () { return response_formats_1.ApiErrorCode; } });
+Object.defineProperty(exports, "createSuccessResponse", { enumerable: true, get: function () { return response_formats_1.createSuccessResponse; } });
+Object.defineProperty(exports, "createErrorResponse", { enumerable: true, get: function () { return response_formats_1.createErrorResponse; } });
+Object.defineProperty(exports, "sendApiResponse", { enumerable: true, get: function () { return response_formats_1.sendApiResponse; } });
+Object.defineProperty(exports, "sendApiErrorResponse", { enumerable: true, get: function () { return response_formats_1.sendApiErrorResponse; } });
+Object.defineProperty(exports, "standardizeError", { enumerable: true, get: function () { return response_formats_1.standardizeError; } });
+//# sourceMappingURL=index.js.map

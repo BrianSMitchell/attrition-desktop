@@ -2,8 +2,8 @@
 import { useState, useEffect, useRef } from "react";
 import type { BuildingKey, StructureSpec } from "@game/shared";
 
-import { TIMEOUTS, GAME_CONSTANTS, STATUS_CODES } from '@shared/constants/magic-numbers';
-import { LAYOUT_CLASSES } from '../constants/css-constants';
+import { TIMEOUTS, GAME_CONSTANTS, STATUS_CODES } from '@game/shared';
+import { LAYOUT_CLASSES } from '../../constants/css-constants';
 interface StructureConstructionProgressProps {
   /** Active construction data with level and cost info */
   activeConstruction: { 

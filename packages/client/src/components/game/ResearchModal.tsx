@@ -1,11 +1,11 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { Empire, ResearchProject } from '@game/shared';
 import { gameApi } from '../../stores/services/gameApi';
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
-import { LAYOUT_CLASSES } from '../constants/css-constants';
+import { TIMEOUTS } from '@game/shared';
+import { LAYOUT_CLASSES } from '../../constants/css-constants';
 interface ResearchTemplate {
   type: 'military' | 'economic' | 'exploration';
   name: string;

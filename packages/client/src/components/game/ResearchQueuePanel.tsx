@@ -2,7 +2,7 @@ import * as React from "react";
 import { getTechSpec, type TechnologyKey } from "@game/shared";
 import { useEnhancedAppStore } from "../../stores/enhancedAppStore";
 
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { TIMEOUTS } from '@game/shared';
 interface TechQueueItem {
   _id?: string;
   id?: string; // API might return 'id' instead of '_id'

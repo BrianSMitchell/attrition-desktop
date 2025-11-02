@@ -1,6 +1,6 @@
 ﻿import api, { ApiError } from "./api";
 import { ApiResponse } from "@game/shared";
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 
 export interface Message {

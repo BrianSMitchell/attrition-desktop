@@ -2,7 +2,7 @@ import { SimpleViewport } from '../viewport/SimpleViewport';
 import { MapViewLevel, Vector2 } from '../types';
 
 // Simple helper function to check if debug mode is enabled
-import { STATUS_CODES } from '@shared/constants/magic-numbers';
+import { STATUS_CODES } from '@game/shared';
 function isDebugEnabled(): boolean {
   // Simple check - return false to avoid complex import.meta issues
   return false;

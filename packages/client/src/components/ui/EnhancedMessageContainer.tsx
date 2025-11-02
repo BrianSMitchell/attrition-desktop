@@ -3,7 +3,6 @@ import {
   GameMessage,
   MessageSeverity,
   MessageCategory,
-  isGameMessage,
   validateGameMessage
 } from '@game/shared';
 
@@ -210,8 +209,8 @@ export const useEnhancedNotifications = () => {
   const addMessage = (message: GameMessage) => {
     // Validate the message
     const validation = validateGameMessage(message);
-    if (!validation.success) {
-      console.warn('Invalid game message:', validation.error);
+    if (!validation.valid) {
+      console.warn('Invalid game message:', validation.errors);
       return;
     }
 
@@ -227,7 +226,10 @@ export const useEnhancedNotifications = () => {
       message,
       severity: 'success',
       category: options?.category || 'system',
-      timestamp: new Date().toISOString(),
+      context: {
+        timestamp: new Date(),
+        ...options?.context
+      },
       persistent: false,
       timeout: 5000,
       ...options
@@ -240,7 +242,10 @@ export const useEnhancedNotifications = () => {
       message,
       severity: 'error',
       category: options?.category || 'system',
-      timestamp: new Date().toISOString(),
+      context: {
+        timestamp: new Date(),
+        ...options?.context
+      },
       persistent: options?.persistent ?? true, // Errors are persistent by default
       ...options
     });
@@ -252,7 +257,10 @@ export const useEnhancedNotifications = () => {
       message,
       severity: 'warning',
       category: options?.category || 'system',
-      timestamp: new Date().toISOString(),
+      context: {
+        timestamp: new Date(),
+        ...options?.context
+      },
       persistent: false,
       timeout: 7000,
       ...options
@@ -265,7 +273,10 @@ export const useEnhancedNotifications = () => {
       message,
       severity: 'info',
       category: options?.category || 'system',
-      timestamp: new Date().toISOString(),
+      context: {
+        timestamp: new Date(),
+        ...options?.context
+      },
       persistent: false,
       timeout: 5000,
       ...options

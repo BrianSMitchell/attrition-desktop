@@ -1,6 +1,6 @@
 ﻿import api, { ApiError } from "./api";
 import { ApiResponse, BuildingKey, CapacityResult } from "@game/shared";
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 
 // Types for combined base stats + capacities

@@ -1,5 +1,5 @@
-import { FILE_EXTENSIONS } from '../../../shared/src/constants/file-paths';
-import type { Rule } from 'eslint';
+import { FILE_EXTENSIONS } from '@game/shared';
+import type { TSESLint } from '@typescript-eslint/utils';
 
 /**
  * @fileoverview Main entry point for Attrition ESLint plugin
@@ -28,12 +28,12 @@ interface ESLintPluginConfig {
  * Plugin rules collection
  */
 interface PluginRules {
-  'id-consistency': Rule.RuleModule;
-  'no-excessive-logging': Rule.RuleModule;
-  'no-legacy-database-checks': Rule.RuleModule;
-  'service-extraction-required': Rule.RuleModule;
-  'max-complexity': Rule.RuleModule;
-  [key: string]: Rule.RuleModule;
+  'id-consistency': TSESLint.RuleModule<any, any>;
+  'no-excessive-logging': TSESLint.RuleModule<any, any>;
+  'no-legacy-database-checks': TSESLint.RuleModule<any, any>;
+  'service-extraction-required': TSESLint.RuleModule<any, any>;
+  'max-complexity': TSESLint.RuleModule<any, any>;
+  [key: string]: TSESLint.RuleModule<any, any>;
 }
 
 /**
@@ -159,7 +159,7 @@ const plugin: {
      */
     analyzeFile: async function (filePath: string): Promise<any> {
       try {
-        const { MetricsCollector } = await import('../../utils/codeMetrics/metricsCollector');
+        const { MetricsCollector } = await import('../../../utils/codeMetrics/metricsCollector');
         const config = getProjectConfig();
         const collector = new MetricsCollector(config);
         return await collector.analyzeFile(filePath);
@@ -175,7 +175,7 @@ const plugin: {
      */
     analyzeBatch: async function (filePaths: string[]): Promise<any> {
       try {
-        const { BatchMetricsAnalyzer } = await import('../../utils/codeMetrics/index');
+        const { BatchMetricsAnalyzer } = await import('../../../utils/codeMetrics/index');
         const config = getProjectConfig();
         const analyzer = new BatchMetricsAnalyzer(config);
         return await analyzer.analyzeBatch(filePaths);

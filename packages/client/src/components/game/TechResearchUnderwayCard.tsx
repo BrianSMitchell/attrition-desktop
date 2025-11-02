@@ -3,7 +3,7 @@ import type { Empire } from '@game/shared';
 import { getTechSpec, type TechnologyKey } from '@game/shared';
 import { useEnhancedAppStore } from '../../stores/enhancedAppStore';
 
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { TIMEOUTS } from '@game/shared';
 interface TechQueueItemDTO {
   _id?: string;
   locationCoord: string;

@@ -1,0 +1,54 @@
+8d3d2dd6879387e7c12f905a0c8a9d29
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const errorHandler_1 = require("../../middleware/errorHandler");
+const auth_1 = require("../../middleware/auth");
+const router = (0, express_1.Router)();
+/**
+ * GET /api/game/dashboard
+ * Returns dashboard data for the authenticated empire
+ */
+router.use(auth_1.authenticate);
+router.get('/', (0, errorHandler_1.asyncHandler)(async (req, res) => {
+    const user = req.user;
+    // Get dashboard data using the service
+    const { DashboardService } = await Promise.resolve().then(() => __importStar(require('../../services/dashboard/DashboardService')));
+    const dashboardData = await DashboardService.getDashboardData(user);
+    res.json({ success: true, data: dashboardData });
+}));
+exports.default = router;
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFByb2plY3RzXFxBdHRyaXRpb25cXHBhY2thZ2VzXFxzZXJ2ZXJcXHNyY1xccm91dGVzXFxnYW1lXFxkYXNoYm9hcmQudHMiLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxxQ0FBMkM7QUFDM0MsZ0VBQTZEO0FBQzdELGdEQUFrRTtBQUVsRSxNQUFNLE1BQU0sR0FBRyxJQUFBLGdCQUFNLEdBQUUsQ0FBQztBQUV4Qjs7O0dBR0c7QUFDSCxNQUFNLENBQUMsR0FBRyxDQUFDLG1CQUFZLENBQUMsQ0FBQztBQUV6QixNQUFNLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxJQUFBLDJCQUFZLEVBQUMsS0FBSyxFQUFFLEdBQWdCLEVBQUUsR0FBYSxFQUFFLEVBQUU7SUFDckUsTUFBTSxJQUFJLEdBQUcsR0FBRyxDQUFDLElBQVksQ0FBQztJQUU5Qix1Q0FBdUM7SUFDdkMsTUFBTSxFQUFFLGdCQUFnQixFQUFFLEdBQUcsd0RBQWEsMkNBQTJDLEdBQUMsQ0FBQztJQUN2RixNQUFNLGFBQWEsR0FBRyxNQUFNLGdCQUFnQixDQUFDLGdCQUFnQixDQUFDLElBQUksQ0FBQyxDQUFDO0lBQ3BFLEdBQUcsQ0FBQyxJQUFJLENBQUMsRUFBRSxPQUFPLEVBQUUsSUFBSSxFQUFFLElBQUksRUFBRSxhQUFhLEVBQUUsQ0FBQyxDQUFDO0FBQ25ELENBQUMsQ0FBQyxDQUFDLENBQUM7QUFFSixrQkFBZSxNQUFNLENBQUMiLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFByb2plY3RzXFxBdHRyaXRpb25cXHBhY2thZ2VzXFxzZXJ2ZXJcXHNyY1xccm91dGVzXFxnYW1lXFxkYXNoYm9hcmQudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgUm91dGVyLCBSZXNwb25zZSB9IGZyb20gJ2V4cHJlc3MnO1xyXG5pbXBvcnQgeyBhc3luY0hhbmRsZXIgfSBmcm9tICcuLi8uLi9taWRkbGV3YXJlL2Vycm9ySGFuZGxlcic7XHJcbmltcG9ydCB7IGF1dGhlbnRpY2F0ZSwgQXV0aFJlcXVlc3QgfSBmcm9tICcuLi8uLi9taWRkbGV3YXJlL2F1dGgnO1xyXG5cclxuY29uc3Qgcm91dGVyID0gUm91dGVyKCk7XHJcblxyXG4vKipcclxuICogR0VUIC9hcGkvZ2FtZS9kYXNoYm9hcmRcclxuICogUmV0dXJucyBkYXNoYm9hcmQgZGF0YSBmb3IgdGhlIGF1dGhlbnRpY2F0ZWQgZW1waXJlXHJcbiAqL1xyXG5yb3V0ZXIudXNlKGF1dGhlbnRpY2F0ZSk7XHJcblxyXG5yb3V0ZXIuZ2V0KCcvJywgYXN5bmNIYW5kbGVyKGFzeW5jIChyZXE6IEF1dGhSZXF1ZXN0LCByZXM6IFJlc3BvbnNlKSA9PiB7XHJcbiAgY29uc3QgdXNlciA9IHJlcS51c2VyISBhcyBhbnk7XHJcblxyXG4gIC8vIEdldCBkYXNoYm9hcmQgZGF0YSB1c2luZyB0aGUgc2VydmljZVxyXG4gIGNvbnN0IHsgRGFzaGJvYXJkU2VydmljZSB9ID0gYXdhaXQgaW1wb3J0KCcuLi8uLi9zZXJ2aWNlcy9kYXNoYm9hcmQvRGFzaGJvYXJkU2VydmljZScpO1xyXG4gIGNvbnN0IGRhc2hib2FyZERhdGEgPSBhd2FpdCBEYXNoYm9hcmRTZXJ2aWNlLmdldERhc2hib2FyZERhdGEodXNlcik7XHJcbiAgcmVzLmpzb24oeyBzdWNjZXNzOiB0cnVlLCBkYXRhOiBkYXNoYm9hcmREYXRhIH0pO1xyXG59KSk7XHJcblxyXG5leHBvcnQgZGVmYXVsdCByb3V0ZXI7XHJcbiJdLCJ2ZXJzaW9uIjozfQ==

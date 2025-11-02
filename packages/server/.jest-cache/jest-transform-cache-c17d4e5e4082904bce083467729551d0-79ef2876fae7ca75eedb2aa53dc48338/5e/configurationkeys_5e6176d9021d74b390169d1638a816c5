@@ -1,0 +1,314 @@
+79fe4c7f8958e251c6e16ca04d61bb6e
+"use strict";
+// Removed import to avoid circular dependency - DIRECTORY_PATHS not used in this file
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CONFIG_KEYS = exports.HOST_VALUES = exports.URL_PATTERNS = exports.TEST_CONFIG_KEYS = exports.DESKTOP_CONFIG_KEYS = exports.SOCKET_CONFIG_KEYS = exports.GAME_CONFIG_KEYS = exports.SERVER_CONFIG_KEYS = exports.LOGGING_CONFIG_KEYS = exports.TLS_CONFIG_KEYS = exports.SECURITY_CONFIG_KEYS = exports.DB_CONFIG_KEYS = exports.API_CONFIG_KEYS = exports.NEXT_CONFIG_KEYS = exports.REACT_CONFIG_KEYS = exports.VITE_CONFIG_KEYS = exports.ENV_VALUES = void 0;
+exports.isValidEnvironment = isValidEnvironment;
+exports.isDevelopmentEnv = isDevelopmentEnv;
+exports.isProductionEnv = isProductionEnv;
+exports.isTestEnv = isTestEnv;
+/**
+ * Configuration Keys Constants
+ *
+ * Centralized constants for all configuration-related strings used throughout the application.
+ * This eliminates hardcoded configuration keys and provides better maintainability.
+ *
+ * Usage:
+ * - Import the required constants: import { CONFIG_KEYS } from '@shared/constants/configuration-keys'
+ * - Use instead of hardcoded strings: config[CONFIG_KEYS.API_URL] instead of config['apiUrl']
+ *
+ * Categories:
+ * - Environment Values (common NODE_ENV values)
+ * - Environment Variable Names (import from env-vars.ts)
+ * - Vite/Build Configuration Keys
+ * - API Configuration Keys
+ * - Database Configuration Keys
+ * - Security Configuration Keys
+ * - Application Configuration Keys
+ */
+// Note: ENV_VARS is exported directly from './env-vars' via index.ts
+// Removed duplicate re-export to fix: SyntaxError: Identifier 'ENV_VARS' has already been declared
+/**
+ * Common Environment Values
+ * Standard values used with NODE_ENV and similar environment settings
+ */
+exports.ENV_VALUES = {
+    DEVELOPMENT: 'development',
+    PRODUCTION: 'production',
+    TEST: 'test',
+    STAGING: 'staging',
+    LOCAL: 'local',
+};
+/**
+ * Vite/Build Configuration Keys
+ * Configuration keys used in Vite, React, Next.js and other build tools
+ */
+exports.VITE_CONFIG_KEYS = {
+    // Vite Environment Variables
+    VITE_API_URL: 'VITE_API_URL',
+    VITE_SOCKET_URL: 'VITE_SOCKET_URL',
+    VITE_FORCE_DEV_MODE: 'VITE_FORCE_DEV_MODE',
+    VITE_FORCE_PRODUCTION_MODE: 'VITE_FORCE_PRODUCTION_MODE',
+    VITE_ENVIRONMENT: 'VITE_ENVIRONMENT',
+    VITE_PRODUCTION_HOST: 'VITE_PRODUCTION_HOST',
+    // Vite Meta Environment Properties
+    VITE_META_DEV: 'DEV',
+    VITE_META_MODE: 'MODE',
+    VITE_META_PROD: 'PROD',
+    VITE_META_SSR: 'SSR',
+};
+/**
+ * React App Configuration Keys
+ * Legacy React app environment variables
+ */
+exports.REACT_CONFIG_KEYS = {
+    REACT_APP_VERSION: 'REACT_APP_VERSION',
+    REACT_APP_API_URL: 'REACT_APP_API_URL',
+    REACT_APP_SOCKET_URL: 'REACT_APP_SOCKET_URL',
+};
+/**
+ * Next.js Configuration Keys
+ * Next.js public environment variables
+ */
+exports.NEXT_CONFIG_KEYS = {
+    NEXT_PUBLIC_API_URL: 'NEXT_PUBLIC_API_URL',
+    NEXT_PUBLIC_SUPABASE_URL: 'NEXT_PUBLIC_SUPABASE_URL',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: 'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+};
+/**
+ * API Configuration Object Keys
+ * Keys used in API configuration objects
+ */
+exports.API_CONFIG_KEYS = {
+    API_URL: 'apiUrl',
+    SOCKET_URL: 'socketUrl',
+    BASE_URL: 'baseUrl',
+    TIMEOUT: 'timeout',
+    RETRY_COUNT: 'retryCount',
+    RETRY_DELAY: 'retryDelay',
+    HTTPS_ENFORCED: 'httpsEnforced',
+    IS_PRODUCTION: 'isProduction',
+    IS_DESKTOP: 'isDesktop',
+    ENVIRONMENT: 'environment',
+    IS_PACKAGED: 'isPackaged',
+};
+/**
+ * Database Configuration Keys
+ * Keys used in database configuration objects
+ */
+exports.DB_CONFIG_KEYS = {
+    URL: 'url',
+    HOST: 'host',
+    PORT: 'port',
+    DATABASE: 'database',
+    USERNAME: 'username',
+    PASSWORD: 'password',
+    SSL: 'ssl',
+    CONNECTION_TIMEOUT: 'connectionTimeout',
+    POOL_SIZE: 'poolSize',
+    MAX_CONNECTIONS: 'maxConnections',
+    IS_PRODUCTION: 'isProduction',
+    IS_DEVELOPMENT: 'isDevelopment',
+};
+/**
+ * Security Configuration Keys
+ * Keys used in security-related configuration
+ */
+exports.SECURITY_CONFIG_KEYS = {
+    JWT_SECRET: 'jwtSecret',
+    JWT_EXPIRES_IN: 'jwtExpiresIn',
+    CORS_ORIGIN: 'corsOrigin',
+    CORS_METHODS: 'corsMethods',
+    CORS_CREDENTIALS: 'corsCredentials',
+    RATE_LIMIT_WINDOW: 'rateLimitWindow',
+    RATE_LIMIT_MAX: 'rateLimitMax',
+    HTTPS_ONLY: 'httpsOnly',
+    SECURE_COOKIES: 'secureCookies',
+    SAME_SITE: 'sameSite',
+};
+/**
+ * SSL/TLS Configuration Keys
+ * Keys used in SSL/TLS configuration objects
+ */
+exports.TLS_CONFIG_KEYS = {
+    KEY_PATH: 'keyPath',
+    CERT_PATH: 'certPath',
+    CA_PATH: 'caPath',
+    KEY_PASSPHRASE: 'keyPassphrase',
+    SSL_PORT: 'sslPort',
+    FORCE_SSL: 'forceSSL',
+    SESSION_TIMEOUT: 'sessionTimeout',
+    CACHE_SIZE: 'cacheSize',
+    DISABLE_SESSION_RESUMPTION: 'disableSessionResumption',
+    OCSP_STAPLING: 'ocspStapling',
+    CERT_PINNING_ENABLED: 'certPinningEnabled',
+    PINNED_CERTIFICATES: 'pinnedCertificates',
+    PINNED_PUBLIC_KEYS: 'pinnedPublicKeys',
+};
+/**
+ * Logging Configuration Keys
+ * Keys used in logging configuration objects
+ */
+exports.LOGGING_CONFIG_KEYS = {
+    LEVEL: 'level',
+    FORMAT: 'format',
+    TIMESTAMP: 'timestamp',
+    CONSOLE: 'console',
+    FILE: 'file',
+    FILE_PATH: 'filePath',
+    MAX_SIZE: 'maxSize',
+    MAX_FILES: 'maxFiles',
+    ROTATE: 'rotate',
+    DEBUG: 'debug',
+    SILENT: 'silent',
+};
+/**
+ * Server Configuration Keys
+ * Keys used in server configuration objects
+ */
+exports.SERVER_CONFIG_KEYS = {
+    PORT: 'port',
+    HOST: 'host',
+    HTTPS_PORT: 'httpsPort',
+    PROXY: 'proxy',
+    TRUST_PROXY: 'trustProxy',
+    COMPRESSION: 'compression',
+    HELMET: 'helmet',
+    BODY_PARSER: 'bodyParser',
+    STATIC_FILES: 'staticFiles',
+    VIEW_ENGINE: 'viewEngine',
+};
+/**
+ * Game Configuration Keys
+ * Keys used in game-specific configuration
+ */
+exports.GAME_CONFIG_KEYS = {
+    LOOP_ENABLED: 'loopEnabled',
+    LOOP_INTERVAL: 'loopInterval',
+    PAYOUT_PERIOD: 'payoutPeriod',
+    CITIZEN_PAYOUT_PERIOD: 'citizenPayoutPeriod',
+    CREDIT_PAYOUT_PERIOD: 'creditPayoutPeriod',
+    DEBUG_RESOURCES: 'debugResources',
+    DEBUG_PATCH_LOG: 'debugPatchLog',
+    ECONOMY_DEBUG: 'economyDebug',
+    AUTO_SAVE_INTERVAL: 'autoSaveInterval',
+};
+/**
+ * Socket Configuration Keys
+ * Keys used in WebSocket/Socket.IO configuration
+ */
+exports.SOCKET_CONFIG_KEYS = {
+    URL: 'url',
+    PATH: 'path',
+    TRANSPORTS: 'transports',
+    TIMEOUT: 'timeout',
+    RECONNECTION: 'reconnection',
+    RECONNECTION_ATTEMPTS: 'reconnectionAttempts',
+    RECONNECTION_DELAY: 'reconnectionDelay',
+    HEARTBEAT_INTERVAL: 'heartbeatInterval',
+    PING_TIMEOUT: 'pingTimeout',
+    CORS: 'cors',
+};
+/**
+ * Desktop App Configuration Keys
+ * Keys used in Electron/Desktop app configuration
+ */
+exports.DESKTOP_CONFIG_KEYS = {
+    IS_DESKTOP: 'isDesktop',
+    IS_PACKAGED: 'isPackaged',
+    IS_DEV: 'isDev',
+    APP_DATA_PATH: 'appDataPath',
+    USER_DATA_PATH: 'userDataPath',
+    RESOURCES_PATH: 'resourcesPath',
+    EXECUTABLE_PATH: 'executablePath',
+    PLATFORM: 'platform',
+    ARCH: 'arch',
+    VERSION: 'version',
+};
+/**
+ * Testing Configuration Keys
+ * Keys used in testing configuration objects
+ */
+exports.TEST_CONFIG_KEYS = {
+    TEST_ENV: 'testEnv',
+    TEST_TIMEOUT: 'testTimeout',
+    SETUP_FILES: 'setupFiles',
+    COVERAGE: 'coverage',
+    MOCK_MODULES: 'mockModules',
+    TEST_MATCH: 'testMatch',
+    IGNORE_PATTERNS: 'ignorePatterns',
+    VERBOSE: 'verbose',
+};
+/**
+ * Common Protocol and URL Patterns
+ * Standard protocols and URL patterns used in configuration
+ */
+exports.URL_PATTERNS = {
+    HTTP_PROTOCOL: 'http://',
+    HTTPS_PROTOCOL: 'https://',
+    WS_PROTOCOL: 'ws://',
+    WSS_PROTOCOL: 'wss://',
+    LOCALHOST: 'localhost',
+    LOCAL_IP: '127.0.0.1',
+    API_PATH: '/api',
+    SOCKET_PATH: '/socket.io',
+};
+/**
+ * Common Host and Port Values
+ * Standard values for hosts and ports used in development/production
+ */
+exports.HOST_VALUES = {
+    LOCALHOST: 'localhost',
+    LOCAL_IP: '127.0.0.1',
+    ALL_INTERFACES: '0.0.0.0',
+    DEFAULT_HTTP_PORT: '3000',
+    DEFAULT_HTTPS_PORT: '3001',
+    DEFAULT_API_PORT: '3001',
+    DEFAULT_SOCKET_PORT: '3001',
+};
+/**
+ * All configuration constants combined for convenience
+ */
+exports.CONFIG_KEYS = {
+    ...exports.ENV_VALUES,
+    ...exports.VITE_CONFIG_KEYS,
+    ...exports.REACT_CONFIG_KEYS,
+    ...exports.NEXT_CONFIG_KEYS,
+    ...exports.API_CONFIG_KEYS,
+    ...exports.DB_CONFIG_KEYS,
+    ...exports.SECURITY_CONFIG_KEYS,
+    ...exports.TLS_CONFIG_KEYS,
+    ...exports.LOGGING_CONFIG_KEYS,
+    ...exports.SERVER_CONFIG_KEYS,
+    ...exports.GAME_CONFIG_KEYS,
+    ...exports.SOCKET_CONFIG_KEYS,
+    ...exports.DESKTOP_CONFIG_KEYS,
+    ...exports.TEST_CONFIG_KEYS,
+    ...exports.URL_PATTERNS,
+    ...exports.HOST_VALUES,
+};
+/**
+ * Helper function to validate environment value
+ */
+function isValidEnvironment(env) {
+    return Object.values(exports.ENV_VALUES).includes(env);
+}
+/**
+ * Helper function to check if running in development
+ */
+function isDevelopmentEnv(env) {
+    return env === exports.ENV_VALUES.DEVELOPMENT || env === exports.ENV_VALUES.LOCAL;
+}
+/**
+ * Helper function to check if running in production
+ */
+function isProductionEnv(env) {
+    return env === exports.ENV_VALUES.PRODUCTION;
+}
+/**
+ * Helper function to check if running in test
+ */
+function isTestEnv(env) {
+    return env === exports.ENV_VALUES.TEST;
+}
+//# sourceMappingURL=configuration-keys.js.map

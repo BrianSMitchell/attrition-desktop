@@ -1,6 +1,6 @@
 import App from './App';
 import { ServiceProvider, MigrationDebugPanel } from './components/ServiceMigrationWrapper';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
+import { ENV_VARS } from '@game/shared';
 
 
 /**

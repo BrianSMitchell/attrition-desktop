@@ -1,5 +1,5 @@
 ﻿import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VALUES } from '@game/shared';
 
 /**
  * DEV-only Axios metrics instrumentation.

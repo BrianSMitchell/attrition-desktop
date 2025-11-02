@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { TIMEOUTS } from '@game/shared';
 function formatHMS(msRemaining: number): string {
   const totalSec = Math.max(0, Math.ceil(msRemaining / 1000));
   const h = Math.floor(totalSec / 3600);

@@ -1,14 +1,8 @@
 /**
-export default runAllComponentTests;
-import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
-/**
  * Manual Test Runner for Migrated Components
- * 
- * This script performs comprehensive validation of migrated components
- * without requiring a full Jest setup. It tests the core functionality,
- * service integration patterns, and edge cases.
  */
 
+import { GAME_CONSTANTS } from '@game/shared';
 import { testComponentLogic } from './MigrationIntegrationTest';
 
 // Test Results Interface
@@ -481,3 +475,5 @@ if (typeof window !== 'undefined') {
 }
 
 export default runAllComponentTests;
+
+

@@ -4,7 +4,7 @@ import FleetDispatchForm from './FleetDispatchForm';
 import FleetMovementStatus from './FleetMovementStatus';
 import { useUIActions } from '../../../stores/enhancedAppStore';
 import { Empire } from '@game/shared';
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 
 // Type definitions for fleet data

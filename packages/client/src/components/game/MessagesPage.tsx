@@ -1,8 +1,8 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useMessageStore, MessageTab } from '../../stores/messageStore';
 
-import { TIMEOUTS, GAME_CONSTANTS } from '@shared/constants/magic-numbers';
-import { LAYOUT_CLASSES } from '../constants/css-constants';
+import { TIMEOUTS, GAME_CONSTANTS } from '@game/shared';
+import { LAYOUT_CLASSES } from '../../constants/css-constants';
 const MessagesPage: React.FC = () => {
   const {
     activeTab,

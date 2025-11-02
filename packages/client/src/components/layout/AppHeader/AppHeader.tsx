@@ -11,7 +11,7 @@ import { ResourceDisplay } from '../../ui/data-display/ResourceDisplay';
 import { useAuth } from '../../../stores/enhancedAppStore';
 import { useModalStore } from '../../../stores/modalStore';
 import { useMessageStore } from '../../../stores/messageStore';
-import { LAYOUT_CLASSES } from '../constants/css-constants';
+import { LAYOUT_CLASSES } from '../../../constants/css-constants';
 
 export const AppHeader: React.FC = () => {
   const auth = useAuth();

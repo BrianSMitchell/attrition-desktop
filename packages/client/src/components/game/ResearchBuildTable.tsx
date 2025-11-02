@@ -5,7 +5,7 @@ import { getTechCreditCostForLevel } from "@game/shared";
 import type { TechStatusDTO } from "../../services/techService";
 import { useModalStore } from "../../stores/modalStore";
 import BuildTable, { type Column, type Eligibility } from "./BuildTable";
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { TIMEOUTS } from '@game/shared';
 
 /**
  * ResearchBuildTable (Research)

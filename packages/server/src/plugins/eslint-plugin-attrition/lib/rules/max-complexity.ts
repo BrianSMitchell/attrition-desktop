@@ -3,7 +3,8 @@
  * @author Attrition Development Team
  */
 
-import { Rule } from 'eslint';
+import type { TSESLint } from '@typescript-eslint/utils';
+import type { Node } from 'estree';
 import { calculateComplexity, getAllFunctions } from '../utils/astHelpers';
 import { getProjectConfig } from '../utils/metricsIntegration';
 
@@ -68,16 +69,14 @@ type GamePattern = 'game-loop' | 'combat-calculation' | 'resource-optimization' 
  * Rule to enforce complexity limits with game-specific patterns
  * Integrates with existing metrics system for consistent thresholds
  */
-const rule: Rule.RuleModule = {
+const rule: TSESLint.RuleModule<any, any> = {
+  defaultOptions: [],
   meta: {
     type: 'problem',
     docs: {
       description: 'Enforce custom complexity limits for game patterns and maintainability',
-      category: 'Best Practices',
-      recommended: true,
       url: 'https://github.com/attrition-game/server/blob/main/docs/eslint-rules.md#max-complexity'
     },
-    fixable: null, // Complexity reduction requires manual refactoring
     schema: [
       {
         type: 'object',
@@ -139,7 +138,7 @@ const rule: Rule.RuleModule = {
     }
   },
 
-  create(context: Rule.RuleContext): Rule.RuleListener {
+  create(context: any): any {
     const config = getProjectConfig();
     const options = (context.options[0] as MaxComplexityOptions) || {};
     const maxPerFunction = options.maxPerFunction || 10;

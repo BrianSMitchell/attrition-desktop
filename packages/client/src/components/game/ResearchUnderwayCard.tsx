@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { Empire, ResearchProject } from '@game/shared';
 import { useEnhancedAppStore } from '../../stores/enhancedAppStore';
 
-import { TIMEOUTS, STATUS_CODES } from '@shared/constants/magic-numbers';
+import { TIMEOUTS, STATUS_CODES } from '@game/shared';
 interface ResearchUnderwayCardProps {
   empire: Empire;
 }

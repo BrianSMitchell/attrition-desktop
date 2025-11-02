@@ -1,7 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth, useEnhancedAuthActions } from '../../stores/enhancedAppStore';
-import { LAYOUT_CLASSES, LOADING_CLASSES, ALERT_CLASSES } from '../constants/css-constants';
+import { LAYOUT_CLASSES, LOADING_CLASSES, ALERT_CLASSES } from '../../constants/css-constants';
 
 const Register: React.FC = () => {
   const [email, setEmail] = useState('');

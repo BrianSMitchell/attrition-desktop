@@ -4,9 +4,9 @@ import { getStructureCreditCostForLevel } from "@game/shared";
 import type { StructuresStatusDTO } from "../../services/structuresService";
 import { useModalStore } from "../../stores/modalStore";
 import BuildTable, { type Column, type Eligibility } from "./BuildTable";
-import { TIMEOUTS } from '@shared/constants/magic-numbers';
+import { TIMEOUTS } from '@game/shared';
 import { BUTTON_TEXT, DISPLAY_TEXT } from '@game/shared';
-import { GAME_TEXT, STATUS_TEXT } from '@shared/constants/string-constants';
+import { GAME_TEXT, STATUS_TEXT } from '@game/shared';
 
 interface StructuresBuildTableProps {
   catalog: BuildingSpec[];

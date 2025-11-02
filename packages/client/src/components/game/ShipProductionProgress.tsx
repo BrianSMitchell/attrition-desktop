@@ -3,8 +3,8 @@ import { useMemo } from "react";
 import type { UnitKey, UnitSpec } from "@game/shared";
 
 // Enhanced store compatible types
-import { GAME_CONSTANTS } from '@shared/constants/magic-numbers';
-import { LAYOUT_CLASSES } from '../constants/css-constants';
+import { GAME_CONSTANTS } from '@game/shared';
+import { LAYOUT_CLASSES } from '../../constants/css-constants';
 export interface UnitProductionItem {
   id: string;
   unitKey: UnitKey;

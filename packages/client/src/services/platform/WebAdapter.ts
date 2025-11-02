@@ -1,6 +1,6 @@
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
-import { ENV_VARS } from '@shared/constants/env-vars';
-
+import { ERROR_MESSAGES } from '@game/shared';
+import { ENV_VARS } from '@game/shared';
+import { 
   PlatformAdapter, 
   QueueMetrics, 
   FlushResult, 

@@ -1,8 +1,8 @@
 ﻿import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useGame, useGameActions, useServiceState } from '../../stores/enhancedAppStore';
 import ModalManager from './ModalManager';
-import { LAYOUT_CLASSES } from '../constants/css-constants';
-import { LOADING_MESSAGES, GAME_TEXT, ERROR_TEXT, PAGE_TEXT } from '@shared/constants/string-constants';
+import { LAYOUT_CLASSES } from '../../constants/css-constants';
+import { LOADING_MESSAGES, GAME_TEXT, ERROR_TEXT, PAGE_TEXT } from '@game/shared';
 
 
 const Dashboard: React.FC = () => {

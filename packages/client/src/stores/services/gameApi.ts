@@ -14,7 +14,7 @@ import fleetsService from '../../services/fleetsService';
 import unitsService from '../../services/unitsService';
 import { ApiResponse, TechnologySpec, TechnologyKey, DefenseSpec, StructureSpec, StructureKey as BuildingKey, DefenseKey, Empire } from '@game/shared';
 import { API_ENDPOINTS } from '../constants/api-endpoints';
-import { ERROR_MESSAGES } from '../../server/src/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 
 

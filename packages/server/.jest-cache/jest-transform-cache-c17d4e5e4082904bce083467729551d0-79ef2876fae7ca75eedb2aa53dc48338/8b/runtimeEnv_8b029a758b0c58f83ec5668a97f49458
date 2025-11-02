@@ -1,0 +1,28 @@
+d50e8b9bbf3204454770ce90f44bf348
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.isReverseProxySSL = isReverseProxySSL;
+exports.isProduction = isProduction;
+const shared_1 = require("@game/shared");
+const shared_2 = require("@game/shared");
+// Centralized runtime environment helpers
+function parseBooleanEnv(name, defaultValue = false) {
+    const v = process.env[name];
+    if (!v)
+        return defaultValue;
+    const s = v.toLowerCase();
+    return s === '1' || s === 'true' || s === 'yes' || s === 'on';
+}
+/**
+ * Detect if TLS is terminated by a reverse proxy (e.g., Render, Cloudflare).
+ * This enables proxy-aware behavior (no local HTTPS probes, etc.).
+ */
+function isReverseProxySSL() {
+    // Explicit project flag or platform-provided flag
+    return parseBooleanEnv('USE_REVERSE_PROXY_SSL') || parseBooleanEnv('RENDER');
+}
+/** Convenience: whether we're in production mode */
+function isProduction() {
+    return (process.env[shared_1.ENV_VARS.NODE_ENV] || '').toLowerCase() === shared_2.ENV_VALUES.PRODUCTION;
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFByb2plY3RzXFxBdHRyaXRpb25cXHBhY2thZ2VzXFxzZXJ2ZXJcXHNyY1xcdXRpbHNcXHJ1bnRpbWVFbnYudHMiLCJtYXBwaW5ncyI6Ijs7QUFnQkEsOENBR0M7QUFHRCxvQ0FFQztBQXhCRCx5Q0FBd0M7QUFDeEMseUNBQTBDO0FBRTFDLDBDQUEwQztBQUUxQyxTQUFTLGVBQWUsQ0FBQyxJQUFZLEVBQUUsWUFBWSxHQUFHLEtBQUs7SUFDekQsTUFBTSxDQUFDLEdBQUcsT0FBTyxDQUFDLEdBQUcsQ0FBQyxJQUFJLENBQUMsQ0FBQztJQUM1QixJQUFJLENBQUMsQ0FBQztRQUFFLE9BQU8sWUFBWSxDQUFDO0lBQzVCLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyxXQUFXLEVBQUUsQ0FBQztJQUMxQixPQUFPLENBQUMsS0FBSyxHQUFHLElBQUksQ0FBQyxLQUFLLE1BQU0sSUFBSSxDQUFDLEtBQUssS0FBSyxJQUFJLENBQUMsS0FBSyxJQUFJLENBQUM7QUFDaEUsQ0FBQztBQUVEOzs7R0FHRztBQUNILFNBQWdCLGlCQUFpQjtJQUMvQixrREFBa0Q7SUFDbEQsT0FBTyxlQUFlLENBQUMsdUJBQXVCLENBQUMsSUFBSSxlQUFlLENBQUMsUUFBUSxDQUFDLENBQUM7QUFDL0UsQ0FBQztBQUVELG9EQUFvRDtBQUNwRCxTQUFnQixZQUFZO0lBQzFCLE9BQU8sQ0FBQyxPQUFPLENBQUMsR0FBRyxDQUFDLGlCQUFRLENBQUMsUUFBUSxDQUFDLElBQUksRUFBRSxDQUFDLENBQUMsV0FBVyxFQUFFLEtBQUssbUJBQVUsQ0FBQyxVQUFVLENBQUM7QUFDeEYsQ0FBQyIsIm5hbWVzIjpbXSwic291cmNlcyI6WyJDOlxcUHJvamVjdHNcXEF0dHJpdGlvblxccGFja2FnZXNcXHNlcnZlclxcc3JjXFx1dGlsc1xccnVudGltZUVudi50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBFTlZfVkFSUyB9IGZyb20gJ0BnYW1lL3NoYXJlZCc7XG5pbXBvcnQgeyBFTlZfVkFMVUVTIH0gZnJvbSAnQGdhbWUvc2hhcmVkJztcblxuLy8gQ2VudHJhbGl6ZWQgcnVudGltZSBlbnZpcm9ubWVudCBoZWxwZXJzXHJcblxyXG5mdW5jdGlvbiBwYXJzZUJvb2xlYW5FbnYobmFtZTogc3RyaW5nLCBkZWZhdWx0VmFsdWUgPSBmYWxzZSk6IGJvb2xlYW4ge1xyXG4gIGNvbnN0IHYgPSBwcm9jZXNzLmVudltuYW1lXTtcclxuICBpZiAoIXYpIHJldHVybiBkZWZhdWx0VmFsdWU7XHJcbiAgY29uc3QgcyA9IHYudG9Mb3dlckNhc2UoKTtcclxuICByZXR1cm4gcyA9PT0gJzEnIHx8IHMgPT09ICd0cnVlJyB8fCBzID09PSAneWVzJyB8fCBzID09PSAnb24nO1xyXG59XHJcblxyXG4vKipcclxuICogRGV0ZWN0IGlmIFRMUyBpcyB0ZXJtaW5hdGVkIGJ5IGEgcmV2ZXJzZSBwcm94eSAoZS5nLiwgUmVuZGVyLCBDbG91ZGZsYXJlKS5cclxuICogVGhpcyBlbmFibGVzIHByb3h5LWF3YXJlIGJlaGF2aW9yIChubyBsb2NhbCBIVFRQUyBwcm9iZXMsIGV0Yy4pLlxyXG4gKi9cclxuZXhwb3J0IGZ1bmN0aW9uIGlzUmV2ZXJzZVByb3h5U1NMKCk6IGJvb2xlYW4ge1xyXG4gIC8vIEV4cGxpY2l0IHByb2plY3QgZmxhZyBvciBwbGF0Zm9ybS1wcm92aWRlZCBmbGFnXHJcbiAgcmV0dXJuIHBhcnNlQm9vbGVhbkVudignVVNFX1JFVkVSU0VfUFJPWFlfU1NMJykgfHwgcGFyc2VCb29sZWFuRW52KCdSRU5ERVInKTtcclxufVxyXG5cclxuLyoqIENvbnZlbmllbmNlOiB3aGV0aGVyIHdlJ3JlIGluIHByb2R1Y3Rpb24gbW9kZSAqL1xyXG5leHBvcnQgZnVuY3Rpb24gaXNQcm9kdWN0aW9uKCk6IGJvb2xlYW4ge1xyXG4gIHJldHVybiAocHJvY2Vzcy5lbnZbRU5WX1ZBUlMuTk9ERV9FTlZdIHx8ICcnKS50b0xvd2VyQ2FzZSgpID09PSBFTlZfVkFMVUVTLlBST0RVQ1RJT047XHJcbn1cclxuIl0sInZlcnNpb24iOjN9

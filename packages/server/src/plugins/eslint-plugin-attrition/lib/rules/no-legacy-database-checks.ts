@@ -3,7 +3,7 @@
  * @author Attrition Development Team
  */
 
-import { Rule } from 'eslint';
+import type { TSESLint } from '@typescript-eslint/utils';
 import { detectLegacyPatterns } from '../utils/astHelpers';
 import { getProjectConfig } from '../utils/metricsIntegration';
 
@@ -34,13 +34,12 @@ interface NoLegacyDatabaseOptions {
  * Rule to detect and prevent usage of deprecated database patterns
  * Critical for migration from legacy database approaches
  */
-const rule: Rule.RuleModule = {
+const rule: TSESLint.RuleModule<any, any> = {
+  defaultOptions: [],
   meta: {
     type: 'problem',
     docs: {
       description: 'Detect deprecated database patterns and enforce modern database practices',
-      category: 'Best Practices',
-      recommended: true,
       url: 'https://github.com/attrition-game/server/blob/main/docs/eslint-rules.md#no-legacy-database-checks'
     },
     fixable: 'code', // Can suggest fixes for some patterns
@@ -92,7 +91,7 @@ const rule: Rule.RuleModule = {
     }
   },
 
-  create(context: Rule.RuleContext): Rule.RuleListener {
+  create(context: any): any {
     const config = getProjectConfig();
     const options = (context.options[0] as NoLegacyDatabaseOptions) || {};
     const bannedPatterns = options.bannedPatterns || [
@@ -308,7 +307,7 @@ const rule: Rule.RuleModule = {
             node: pattern.node,
             messageId,
             data,
-            fix(fixer: Rule.RuleFixer): null | Rule.Fix {
+            fix(fixer: any): null | any {
               // Suggest fixes for common patterns
               if (pattern.type === 'schema_reference' && pattern.source.includes('mongoose.Schema')) {
                 // This would need more sophisticated logic for actual replacement

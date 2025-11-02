@@ -1,11 +1,11 @@
 ﻿import { ApiResponse, AuthResponse } from '@game/shared';
 import { AuthManager } from './core/AuthManager';
 import { getCurrentApiConfig } from '../utils/apiConfig';
-import { ENV_VARS } from '../../../shared/src/constants/env-vars';
-import { ENV_VALUES } from '@shared/constants/configuration-keys';
+import { ENV_VARS } from '@game/shared';
+import { ENV_VALUES } from '@game/shared';
 
 
-import { ERROR_MESSAGES } from '@shared/constants/response-formats';
+import { ERROR_MESSAGES } from '@game/shared';
 
 /**
  * Legacy authService API - now acts as a compatibility layer that delegates to AuthManager.
