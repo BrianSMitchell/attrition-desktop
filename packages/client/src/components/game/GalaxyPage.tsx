@@ -19,13 +19,19 @@ const getUserRegions = (empire: any) => {
     console.log('[getUserRegions] Raw homeSystem coordinate:', empire.homeSystem);
     const parts = empire.homeSystem.split(':');
     console.log('[getUserRegions] Split parts:', parts);
-    if (parts.length >= 4) {
-      // Expected format: "A:00:00:12:02" -> Server A, Galaxy 00, Region 00, System 12, Body 02
-      const serverStr = parts[0];   // "A"
-      const galaxyStr = parts[1];   // "00"
-      const regionStr = parts[2];   // "00" - this is the region!
-      const systemStr = parts[3];   // "12"
-      console.log('[getUserRegions] Parsed components:', { server: serverStr, galaxy: galaxyStr, region: regionStr, system: systemStr });
+    if (parts.length >= 3) {
+      // Actual format: "A00:00:12:03" -> Server+Galaxy "A00", Region "00", System "12", Body "03"
+      // Server and galaxy are concatenated in first part (e.g., "A00")
+      const serverGalaxyStr = parts[0]; // "A00" (server letter + 2-digit galaxy)
+      const regionStr = parts[1];       // "00" - this is the region!
+      const systemStr = parts[2];       // "12"
+      const bodyStr = parts[3];         // "03" (optional)
+      console.log('[getUserRegions] Parsed components:', { 
+        serverGalaxy: serverGalaxyStr, 
+        region: regionStr, 
+        system: systemStr, 
+        body: bodyStr 
+      });
       
       const homeRegion = parseInt(regionStr, 10);
       if (!isNaN(homeRegion)) {
@@ -78,16 +84,19 @@ const GalaxyPage: React.FC = () => {
   const initialLevel = getLevelFromViewParam(viewParam, 'galaxy' as MapViewLevel);
 
   // Compute breadcrumb title pieces from store
-  const serverLetter = selectedCoordinate?.server || 'A';
- const galaxyNum = typeof selectedCoordinate?.galaxy === 'number' ? selectedCoordinate!.galaxy : Number(empire?.homeSystem?.split(':')[1] ?? 0);
+  const serverLetter = selectedCoordinate?.server || empire?.homeSystem?.split(':')[0]?.charAt(0) || 'A';
+  const galaxyNum = typeof selectedCoordinate?.galaxy === 'number' ? selectedCoordinate!.galaxy : Number(empire?.homeSystem?.split(':')[1] ?? 0);
   const regionNum = typeof selectedCoordinate?.region === 'number' ? selectedCoordinate!.region : undefined;
   const systemNum = typeof selectedCoordinate?.system === 'number' ? selectedCoordinate!.system : undefined;
-
+  
   // Initialize store state when component mounts
   React.useEffect(() => { 
-    console.log('[GalaxyPage] Component mounted, calling navigateToGalaxy with:', galaxyNum);
+    console.log('[GalaxyPage] Component mounted');
+    console.log('[GalaxyPage] Server letter:', serverLetter);
+    console.log('[GalaxyPage] Galaxy number:', galaxyNum);
+    console.log('[GalaxyPage] Calling navigateToGalaxy with galaxy:', galaxyNum);
     navigateToGalaxy(galaxyNum); 
-  }, [navigateToGalaxy, galaxyNum]);
+  }, [navigateToGalaxy, galaxyNum, serverLetter]);
 
   // Memoize callbacks to prevent unnecessary re-initialization of UniverseMap
   const handleSelectLocation = React.useCallback((loc: any) => {
