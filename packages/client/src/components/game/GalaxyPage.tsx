@@ -52,7 +52,16 @@ const GalaxyPage: React.FC = () => {
   const { empire } = auth;
   
   // Memoize userRegions to prevent recreating on every render
-  const userRegions = React.useMemo(() => getUserRegions(empire), [empire]);
+  const userRegions = React.useMemo(() => {
+    const regions = getUserRegions(empire);
+    console.log('[GalaxyPage] Computed userRegions:', regions);
+    console.log('[GalaxyPage] Empire data:', {
+      exists: !!empire,
+      homeSystem: empire?.homeSystem,
+      name: empire?.name
+    });
+    return regions;
+  }, [empire]);
   
   const {
     zoomLevel,
@@ -84,8 +93,12 @@ const GalaxyPage: React.FC = () => {
   const initialLevel = getLevelFromViewParam(viewParam, 'galaxy' as MapViewLevel);
 
   // Compute breadcrumb title pieces from store
-  const serverLetter = selectedCoordinate?.server || empire?.homeSystem?.split(':')[0]?.charAt(0) || 'A';
-  const galaxyNum = typeof selectedCoordinate?.galaxy === 'number' ? selectedCoordinate!.galaxy : Number(empire?.homeSystem?.split(':')[1] ?? 0);
+  // homeSystem format: "A00:00:12:03" where first part is server+galaxy concatenated
+  const serverGalaxyPart = empire?.homeSystem?.split(':')[0] || 'A00';
+  const serverLetter = selectedCoordinate?.server || serverGalaxyPart.charAt(0) || 'A';
+  const galaxyNum = typeof selectedCoordinate?.galaxy === 'number' 
+    ? selectedCoordinate!.galaxy 
+    : Number(serverGalaxyPart.substring(1) || '0'); // Extract galaxy digits from "A00" -> "00"
   const regionNum = typeof selectedCoordinate?.region === 'number' ? selectedCoordinate!.region : undefined;
   const systemNum = typeof selectedCoordinate?.system === 'number' ? selectedCoordinate!.system : undefined;
   
