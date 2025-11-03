@@ -6,7 +6,7 @@
   "main": "dist/main.js",
   "author": "Attrition Game Studio",
   "license": "MIT",
-  "homepage": "https://attrition-game.com",
+  "homepage": "https://attritiongame.dev",
   "type": "module",
   "scripts": {
     "predev:original": "pnpm --filter @game/shared build && pnpm --filter @game/client build:dev",

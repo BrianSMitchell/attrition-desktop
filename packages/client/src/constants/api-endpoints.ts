@@ -21,7 +21,7 @@ export const API_ENDPOINTS = {
   GAME: {
     EMPIRE: '/game/empire',
     DASHBOARD: '/game/dashboard',
-    CREDITS_HISTORY: '/game/credits/history',
+    CREDITS_HISTORY: '/game/empire/credits/history',
   },
   
   // Base endpoints
@@ -81,8 +81,8 @@ export const API_ENDPOINTS = {
   
   // System endpoints
   SYSTEM: {
-    STATUS: '/status',
-    HEALTH: '/health',
-    VERSION: '/version',
+    STATUS: '/system/status',
+    HEALTH: '/system/health',
+    VERSION: '/system/version',
   },
 } as const;

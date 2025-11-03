@@ -6,7 +6,7 @@
   "main": "src/main.js",
   "author": "Attrition Game Studio",
   "license": "MIT",
-  "homepage": "https://attrition-game.com",
+  "homepage": "https://attritiongame.dev",
   "scripts": {
     "dev": "electron .",
     "start": "electron .",
