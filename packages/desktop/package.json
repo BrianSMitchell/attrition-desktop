@@ -7,6 +7,10 @@
   "author": "Attrition Game Studio",
   "license": "MIT",
   "homepage": "https://attritiongame.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BrianSMitchell/attrition-desktop.git"
+  },
   "type": "module",
   "scripts": {
     "predev:original": "pnpm --filter @game/shared build && pnpm --filter @game/client build:dev",
