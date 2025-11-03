@@ -101,7 +101,7 @@ jobs:
           echo "app-path=$APP_PATH" >> $GITHUB_OUTPUT
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: desktop-app-${{ runner.os }}
           path: packages/desktop/dist/
@@ -129,7 +129,7 @@ jobs:
           cache: 'npm'
 
       - name: Download build artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: desktop-app-${{ runner.os }}
           path: packages/desktop/dist/
@@ -186,7 +186,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload performance test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: performance-results-${{ runner.os }}
@@ -196,7 +196,7 @@ jobs:
           retention-days: 30
 
       - name: Upload performance traces
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: performance-traces-${{ runner.os }}
@@ -222,7 +222,7 @@ jobs:
           cache: 'npm'
 
       - name: Download all performance results
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: performance-artifacts/
 
@@ -264,7 +264,7 @@ jobs:
           fi
 
       - name: Upload performance analysis
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: performance-analysis
           path: |
@@ -377,7 +377,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Download performance analysis
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: performance-analysis
           path: ./
@@ -418,7 +418,7 @@ jobs:
     
     steps:
       - name: Download performance analysis
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: performance-analysis
           path: ./
