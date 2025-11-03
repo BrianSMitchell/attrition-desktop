@@ -364,24 +364,55 @@ router.get('/galaxy/:server/:galaxy/regions', authenticate, async (req: AuthRequ
 
     const galaxyStr = galaxy.padStart(2, '0');
     const like = `${server}${galaxyStr}:%:%:00`;
-    const { data: stars } = await supabase
-      .from(DB_TABLES.LOCATIONS)
-      .select('coord')
-      .eq(DB_FIELDS.CREDIT_TRANSACTIONS.TYPE, 'star')
-      .like('coord', like);
+    
+    // Fetch ALL stars using pagination (Supabase default limit is 1000)
+    let allStars: any[] = [];
+    let from = 0;
+    const pageSize = 1000;
+    let hasMore = true;
+    
+    while (hasMore) {
+      const { data: stars, error } = await supabase
+        .from(DB_TABLES.LOCATIONS)
+        .select('coord')
+        .eq(DB_FIELDS.CREDIT_TRANSACTIONS.TYPE, 'star')
+        .like('coord', like)
+        .range(from, from + pageSize - 1);
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (stars && stars.length > 0) {
+        allStars = allStars.concat(stars);
+        from += pageSize;
+        hasMore = stars.length === pageSize;
+      } else {
+        hasMore = false;
+      }
+    }
 
+    // Initialize all 100 regions (0-99) - even empty ones should be displayed
     const buckets: Record<number, number[]> = {};
-    for (const s of stars || []) {
+    for (let i = 0; i < 100; i++) {
+      buckets[i] = [];
+    }
+    
+    // Fill in the stars for regions that have them
+    for (const s of allStars || []) {
       try {
         const c = parseCoord((s as any).coord);
-        if (!buckets[c.region]) buckets[c.region] = [];
-        buckets[c.region].push(c.system);
+        if (c.region >= 0 && c.region < 100) {
+          buckets[c.region].push(c.system);
+        }
       } catch {}
     }
 
-    const regions = Object.keys(buckets)
-      .map((r) => ({ region: parseInt(r, 10), systemsWithStars: buckets[parseInt(r, 10)] }))
-      .sort((a, b) => a.region - b.region);
+    // Return all 100 regions, sorted by region number
+    const regions = Array.from({ length: 100 }, (_, i) => ({
+      region: i,
+      systemsWithStars: buckets[i]
+    }));
 
     res.json({ success: true, data: { server, galaxy: galaxyNum, regions } });
   } catch (error) {
@@ -414,26 +445,57 @@ router.get('/galaxy/:server/:galaxy/region-stars', authenticate, async (req: Aut
 
     const galaxyStr = galaxy.padStart(2, '0');
     const like = `${server}${galaxyStr}:%:%:00`;
-    const { data: stars } = await supabase
-      .from(DB_TABLES.LOCATIONS)
-      .select('coord, star_overhaul')
-      .eq(DB_FIELDS.CREDIT_TRANSACTIONS.TYPE, 'star')
-      .like('coord', like);
+    
+    // Fetch ALL stars using pagination (Supabase default limit is 1000)
+    let allStars: any[] = [];
+    let from = 0;
+    const pageSize = 1000;
+    let hasMore = true;
+    
+    while (hasMore) {
+      const { data: stars, error } = await supabase
+        .from(DB_TABLES.LOCATIONS)
+        .select('coord, star_overhaul')
+        .eq(DB_FIELDS.CREDIT_TRANSACTIONS.TYPE, 'star')
+        .like('coord', like)
+        .range(from, from + pageSize - 1);
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (stars && stars.length > 0) {
+        allStars = allStars.concat(stars);
+        from += pageSize;
+        hasMore = stars.length === pageSize;
+      } else {
+        hasMore = false;
+      }
+    }
 
+    // Initialize all 100 regions (0-99)
     const buckets = new Map<number, Array<{ system: number; color: string }>>();
-    for (const s of stars || []) {
+    for (let i = 0; i < 100; i++) {
+      buckets.set(i, []);
+    }
+    
+    // Fill in star data for regions that have stars
+    for (const s of allStars || []) {
       try {
         const c = parseCoord((s as any).coord);
         const kind = (s as any)?.star_overhaul?.kind as string | undefined;
         const color = colorForStarKind(kind);
-        if (!buckets.has(c.region)) buckets.set(c.region, []);
-        buckets.get(c.region)!.push({ system: c.system, color });
+        if (c.region >= 0 && c.region < 100) {
+          buckets.get(c.region)!.push({ system: c.system, color });
+        }
       } catch {}
     }
 
-    const regions = Array.from(buckets.entries())
-      .map(([region, systems]) => ({ region, systems: systems.sort((a, b) => a.system - b.system) }))
-      .sort((a, b) => a.region - b.region);
+    // Return all 100 regions with their stars (empty arrays for regions with no stars)
+    const regions = Array.from({ length: 100 }, (_, i) => ({
+      region: i,
+      systems: buckets.get(i)!.sort((a, b) => a.system - b.system)
+    }));
 
     res.json({ success: true, data: { server, galaxy: galaxyNum, regions } });
   } catch (error) {
