@@ -5,8 +5,9 @@ type TGraphics = InstanceType<typeof PIXI.Graphics>;
 import { MapEngine } from '../MapEngine';
 import { ViewManager } from './ViewManager';
 import { MapLocation } from '../types';
-import { loadGalaxyData, loadRegionData } from '../data/mapDataLoader';
+import { loadGalaxyData } from '../data/mapDataLoader';
 import type { GalaxyRegionSummariesData, UniverseRegionSystemsData } from '../data/mapDataLoader';
+import universeService from '../../../../services/universeService';
 
 export class GalaxyView {
   private engine: MapEngine;
@@ -70,6 +71,12 @@ export class GalaxyView {
   }
   
   public setVisible(visible: boolean): void {
+    console.log('[GalaxyView] ===== SETTING VISIBILITY =====');
+    console.log('[GalaxyView] Current visibility:', this.container.visible);
+    console.log('[GalaxyView] Requested visibility:', visible);
+    console.log('[GalaxyView] Container children count:', this.container.children.length);
+    console.log('[GalaxyView] Container has parent:', !!this.container.parent);
+    
     this.container.visible = visible;
     console.log('[GalaxyView] Container visibility set to:', visible);
     
@@ -179,6 +186,13 @@ export class GalaxyView {
     await this.loadGalaxyData();
     console.log('[GalaxyView] Render complete, star systems:', this.starSystems.size);
     
+    // CRITICAL: Set container visible immediately after adding children
+    // This ensures worldVisible is properly calculated for all children
+    this.container.visible = true;
+    this.container.renderable = true;
+    this.container.alpha = 1.0;
+    console.log('[GalaxyView] Container visibility set to true after render');
+    
     // After rendering, ensure viewport is properly centered and force an update
     try {
       // Check if engine is still valid before accessing viewport
@@ -237,21 +251,68 @@ export class GalaxyView {
     if (this.isLoading) return;
     
     this.isLoading = true;
-    // Reset loading state
+
+    console.log('[GalaxyView] ===== LOADING GALAXY DATA =====');
+    console.log('[GalaxyView] Server:', this.server);
+    console.log('[GalaxyView] Galaxy:', this.galaxy);
 
     try {
-      const response = await loadGalaxyData(this.server, this.galaxy);
+      // Load all star data for the entire galaxy in ONE API call
+      const [regionsResponse, starsResponse] = await Promise.all([
+        loadGalaxyData(this.server, this.galaxy),
+        universeService.getGalaxyRegionStarColors(this.server, this.galaxy)
+      ]);
       
-      if (response.success && response.data) {
-        await this.createGalaxyRegions(response.data);
+      
+      if (regionsResponse.success && regionsResponse.data && starsResponse.success && starsResponse.data) {
+        // Pre-populate regionData with ALL 100 systems for each region
+        // First, initialize all regions with all 100 systems (no star color yet)
+        for (let regionNum = 0; regionNum < 100; regionNum++) {
+          const allSystems = [];
+          for (let systemNum = 0; systemNum < 100; systemNum++) {
+            allSystems.push({
+              system: systemNum,
+              coord: `${this.server}${String(this.galaxy).padStart(2, '0')}:${String(regionNum).padStart(2, '0')}:${String(systemNum).padStart(2, '0')}:00`,
+              star: null, // Will be set to full star object if star exists
+              hasOwned: false
+            });
+          }
+          this.regionData.set(regionNum, {
+            region: {
+              server: this.server,
+              galaxy: this.galaxy,
+              region: regionNum
+            },
+            systems: allSystems
+          });
+        }
+        
+        // Now overlay star color data from the API for systems that have stars
+        for (const regionStars of starsResponse.data.regions) {
+          const regionData = this.regionData.get(regionStars.region);
+          if (regionData) {
+            for (const starSystem of regionStars.systems) {
+              // Find the matching system in our pre-initialized data and set its star data
+              const system = regionData.systems.find(s => s.system === starSystem.system);
+              if (system) {
+                // Create full star object with color and default spectral class
+                // API only provides color, so we default to G-type (like our sun)
+                system.star = {
+                  spectralClass: 'G' as 'O' | 'B' | 'A' | 'F' | 'G' | 'K' | 'M',
+                  color: starSystem.color
+                };
+              }
+            }
+          }
+        }
+        console.log('[GalaxyView] Pre-loaded ALL systems (100 per region) for', this.regionData.size, 'regions, with star colors applied where available');
+        await this.createGalaxyRegions(regionsResponse.data);
       } else {
-        console.warn('Failed to load galaxy data:', response.message);
-        // Fallback to placeholder data
+        console.warn('Failed to load galaxy data:', regionsResponse.message, starsResponse.message);
         this.createStarSystems();
       }
     } catch (error) {
       console.error('Error loading galaxy data:', error);
-      // Fallback to placeholder data
       this.createStarSystems();
     } finally {
       this.isLoading = false;
@@ -287,6 +348,7 @@ export class GalaxyView {
     const startY = -((gridSize - 1) * spacing) / 2;
     
     // Create regions with proper positioning and embedded star systems
+    // Star data was already pre-loaded in loadGalaxyData(), so no API calls needed here
     for (const region of regions) {
       const regionNumber = region.region;
       const regionId = `region_${regionNumber}`;
@@ -301,16 +363,7 @@ export class GalaxyView {
       
       console.log('[GalaxyView] Creating enhanced region entity for region', regionNumber, 'at position:', { worldX, worldY });
       
-      // Load region data to get star system positions
-      try {
-        const regionDataResponse = await loadRegionData(this.server, this.galaxy, regionNumber);
-        if (regionDataResponse.success && regionDataResponse.data) {
-          this.regionData.set(regionNumber, regionDataResponse.data);
-        }
-      } catch (error) {
-        console.warn('[GalaxyView] Failed to load region data for region', regionNumber, ':', error);
-      }
-      
+      // Star data is already in this.regionData from pre-loading - no API call needed!
       const regionEntity = this.createEnhancedRegionEntity(regionId, worldX, worldY, regionNumber, region.systemsWithStars.length, spacing);
       regionEntity.position.set(worldX, worldY);
       console.log('[GalaxyView] Adding enhanced region', regionNumber, 'to container');
@@ -320,6 +373,41 @@ export class GalaxyView {
     }
     
     console.log('[GalaxyView] Created', regions.length, 'enhanced regions with embedded star systems in 10x10 grid layout');
+    
+    // CRITICAL DEBUG: Verify container state after region creation
+    console.log('[GalaxyView] ===== POST-RENDER CONTAINER STATE =====');
+    console.log('[GalaxyView] Container children count:', this.container.children.length);
+    console.log('[GalaxyView] Container visible:', this.container.visible);
+    console.log('[GalaxyView] Container renderable:', this.container.renderable);
+    console.log('[GalaxyView] Container alpha:', this.container.alpha);
+    console.log('[GalaxyView] Container position:', this.container.position.x, this.container.position.y);
+    console.log('[GalaxyView] Container parent:', this.container.parent?.name);
+    console.log('[GalaxyView] Container parent visible:', this.container.parent?.visible);
+    console.log('[GalaxyView] Container worldVisible:', this.container.worldVisible);
+    
+    // Check a sample region
+    const firstRegion = this.container.children[0];
+    if (firstRegion) {
+      console.log('[GalaxyView] First region name:', firstRegion.name);
+      console.log('[GalaxyView] First region visible:', (firstRegion as any).visible);
+      console.log('[GalaxyView] First region position:', (firstRegion as any).position?.x, (firstRegion as any).position?.y);
+      console.log('[GalaxyView] First region children count:', (firstRegion as any).children?.length);
+      console.log('[GalaxyView] First region worldVisible:', (firstRegion as any).worldVisible);
+    }
+    console.log('[GalaxyView] ===== END POST-RENDER STATE =====');
+    
+    // Check PIXI app stage visibility
+    try {
+      const app = this.engine.getApp();
+      if (app && app.stage) {
+        console.log('[GalaxyView] PIXI App stage visible:', app.stage.visible);
+        console.log('[GalaxyView] PIXI App stage children count:', app.stage.children.length);
+        console.log('[GalaxyView] PIXI App renderer:', !!app.renderer);
+        console.log('[GalaxyView] PIXI App view dimensions:', app.view?.width, 'x', app.view?.height);
+      }
+    } catch (e) {
+      console.warn('[GalaxyView] Could not check PIXI app stage:', e);
+    }
   }
 
   private createEnhancedRegionEntity(id: string, _x: number, _y: number, regionNumber: number, _systemCount: number, regionSpacing: number): any {
@@ -394,23 +482,23 @@ const glow = new PIXI.Graphics();
       this.addStarSystemsToRegion(region, regionData, regionSize);
     }
     
-    // Add region label (outside the boundary)
+    // Add region label (at top of region)
     const label = new PIXI.Text(regionNumber.toString(), {
-      fontSize: 12,
+      fontSize: 11,
       fill: userPresence ? borderColor : 0xAAAAAA,
       align: 'center',
       fontFamily: 'Arial, sans-serif',
       fontWeight: userPresence ? 'bold' : 'normal'
     } as any);
     label.anchor.set(0.5);
-    label.position.set(0, regionSize/2 + 16); // Position below the square region
+    label.position.set(0, -regionSize/2 + 12); // Position at top of region
     
     // Add subtle background to label for better readability
 const labelBg = new PIXI.Graphics();
-    labelBg.beginFill(0x000000, 0.6);
-    labelBg.drawRoundedRect(-12, -8, 24, 16, 4);
+    labelBg.beginFill(0x000000, 0.7);
+    labelBg.drawRoundedRect(-12, -7, 24, 14, 3);
     labelBg.endFill();
-    labelBg.position.set(0, regionSize/2 + 16);
+    labelBg.position.set(0, -regionSize/2 + 12);
     
     region.addChild(labelBg);
     region.addChild(label);
@@ -474,7 +562,22 @@ region.on('pointerdown', (event: any) => {
     const systems = regionData.systems;
     const regionNumber = regionData.region.region; // Extract region number from the region object
     
-    console.log('[GalaxyView] Adding', systems.length, 'star systems to region', regionNumber);
+    // Filter to only systems that have actual stars (with color data)
+    const systemsWithStars = systems.filter(s => s.star?.color);
+    
+    console.log('[GalaxyView] ===== STAR RENDERING DEBUG =====');
+    console.log('[GalaxyView] Region', regionNumber, '- Total systems:', systems.length);
+    console.log('[GalaxyView] Region', regionNumber, '- Systems with stars:', systemsWithStars.length);
+    if (systems.length > 0) {
+      const sampleSystem = systems[0];
+      console.log('[GalaxyView] Region', regionNumber, '- Sample system:', { 
+        system: sampleSystem.system, 
+        hasStar: !!sampleSystem.star,
+        starColor: sampleSystem.star?.color,
+        starClass: sampleSystem.star?.spectralClass
+      });
+    }
+    console.log('[GalaxyView] ===== END DEBUG =====');
     
     // Create a smaller grid within the square region boundary
     // Use the same 10x10 approach as RegionView but scaled to fit within regionSize
@@ -483,23 +586,18 @@ region.on('pointerdown', (event: any) => {
     const startX = -((gridSize - 1) * systemSpacing) / 2;
     const startY = -((gridSize - 1) * systemSpacing) / 2;
     
-    systems.forEach((system) => {
+    systemsWithStars.forEach((system) => {
       // Position by system index (0..99): 0-9 first row, 10-19 second, etc.
       const row = Math.floor(system.system / gridSize);
       const col = system.system % gridSize;
       const systemX = startX + col * systemSpacing;
       const systemY = startY + row * systemSpacing;
       
-      // Only render systems that fall within the square region boundary
-      const halfSize = regionSize / 2;
-      if (Math.abs(systemX) <= halfSize * 0.85 && Math.abs(systemY) <= halfSize * 0.85) { // Leave some padding from edge
-        const starColor = system.star?.color ? this.parseColor(system.star.color) : 0x44ff44;
-        const systemEntity = this.createGalaxyStarSystem(system.system, systemX, systemY, starColor, system.hasOwned, regionNumber);
-        systemEntity.position.set(systemX, systemY);
-        regionContainer.addChild(systemEntity);
-        
-        console.log('[GalaxyView] Added star system', system.system, 'to region', regionNumber, 'at local position:', { systemX, systemY });
-      }
+      // Render all stars - they're already positioned within the 80% grid space
+      const starColor = this.parseColor(system.star!.color!);
+      const systemEntity = this.createGalaxyStarSystem(system.system, systemX, systemY, starColor, system.hasOwned, regionNumber);
+      systemEntity.position.set(systemX, systemY);
+      regionContainer.addChild(systemEntity);
     });
   }
   
@@ -513,24 +611,30 @@ region.on('pointerdown', (event: any) => {
   }
   
   private createGalaxyStarSystem(systemNumber: number, systemX: number, systemY: number, starColor: number, hasOwned: boolean, regionNumber: number): any {
-const system = new PIXI.Container();
+    const system = new PIXI.Container();
     system.name = `galaxy_star_system_${regionNumber}_${systemNumber}`;
     
-    // Small star core (scaled down for galaxy view)
-    const coreSize = hasOwned ? 3 : 2;
-const core = new PIXI.Graphics();
+    // Make stars more visible at galaxy zoom level
+    const coreSize = hasOwned ? 1.5 : 1; // Slightly larger core
+    const core = new PIXI.Graphics();
     core.beginFill(starColor);
     core.drawCircle(0, 0, coreSize);
     core.endFill();
     
-    // Subtle glow for owned systems or brighter colored stars
-const glow = new PIXI.Graphics();
-    glow.beginFill(starColor, hasOwned ? 0.5 : 0.25);
-    glow.drawCircle(0, 0, coreSize + (hasOwned ? 3 : 2));
+    // More prominent glow for visibility
+    const glow = new PIXI.Graphics();
+    glow.beginFill(starColor, hasOwned ? 0.7 : 0.5); // Increased alpha for visibility
+    glow.drawCircle(0, 0, coreSize + (hasOwned ? 2 : 1.5)); // Larger glow radius
     glow.endFill();
     system.addChild(glow);
-    
     system.addChild(core);
+    
+    // Ensure star system is visible
+    system.visible = true;
+    system.renderable = true;
+    system.alpha = 1.0;
+    core.visible = true;
+    glow.visible = true;
     
     // Make star system clickable for direct navigation to system view
     ;(system as any).eventMode = 'static'
