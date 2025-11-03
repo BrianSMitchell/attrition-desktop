@@ -72,6 +72,7 @@ export const DB_FIELDS = {
   TECH_QUEUE: {
     ID: 'id',
     EMPIRE_ID: 'empire_id',
+    LOCATION_COORD: 'location_coord',
     TECH_KEY: 'tech_key',
     STATUS: 'status',
     STARTED_AT: 'started_at',

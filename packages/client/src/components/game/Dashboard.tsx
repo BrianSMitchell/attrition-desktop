@@ -191,7 +191,7 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Territory Information */}
             <div className="game-card">
-              <h3 className="text-lg font-semibold text-green-400 mb-4">ðŸŒ Territory & Home</h3>
+              <h3 className="text-lg font-semibold text-green-400 mb-4">🌍 Territory & Home</h3>
               <div className="space-y-3">
                 <div className={LAYOUT_CLASSES.FLEX_BETWEEN}>
                   <span className="text-gray-300">Home System:</span>
@@ -215,7 +215,7 @@ const Dashboard: React.FC = () => {
 
             {/* Technology Levels */}
             <div className="game-card">
-              <h3 className="text-lg font-semibold text-purple-400 mb-4">âš¡ Technology</h3>
+              <h3 className="text-lg font-semibold text-purple-400 mb-4">⚡ Technology</h3>
               <div className="space-y-2 max-h-32 overflow-y-auto">
                 {techEntries.length > 0 ? (
                   techEntries.map(([tech, level]) => (
@@ -283,13 +283,13 @@ const Dashboard: React.FC = () => {
         <h3 className="text-lg font-semibold mb-3 text-space-purple">Phase 3 Features - Now Available!</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
-            <h4 className="font-medium mb-2 text-green-400">🗟️ {GAME_TEXT.BUILDING} System</h4>
+            <h4 className="font-medium mb-2 text-green-400">🏗️ {GAME_TEXT.BUILDING} System</h4>
             <p className="text-gray-400">
               Construct mines, factories, research labs, and defense stations. Each building type provides unique benefits and can be upgraded.
             </p>
           </div>
           <div>
-            <h4 className="font-medium mb-2 text-blue-400">âš¡ Resource Management</h4>
+            <h4 className="font-medium mb-2 text-blue-400">⚡ Resource Management</h4>
             <p className="text-gray-400">
               Manage Credits, Metal, Energy, and Research points. Buildings automatically produce resources over time.
             </p>
@@ -301,7 +301,7 @@ const Dashboard: React.FC = () => {
             </p>
           </div>
           <div>
-            <h4 className="font-medium mb-2 text-yellow-400">ðŸŒ Territory Expansion</h4>
+            <h4 className="font-medium mb-2 text-yellow-400">🌍 Territory Expansion</h4>
             <p className="text-gray-400">
               Colonize new worlds to expand your empire. Each territory can support multiple buildings and colonies.
             </p>
@@ -310,7 +310,7 @@ const Dashboard: React.FC = () => {
 
         <div className="mt-4 p-3 bg-blue-900/30 border border-blue-700 rounded-md">
           <p className="text-blue-200 text-sm">
-            <span className="font-medium">ðŸŽ® Real-time Gameplay:</span> Resources update automatically every minute. Buildings complete construction over time. Your empire grows even when you're offline!
+            <span className="font-medium">🎮 Real-time Gameplay:</span> Resources update automatically every minute. Buildings complete construction over time. Your empire grows even when you're offline!
           </p>
         </div>
       </div>

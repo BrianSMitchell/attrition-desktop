@@ -134,6 +134,35 @@ export class AuthManager implements IAuthManager {
     });
   }
 
+  updateEmpire(empire: any | null): void {
+    if (!this.state.isAuthenticated) {
+      console.warn('🔐 AuthManager: Ignoring empire update - not authenticated');
+      return;
+    }
+
+    // Normalize empire to ensure stable shape (resources always present)
+    const normalizedEmpire = empire
+      ? {
+          ...empire,
+          resources: {
+            credits: empire.resources?.credits ?? 0,
+          },
+        }
+      : null;
+
+    this.updateState({
+      ...this.state,
+      empire: normalizedEmpire,
+    });
+
+    if (this.options.enableLogging) {
+      console.log('🔐 AuthManager: Empire data updated', {
+        empireId: empire?._id,
+        credits: empire?.resources?.credits,
+      });
+    }
+  }
+
   onStateChange(callback: ConnectionEventCallback<AuthState>): () => void {
     this.listeners.add(callback);
     
@@ -236,11 +265,24 @@ export class AuthManager implements IAuthManager {
     if (response.ok) {
       const data = await response.json();
       if (data.success && data.data) {
+        // Normalize empire to ensure resources are always present
+        // Preserve existing credits if backend doesn't return them
+        const empire = data.data.empire
+          ? {
+              ...data.data.empire,
+              resources: {
+                // If backend returns credits, use them; otherwise keep existing credits
+                credits: data.data.empire.resources?.credits ?? 
+                         this.state.empire?.resources?.credits ?? 0,
+              },
+            }
+          : null;
+        
         // Update user info if it changed
         this.updateState({
           ...this.state,
           user: data.data.user,
-          empire: data.data.empire || null,
+          empire,
         });
         return true;
       }
@@ -314,29 +356,101 @@ export class AuthManager implements IAuthManager {
   }
 
   private async restoreAuthState(): Promise<void> {
-    // Try to restore from desktop secure storage
-    if (this.isDesktop() && (window as any).desktop?.tokens?.hasRefresh) {
-      try {
-        const probe = await (window as any).desktop.tokens.hasRefresh();
-        if (probe?.ok && probe.has) {
-          // We have a refresh token, try to use it
-          const refreshResult = await this.performTokenRefresh();
-          if (refreshResult) {
-            return;
+    if (this.options.enableLogging) {
+      console.log('🔐 AuthManager: Attempting to restore auth state...');
+    }
+
+    // Desktop: Try to restore access token and refresh if needed
+    if (this.isDesktop()) {
+      // First, try to restore the access token
+      if ((window as any).desktop?.tokens?.getToken) {
+        try {
+          const tokenResult = await (window as any).desktop.tokens.getToken();
+          if (tokenResult?.ok && tokenResult.token) {
+            // Validate token is not expired
+            const decoded = this.decodeToken(tokenResult.token);
+            const now = Date.now() / 1000;
+            
+            if (decoded?.exp && decoded.exp > now) {
+              // Token is valid, restore it
+              setToken(tokenResult.token);
+              this.state.token = tokenResult.token;
+              
+              // Try to fetch user profile to complete restoration
+              const isValid = await this.performAuthCheck();
+              if (isValid) {
+                this.state.isAuthenticated = true;
+                this.scheduleTokenRefresh(tokenResult.token);
+                
+                if (this.options.enableLogging) {
+                  console.log('🔐 AuthManager: Successfully restored from access token');
+                }
+                return;
+              }
+            }
           }
+        } catch (error) {
+          console.warn('🔐 AuthManager: Failed to restore access token:', error);
         }
-      } catch (error) {
-        console.warn('🔐 AuthManager: Failed to restore from secure storage:', error);
+      }
+
+      // If access token failed, try refresh token
+      if ((window as any).desktop?.tokens?.hasRefresh) {
+        try {
+          const probe = await (window as any).desktop.tokens.hasRefresh();
+          if (probe?.ok && probe.has) {
+            const refreshResult = await this.performTokenRefresh();
+            if (refreshResult) {
+              if (this.options.enableLogging) {
+                console.log('🔐 AuthManager: Successfully restored using refresh token');
+              }
+              return;
+            }
+          }
+        } catch (error) {
+          console.warn('🔐 AuthManager: Failed to restore from refresh token:', error);
+        }
       }
     }
 
-    // Try to restore from localStorage (web fallback)
+    // Web fallback: Try to restore from localStorage
     try {
+      const tokenData = localStorage.getItem('auth-token');
+      if (tokenData) {
+        const parsed = JSON.parse(tokenData);
+        if (parsed?.token) {
+          // Validate token is not expired
+          const decoded = this.decodeToken(parsed.token);
+          const now = Date.now() / 1000;
+          
+          if (decoded?.exp && decoded.exp > now) {
+            setToken(parsed.token);
+            this.state.token = parsed.token;
+            
+            // Try to fetch user profile
+            const isValid = await this.performAuthCheck();
+            if (isValid) {
+              this.state.isAuthenticated = true;
+              this.scheduleTokenRefresh(parsed.token);
+              
+              if (this.options.enableLogging) {
+                console.log('🔐 AuthManager: Successfully restored from localStorage');
+              }
+              return;
+            }
+          } else {
+            // Token expired, clean it up
+            localStorage.removeItem('auth-token');
+          }
+        }
+      }
+
+      // Also try legacy auth-storage format
       const stored = localStorage.getItem('auth-storage');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed?.state?.user && parsed?.state?.empire) {
-          // Only restore user/empire, not token for security
+          // Only restore user/empire info for display, not auth
           this.updateState({
             ...this.state,
             user: parsed.state.user,
@@ -346,6 +460,10 @@ export class AuthManager implements IAuthManager {
       }
     } catch (error) {
       console.warn('🔐 AuthManager: Failed to restore from localStorage:', error);
+    }
+
+    if (this.options.enableLogging) {
+      console.log('🔐 AuthManager: No valid auth state to restore');
     }
   }
 
@@ -396,11 +514,37 @@ export class AuthManager implements IAuthManager {
   }
 
   private async storeSecureToken(token: string): Promise<void> {
-    // Store in memory (will be handled by tokenProvider)
+    // Store in memory (via tokenProvider)
     try {
       setToken(token);
     } catch (error) {
       console.warn('🔐 AuthManager: Failed to store token in memory:', error);
+    }
+
+    // Persist to secure storage (desktop) or localStorage (web fallback)
+    if (this.isDesktop() && (window as any).desktop?.tokens?.saveToken) {
+      try {
+        await (window as any).desktop.tokens.saveToken(token);
+        if (this.options.enableLogging) {
+          console.log('🔐 AuthManager: Token persisted to secure storage');
+        }
+      } catch (error) {
+        console.warn('🔐 AuthManager: Failed to persist token to secure storage:', error);
+      }
+    } else {
+      // Web fallback: store in localStorage (less secure but functional)
+      try {
+        const authData = {
+          token,
+          timestamp: Date.now(),
+        };
+        localStorage.setItem('auth-token', JSON.stringify(authData));
+        if (this.options.enableLogging) {
+          console.log('🔐 AuthManager: Token persisted to localStorage');
+        }
+      } catch (error) {
+        console.warn('🔐 AuthManager: Failed to persist token to localStorage:', error);
+      }
     }
   }
 
@@ -422,17 +566,28 @@ export class AuthManager implements IAuthManager {
       console.warn('🔐 AuthManager: Failed to clear memory token:', error);
     }
 
-    // Clear desktop secure storage
-    if (this.isDesktop() && (window as any).desktop?.tokens?.deleteRefresh) {
-      try {
-        await (window as any).desktop.tokens.deleteRefresh();
-      } catch (error) {
-        console.warn('🔐 AuthManager: Failed to clear secure storage:', error);
+    // Clear desktop secure storage (both token and refresh token)
+    if (this.isDesktop()) {
+      if ((window as any).desktop?.tokens?.deleteToken) {
+        try {
+          await (window as any).desktop.tokens.deleteToken();
+        } catch (error) {
+          console.warn('🔐 AuthManager: Failed to clear access token from secure storage:', error);
+        }
+      }
+      
+      if ((window as any).desktop?.tokens?.deleteRefresh) {
+        try {
+          await (window as any).desktop.tokens.deleteRefresh();
+        } catch (error) {
+          console.warn('🔐 AuthManager: Failed to clear refresh token from secure storage:', error);
+        }
       }
     }
 
-    // Clear localStorage
+    // Clear localStorage (both token and legacy storage)
     try {
+      localStorage.removeItem('auth-token');
       localStorage.removeItem('auth-storage');
     } catch (error) {
       console.warn('🔐 AuthManager: Failed to clear localStorage:', error);
@@ -460,10 +615,24 @@ export class AuthManager implements IAuthManager {
   }
 
   private hasStateChanged(oldState: AuthState, newState: AuthState): boolean {
-    return (
+    // Check authentication and user/empire IDs
+    if (
       oldState.isAuthenticated !== newState.isAuthenticated ||
       oldState.user?._id !== newState.user?._id ||
       oldState.empire?._id !== newState.empire?._id
-    );
+    ) {
+      return true;
+    }
+    
+    // Check if empire resources (like credits) changed
+    if (oldState.empire && newState.empire) {
+      const oldCredits = oldState.empire.resources?.credits ?? 0;
+      const newCredits = newState.empire.resources?.credits ?? 0;
+      if (oldCredits !== newCredits) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 }

@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import type { StructureKey as BuildingKey, StructureSpec as BuildingSpec } from "@game/shared";
 import { getStructureCreditCostForLevel } from "@game/shared";
 import type { StructuresStatusDTO } from "../../services/structuresService";
@@ -7,6 +7,9 @@ import BuildTable, { type Column, type Eligibility } from "./BuildTable";
 import { TIMEOUTS } from '@game/shared';
 import { BUTTON_TEXT, DISPLAY_TEXT } from '@game/shared';
 import { GAME_TEXT, STATUS_TEXT } from '@game/shared';
+
+// Use explicit Unicode escape to avoid encoding issues rendering as "â€”" in some environments
+const EM_DASH = "\u2014";
 
 interface StructuresBuildTableProps {
   catalog: BuildingSpec[];
@@ -55,7 +58,11 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
   planetFertility,
 }) => {
   const structs = React.useMemo<BuildingSpec[]>(
-    () => (catalog || []).slice().sort((a, b) => a.creditsCost - b.creditsCost),
+    () => {
+      // Ensure catalog is an array before calling .slice()
+      if (!Array.isArray(catalog)) return [];
+      return catalog.slice().sort((a, b) => a.creditsCost - b.creditsCost);
+    },
     [catalog]
   );
 
@@ -134,7 +141,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
         if (s.energyDelta > 0) return `Increases base energy output by ${s.energyDelta}.`;
         if (s.energyDelta < 0) return `Consumes ${Math.abs(s.energyDelta)} energy.`;
         if (s.economy > 0) return `Increases economy by ${s.economy}.`;
-        return "â€”";
+        return EM_DASH;
     }
   };
 
@@ -157,7 +164,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
 
   const getRequiresText = (s: BuildingSpec): string => {
     return s.techPrereqs.length === 0
-      ? "â€”"
+      ? EM_DASH
       : s.techPrereqs.map((p) => `${p.key.replace(/_/g, " ")} ${p.level}`).join(", ");
   };
 
@@ -176,7 +183,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
           // If no canonical table is defined yet: allow L1 fallback, block upgrades
           nextCost = currentLevel === 0 ? s.creditsCost : null;
         }
-        return typeof nextCost === "number" ? nextCost.toLocaleString() : "â€”";
+        return typeof nextCost === "number" ? nextCost.toLocaleString() : EM_DASH;
       },
     },
     {
@@ -240,7 +247,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
       header: "Time",
       align: "left",
       render: (s) => {
-        if (!(typeof constructionPerHour === "number" && constructionPerHour > 0)) return "â€”";
+        if (!(typeof constructionPerHour === "number" && constructionPerHour > 0)) return EM_DASH;
         const currentLevel = levels?.[s.key as BuildingKey] ?? 0;
         const nextLevel = currentLevel + 1;
         let nextCost: number | null = null;
@@ -249,7 +256,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
         } catch {
           nextCost = currentLevel === 0 ? s.creditsCost : null;
         }
-        if (typeof nextCost !== "number") return "â€”";
+        if (typeof nextCost !== "number") return EM_DASH;
         const text = formatDuration(nextCost, constructionPerHour);
         const tip = `ETA = Credits (${nextCost.toLocaleString()}) / Construction Capacity (${constructionPerHour.toLocaleString()} cred/h)`;
         return <span title={tip}>{text}</span>;
@@ -297,7 +304,7 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
         {s.name}
         {lvl > 0 ? ` (${GAME_TEXT.LEVEL} ${lvl})` : ""}
         {typeof hintValue === "number" && hintLabel && (
-          <span className="ml-2 text-xs text-gray-400">{`(+${hintValue.toLocaleString()} ${hintLabel} here)`}</span>
+          <span className="ml-2 text-xs text-gray-400">{`(+${hintValue.toLocaleString()} ${hintLabel} here) →`}</span>
         )}
       </div>
     );
@@ -322,9 +329,9 @@ const StructuresBuildTable: React.FC<StructuresBuildTableProps> = ({
             <div className="text-sm text-gray-300">
               <span className="text-gray-400">Area:</span>{" "}
               {(() => {
-                if (NO_AREA_KEYS.includes(s.key)) return "â€”";
+                if (NO_AREA_KEYS.includes(s.key)) return EM_DASH;
                 if (typeof s.areaRequired === "number") {
-                  return s.areaRequired === 0 ? "â€”" : `-${s.areaRequired} per level`;
+                  return s.areaRequired === 0 ? EM_DASH : `-${s.areaRequired} per level`;
                 }
                 return "-1 per level";
               })()}

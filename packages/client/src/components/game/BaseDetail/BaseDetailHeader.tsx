@@ -303,7 +303,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
               onClick={onBack}
               className="text-blue-400 hover:text-blue-300 transition-colors"
             >
-              â† Back to Bases
+              ← Back to Bases
             </button>
             <h1 className="text-2xl font-bold text-empire-gold">
               {base.name} ({base.locationCoord})
@@ -323,7 +323,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                   {baseStats.area?.used?.toLocaleString()} / {baseStats.area?.total?.toLocaleString()}
                 </span>
               ) : (
-                'â€”'
+                '—'
               )
             }
             sub={
@@ -333,7 +333,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                   className="text-sm text-blue-400 hover:text-blue-300"
                   title="View detailed area usage"
                 >
-                  View breakdown âŸ¶
+                  View breakdown →
                 </button>
               ) : undefined
             }
@@ -347,7 +347,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                   {(baseStats.energy?.balance ?? 0).toLocaleString()}
                 </span>
               ) : (
-                'â€”'
+                '—'
               )
             }
             sub={
@@ -357,7 +357,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                   className="text-sm text-blue-400 hover:text-blue-300"
                   title="View energy production and consumption"
                 >
-                  View breakdown âŸ¶
+                  View breakdown →
                 </button>
               ) : undefined
             }
@@ -371,7 +371,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                   {baseStats.population?.used?.toLocaleString()} / {baseStats.population?.capacity?.toLocaleString()}
                 </span>
               ) : (
-                'â€”'
+                '—'
               )
             }
             sub={
@@ -381,7 +381,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                   className="text-sm text-blue-400 hover:text-blue-300"
                   title="View population usage details"
                 >
-                  View breakdown âŸ¶
+                  View breakdown →
                 </button>
               ) : undefined
             }
@@ -411,7 +411,7 @@ export const BaseDetailHeader: React.FC<BaseDetailHeaderProps> = ({
                     className="text-sm text-blue-400 hover:text-blue-300"
                     title="View citizen capacity breakdown"
                   >
-                    View breakdown âŸ¶
+                    View breakdown →
                   </button>
                 </div>
               ) : undefined

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getCreditHistory } from '../../services/api';
+import { useAuth, useEnhancedAuthActions } from '../../stores/enhancedAppStore';
 
 interface Row {
   _id: string;
@@ -16,6 +17,8 @@ const CreditHistoryModal: React.FC = () => {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const auth = useAuth();
+  const { updateEmpireFromService } = useEnhancedAuthActions();
 
   useEffect(() => {
     let cancelled = false;
@@ -23,7 +26,24 @@ const CreditHistoryModal: React.FC = () => {
       try {
         setLoading(true);
         const res = await getCreditHistory(100);
-        if (!cancelled) setRows(res.history || []);
+        if (!cancelled) {
+          setRows(res.history || []);
+          
+          // Update empire credits from the most recent balance
+          if (res.history && res.history.length > 0 && auth.empire) {
+            const latestBalance = res.history[0].balanceAfter;
+            if (typeof latestBalance === 'number') {
+              // Update empire with current credits
+              updateEmpireFromService({
+                ...auth.empire,
+                resources: {
+                  ...auth.empire.resources,
+                  credits: latestBalance,
+                },
+              });
+            }
+          }
+        }
       } catch (err: any) {
         if (!cancelled) setError(err?.message || 'Failed to load history');
       } finally {
@@ -31,7 +51,7 @@ const CreditHistoryModal: React.FC = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [auth.empire, updateEmpireFromService]);
 
   return (
     <div className="p-2">

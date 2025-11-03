@@ -24,7 +24,7 @@ export interface StatLinkProps {
  */
 export const StatLink: React.FC<StatLinkProps> = ({
   onClick,
-  title = "View breakdown ⟶",
+  title = "View breakdown →",
   dataTestId,
   className,
 }) => {

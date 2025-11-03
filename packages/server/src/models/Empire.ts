@@ -18,7 +18,7 @@ export interface IEmpire {
   territories: string[];
   resources: {
     credits: number;
-    energy: number;
+    // Note: Energy is per-base, not stored at empire level
   };
   credits?: number;
   // Add other fields as needed
@@ -31,7 +31,7 @@ export class Empire {
       // Convert to expected return format
       const { data, error } = await supabase
         .from(DB_TABLES.EMPIRES)
-        .select('id, name, territories, credits, energy')
+        .select('id, name, territories, credits')
         .eq(DB_FIELDS.BUILDINGS.ID, empireId)
         .single();
 
@@ -45,8 +45,7 @@ export class Empire {
         name: data.name || `Empire ${data.id}`,
         territories: data.territories || [],
         resources: {
-          credits: data.credits || 0,
-          energy: data.energy || 0
+          credits: data.credits || 0
         },
         credits: data.credits || 0
       };

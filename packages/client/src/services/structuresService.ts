@@ -53,7 +53,8 @@ export const structuresService = {
   async start(coord: string, key: BuildingKey): Promise<ApiResponse<{ coord: string; key: BuildingKey; completesAt: string }>> {
     try {
       const res = await api.post<ApiResponse<{ coord: string; key: BuildingKey; completesAt: string }>>(
-        `/game/bases/${encodeURIComponent(coord)}/structures/${encodeURIComponent(key)}/construct`
+        `/game/structures/start`,
+        { locationCoord: coord, catalogKey: key }
       );
       return res.data;
     } catch (err) {
@@ -66,7 +67,7 @@ export const structuresService = {
   async cancelConstruction(coord: string): Promise<ApiResponse<{ cancelledStructure: string; refundedCredits: number | null }>> {
     try {
       const res = await api.delete<ApiResponse<{ cancelledStructure: string; refundedCredits: number | null }>>(
-        `/game/bases/${encodeURIComponent(coord)}/structures/cancel`
+        `/game/structures/cancel/${encodeURIComponent(coord)}`
       );
       return res.data;
     } catch (err) {

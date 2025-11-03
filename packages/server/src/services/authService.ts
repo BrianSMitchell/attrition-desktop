@@ -158,7 +158,7 @@ export async function login(req: Request, res: Response) {
               territories: empireRow.territories,
               resources: {
                 credits: Math.max(0, Number(empireRow.credits || 0)),
-                energy: Math.max(0, Number(empireRow.energy || 0)),
+                // Note: Energy is calculated per-base from structures
               },
             }
           : null,

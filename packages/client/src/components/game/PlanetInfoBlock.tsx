@@ -199,7 +199,7 @@ const PlanetInfoBlock: React.FC<PlanetInfoBlockProps> = ({ coord, showLinkToPlan
                 className="text-sm text-blue-400 hover:text-blue-300"
                 title="View detailed capacity sources"
               >
-                View breakdown ⟶
+                View breakdown →
               </button>
             </div>
           </div>
@@ -267,7 +267,7 @@ const PlanetInfoBlock: React.FC<PlanetInfoBlockProps> = ({ coord, showLinkToPlan
             className="text-sm text-blue-400 hover:text-blue-300"
             title="Open full planet view"
           >
-            View Planet ⟶
+            View Planet →
           </Link>
         </div>
       )}

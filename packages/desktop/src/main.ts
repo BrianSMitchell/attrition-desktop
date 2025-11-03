@@ -262,9 +262,43 @@ function getOrCreateDeviceId() {
 
 
 /**
- * Refresh token secure storage (OS keychain via keytar)
- * We intentionally do NOT expose a getter to avoid leaking the raw refresh token to the renderer.
+ * Token secure storage (OS keychain via keytar)
+ * Access token storage for persistence between restarts.
+ * Refresh token storage (we don't expose getter to avoid leaking it).
  */
+
+// Access token handlers (can be retrieved for restoration)
+ipcMain.handle('tokens:saveToken', async (_event, token) => {
+  try {
+    await keytar.setPassword(APP_ID, 'access', String(token ?? ''));
+    return { ok: true };
+  } catch (error) {
+    errorLogger.error('Failed to save access token', error as Error);
+    return { ok: false };
+  }
+});
+
+ipcMain.handle('tokens:getToken', async () => {
+  try {
+    const token = await keytar.getPassword(APP_ID, 'access');
+    return { ok: true, token: token || null };
+  } catch (error) {
+    errorLogger.error('Failed to get access token', error as Error);
+    return { ok: false, token: null };
+  }
+});
+
+ipcMain.handle('tokens:deleteToken', async () => {
+  try {
+    await keytar.deletePassword(APP_ID, 'access');
+    return { ok: true };
+  } catch (error) {
+    errorLogger.error('Failed to delete access token', error as Error);
+    return { ok: false };
+  }
+});
+
+// Refresh token handlers (no getter to avoid leaking to renderer)
 ipcMain.handle('tokens:saveRefresh', async (_event, refreshToken) => {
   try {
     await keytar.setPassword(APP_ID, 'refresh', String(refreshToken ?? ''));

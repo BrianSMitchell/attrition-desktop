@@ -89,6 +89,7 @@ export interface IAuthManager extends BaseManager {
   logout(): Promise<void>;
   refreshToken(): Promise<boolean>;
   checkAuthStatus(): Promise<boolean>;
+  updateEmpire(empire: Empire | null): void;
   onStateChange(callback: ConnectionEventCallback<AuthState>): () => void;
 }
 

@@ -45,9 +45,11 @@ export class CapacityService {
         .eq(DB_FIELDS.BUILDINGS.LOCATION_COORD, coord)
         .maybeSingle();
       const citizens = Math.max(0, Number((col.data as any)?.citizens || 0));
-      // Citizen capacity per hour value mirrors legacy computeCitizen from CapacityService (sum of buildings elsewhere).
-      // For Phase 1, keep citizen capacity as-is (0) and only apply citizens bonus to other capacities.
-      const pct = citizens / 100000; // 1000 citizens -> 1%
+      // Citizens bonus: Every 1000 citizens = +1% bonus to Construction, Production, and Research
+      // Formula: (citizens / 1000) / 100 = citizens / 100000
+      // Example: 1000 citizens → 1000/100000 = 0.01 = 1%
+      //          5000 citizens → 5000/100000 = 0.05 = 5%
+      const pct = citizens / 100000;
       const applyPct = (res: CapacityResult): CapacityResult => ({
         value: Math.round(res.value * (1 + pct)),
         breakdown: [...(res.breakdown || []), ...(pct > 0 ? [{ source: 'Citizens Bonus', value: pct, kind: 'percent' as const }] : [])],

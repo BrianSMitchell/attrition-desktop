@@ -4,18 +4,31 @@
  */
 
 import React from 'react';
-import { useAuth, useUIActions } from '../../../stores/enhancedAppStore';
+import { useAuth, useEnhancedAuthActions, useUIActions } from '../../../stores/enhancedAppStore';
 
 export const UserMenu: React.FC = () => {
   const auth = useAuth();
+  const { logoutWithService } = useEnhancedAuthActions();
   const { addToast } = useUIActions();
 
-  const handleLogout = () => {
-    // TODO: Implement proper logout in Phase 2
-    addToast({
-      type: 'info',
-      message: 'Logout functionality will be implemented in Phase 2'
-    });
+  const handleLogout = async () => {
+    try {
+      await logoutWithService();
+      
+      // Force a full page reload to login to avoid service initialization issues
+      // This ensures clean state and prevents the "waiting on services" blank screen
+      window.location.href = window.location.protocol === 'file:' 
+        ? '#/login'  // Hash routing for desktop
+        : '/login';  // Regular routing for web
+      
+      // Note: Toast won't show because we're doing a hard navigation
+      // but that's better than getting stuck on a blank screen
+    } catch (error) {
+      addToast({
+        type: 'error',
+        message: 'Logout failed. Please try again.'
+      });
+    }
   };
 
   if (!auth.user) {

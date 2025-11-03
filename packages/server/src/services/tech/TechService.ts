@@ -130,6 +130,26 @@ export class TechService {
     const cost = getTechCreditCostForLevel(spec, desiredLevel);
     const nowIso = new Date().toISOString();
     
+    // Check for existing research already in queue (prevent duplicates)
+    console.log('[SupabaseTechService.start] Checking for existing pending research...');
+    const existingResearch = await supabase
+      .from(DB_TABLES.TECH_QUEUE)
+      .select('id, tech_key, level, started_at, completes_at')
+      .eq(DB_FIELDS.TECH_QUEUE.EMPIRE_ID, empireId)
+      .eq(DB_FIELDS.TECH_QUEUE.LOCATION_COORD, baseCoord)
+      .eq(DB_FIELDS.TECH_QUEUE.TECH_KEY, techKey)
+      .eq(DB_FIELDS.TECH_QUEUE.STATUS, 'pending')
+      .maybeSingle();
+    
+    if (existingResearch.data) {
+      console.log('[SupabaseTechService.start] Research already in queue:', existingResearch.data);
+      throw new ConflictError(
+        `${spec.name} is already being researched at this location`,
+        { techKey, queueId: existingResearch.data.id }
+      );
+    }
+    console.log('[SupabaseTechService.start] No existing research found, proceeding...');
+    
     // Generate identity key for idempotency (prevent duplicate queue entries)
     const identityKey = `${empireId}:${baseCoord}:${techKey}:${desiredLevel}:${Date.now()}`;
     console.log('[SupabaseTechService.start] Generated identity key:', identityKey);

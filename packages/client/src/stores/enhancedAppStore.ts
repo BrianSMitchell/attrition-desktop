@@ -105,9 +105,11 @@ export const useEnhancedAuthActions = () => useEnhancedAppStore((state) => ({
   registerWithService: state.registerWithService,
   logoutWithService: state.logoutWithService,
   refreshAuthStatus: state.refreshAuthStatus,
+  updateEmpireFromService: state.updateEmpireFromService,
   syncAuthWithService: state.syncAuthWithService,
   initializeAuthService: state.initializeAuthService,
   cleanupAuthService: state.cleanupAuthService,
+  loadCreditsBalance: state.loadCreditsBalance,
 }));
 
 export const useEnhancedNetworkActions = () => useEnhancedAppStore((state) => ({

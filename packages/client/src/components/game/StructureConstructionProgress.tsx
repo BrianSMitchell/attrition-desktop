@@ -165,7 +165,7 @@ const StructureConstructionProgress: React.FC<StructureConstructionProgressProps
             <span className="font-medium">{structureName}</span>
             <span className="ml-2 text-gray-400">
               {activeConstruction.pendingUpgrade 
-                ? `(Level ${activeConstruction.currentLevel} â†’ ${activeConstruction.targetLevel})`
+                ? `(Level ${activeConstruction.currentLevel} → ${activeConstruction.targetLevel})`
                 : `(Level ${activeConstruction.targetLevel})`
               }
             </span>

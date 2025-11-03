@@ -199,11 +199,31 @@ export const gameApi = {
   // Structures APIs
   async getStructuresCatalog(): Promise<{ success: boolean; data?: StructureSpec[]; error?: string }> {
     try {
-      const res = await api.get<ApiResponse<{ catalog: StructureSpec[] }>>(
+      const res = await api.get<ApiResponse<{ catalog: any }>>(
         '/game/structures/catalog'
       );
+      
       if (res.data.success) {
-        return { success: true, data: res.data.data!.catalog };
+        const catalogData = res.data.data!.catalog;
+        
+        // Handle both formats:
+        // 1. catalog: [...] (direct array)
+        // 2. catalog: { buildings: [...], defenses: [...] } (object with arrays)
+        let buildings: StructureSpec[];
+        
+        if (Array.isArray(catalogData)) {
+          // Direct array format
+          buildings = catalogData;
+        } else if (catalogData && typeof catalogData === 'object' && Array.isArray(catalogData.buildings)) {
+          // Object format with buildings array
+          buildings = catalogData.buildings;
+        } else {
+          console.error('🔴 Unexpected catalog format:', catalogData);
+          return { success: false, error: 'Unexpected catalog format from server' };
+        }
+        
+        console.log('✅ Structures catalog loaded:', buildings.length, 'buildings');
+        return { success: true, data: buildings };
       }
       return { success: false, error: res.data.message || 'Failed to load structures catalog' };
     } catch (err) {

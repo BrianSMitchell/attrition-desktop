@@ -13,8 +13,8 @@ const mockEmpire: Empire = {
   baseCount: 3,
   hasDeletedBase: false,
   resources: {
-    credits: 1000000,
-    energy: 50000
+    credits: 1000000
+    // Note: Energy is calculated per-base from structures
   },
   lastResourceUpdate: new Date(),
   lastCreditPayout: new Date(),

@@ -36,9 +36,11 @@ export interface EnhancedAuthSlice {
   registerWithService: (email: string, username: string, password: string) => Promise<boolean>;
   logoutWithService: () => Promise<void>;
   refreshAuthStatus: () => Promise<void>;
+  updateEmpireFromService: (empire: Empire | null) => void;
   syncAuthWithService: (serviceState: ServiceAuthState) => void;
   initializeAuthService: () => void;
   cleanupAuthService: () => void;
+  loadCreditsBalance: () => Promise<void>;
 }
 
 const createEnhancedAuthSlice: StateCreator<
@@ -274,7 +276,7 @@ const createEnhancedAuthSlice: StateCreator<
       try {
         const services = getServices();
         if (!services.isReady()) {
-          console.warn('âš ï¸ Auth: Services not ready for refresh');
+          console.warn('âš ï¸ Auth: Services not ready for refresh');
           return;
         }
 
@@ -284,15 +286,34 @@ const createEnhancedAuthSlice: StateCreator<
         
         console.log('âœ… Auth: Status refreshed successfully');
       } catch (error) {
-        console.error('âŒ Auth: Refresh error:', error);
+        console.error('âŒ Auth: Refresh error:', error);
         // Don't clear auth on refresh errors - user might still be logged in
       } finally {
         setAuthLoading(false);
       }
     },
 
+    updateEmpireFromService: (empire: Empire | null): void => {
+      try {
+        const services = getServices();
+        if (!services.isReady()) {
+          console.warn('âš ï¸ Auth: Services not ready, updating store directly');
+          get().setEmpire(empire);
+          return;
+        }
+
+        // Update through service layer - this will trigger state change listeners
+        services.getAuthManager().updateEmpire(empire);
+        console.log('âœ… Auth: Empire updated through service');
+      } catch (error) {
+        console.error('âŒ Auth: Failed to update empire through service:', error);
+        // Fallback: update store directly
+        get().setEmpire(empire);
+      }
+    },
+
     syncAuthWithService: (serviceState: ServiceAuthState): void => {
-      const { setAuthState } = get();
+      const { setAuthState, loadCreditsBalance } = get();
       
       // Normalize empire to ensure stable shape (resources always present)
       const normalizedEmpire = serviceState.empire
@@ -313,12 +334,57 @@ const createEnhancedAuthSlice: StateCreator<
         lastSyncAt: Date.now(),
       });
 
-      console.log('ðŸ”„ Auth: Store synced with service state:', {
+      console.log('🔄 Auth: Store synced with service state:', {
         hasUser: !!serviceState.user,
         hasEmpire: !!serviceState.empire,
         hasToken: !!serviceState.token,
         isAuthenticated: serviceState.isAuthenticated,
       });
+      
+      // Auto-load credits balance if we have an empire but credits are 0 or missing
+      if (serviceState.isAuthenticated && serviceState.empire) {
+        const currentCredits = serviceState.empire.resources?.credits ?? 0;
+        if (currentCredits === 0) {
+          // Delay slightly to ensure token is set
+          setTimeout(() => {
+            loadCreditsBalance().catch((error) => {
+              console.warn('Failed to auto-load credits:', error);
+            });
+          }, 100);
+        }
+      }
+    },
+
+    loadCreditsBalance: async (): Promise<void> => {
+      const { empire } = get().auth;
+      if (!empire) {
+        console.warn('No empire to load credits for');
+        return;
+      }
+
+      try {
+        // Import dynamically to avoid circular dependencies
+        const { getCreditHistory } = await import('../../services/api');
+        const result = await getCreditHistory(1); // Just get the latest entry
+        
+        if (result.history && result.history.length > 0) {
+          const latestBalance = result.history[0].balanceAfter;
+          if (typeof latestBalance === 'number') {
+            // Update empire with current credits
+            get().updateEmpireFromService({
+              ...empire,
+              resources: {
+                ...empire.resources,
+                credits: latestBalance,
+              },
+            });
+            console.log('💰 Credits loaded:', latestBalance);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load credits balance:', error);
+        throw error;
+      }
     },
 
     initializeAuthService: (): void => {

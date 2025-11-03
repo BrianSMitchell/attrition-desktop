@@ -550,6 +550,12 @@ const createGameSlice: StateCreator<
       
       // Load structures catalog
       const catalogResponse = await gameApi.getStructuresCatalog();
+      console.log('📦 Structures catalog response:', JSON.stringify(catalogResponse, null, 2));
+      console.log('📦 Catalog data type:', Array.isArray(catalogResponse.data) ? 'array' : typeof catalogResponse.data);
+      console.log('📦 Catalog data:', catalogResponse.data);
+      console.log('📦 Catalog data keys:', catalogResponse.data ? Object.keys(catalogResponse.data) : 'null');
+      console.log('📦 Catalog data length:', Array.isArray(catalogResponse.data) ? catalogResponse.data.length : 'N/A');
+      
       if (!catalogResponse.success) {
         console.error('Failed to load structures catalog:', catalogResponse.error);
         throw new Error(catalogResponse.error || 'Failed to load structures catalog');

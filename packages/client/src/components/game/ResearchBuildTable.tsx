@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import { useUIActions, useEnhancedAuth, useConnectionStatus } from '../../stores/enhancedAppStore';
 import type { TechnologyKey, TechnologySpec } from "@game/shared";
 import { getTechCreditCostForLevel } from "@game/shared";
@@ -101,7 +101,7 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
   };
 
   const formatRequires = (t: TechnologySpec): string => {
-    if (!t || !t.prerequisites || t.prerequisites.length === 0) return "â€”";
+    if (!t || !t.prerequisites || t.prerequisites.length === 0) return "—";
     return t.prerequisites.map((p) => `${p.key.replace(/_/g, " ")} ${p.level}`).join(", ");
   };
 
@@ -111,7 +111,7 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
       header: "Credits",
       align: "left",
       render: (t) => {
-        if (!t || !t.key) return "â€”";
+        if (!t || !t.key) return "—";
         const level = Math.max(0, status?.techLevels[t.key as TechnologyKey] ?? 0);
         const nextLevel = level + 1;
         const nextCost = getTechCreditCostForLevel(t.key as TechnologyKey, nextLevel);
@@ -122,14 +122,14 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
       key: "labs",
       header: "Labs",
       align: "left",
-      render: (t) => (t && t.requiredLabs) || "â€”",
+      render: (t) => (t && t.requiredLabs) || "—",
     },
     {
       key: "requires",
       header: "Requires",
       align: "left",
       render: (t) => {
-        if (!t) return <span className="text-gray-400">â€”</span>;
+        if (!t) return <span className="text-gray-400">—</span>;
         const text = formatRequires(t);
         const hasReq = !!t.prerequisites && t.prerequisites.length > 0;
         if (!hasReq) {
@@ -146,18 +146,18 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
       key: "effect",
       header: "Effect",
       align: "left",
-      render: (t) => (t && t.description ? "" : "â€”"),
+      render: (t) => (t && t.description ? "" : "—"),
     },
     {
       key: "time",
       header: "Time",
       align: "left",
       render: (t) => {
-        if (!t || !t.key) return "â€”";
+        if (!t || !t.key) return "—";
         const level = Math.max(0, status?.techLevels[t.key as TechnologyKey] ?? 0);
         const nextLevel = level + 1;
         const nextCost = getTechCreditCostForLevel(t.key as TechnologyKey, nextLevel);
-        if (!(typeof researchPerHour === "number" && researchPerHour > 0)) return "â€”";
+        if (!(typeof researchPerHour === "number" && researchPerHour > 0)) return "—";
         const text = formatDuration(nextCost, researchPerHour);
         const tip = `ETA = Credits (${nextCost.toLocaleString()}) / Research Capacity (${researchPerHour.toLocaleString()} cred/h)`;
         return <span title={tip}>{text}</span>;
@@ -209,7 +209,7 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
       </div>
     </div>
   ) : (
-    <div className="text-sm text-gray-300">Credits: â€” Â· Labs: â€”</div>
+    <div className="text-sm text-gray-300">Credits: — · Labs: —</div>
   );
 
   // Helper: determine if this row is credits-only blocked (eligible to queue even with no active)
@@ -228,7 +228,7 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
       summary={summary}
       loading={loading}
       onRefresh={onRefresh}
-      items={(catalog || []).filter(t => t && t.key).slice().sort((a, b) => a.creditsCost - b.creditsCost)}
+      items={Array.isArray(catalog) ? catalog.filter(t => t && t.key).slice().sort((a, b) => a.creditsCost - b.creditsCost) : []}
       getKey={(t) => t.key}
       getTitleText={getTitleText}
       getDescriptionText={getDescriptionText}
@@ -258,4 +258,3 @@ const ResearchBuildTable: React.FC<ResearchBuildTableProps> = ({
 };
 
 export default ResearchBuildTable;
-

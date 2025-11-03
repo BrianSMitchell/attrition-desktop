@@ -111,7 +111,7 @@ export interface Empire {
   hasDeletedBase: boolean; // Track if empire gets 25% colonization discount
   resources: {
     credits: number;
-    energy: number;
+    // Note: Energy is calculated per-base from structures, not stored at empire level
   };
   lastResourceUpdate?: Date;
   lastCreditPayout?: Date;

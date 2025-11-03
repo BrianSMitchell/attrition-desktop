@@ -10,8 +10,14 @@ contextBridge.exposeInMainWorld('desktop', {
   openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
   isPackaged: () => ipcRenderer.invoke('app:isPackaged'),
 
-  // Secure token bridge (refresh token only — no raw getter)
+  // Secure token bridge
   tokens: {
+    // Access token (can be retrieved for restoration)
+    saveToken: (value: string) => ipcRenderer.invoke('tokens:saveToken', value),
+    getToken: () => ipcRenderer.invoke('tokens:getToken'),
+    deleteToken: () => ipcRenderer.invoke('tokens:deleteToken'),
+    
+    // Refresh token (no getter to avoid leaking to renderer)
     saveRefresh: (value: string) => ipcRenderer.invoke('tokens:saveRefresh', value),
     deleteRefresh: () => ipcRenderer.invoke('tokens:deleteRefresh'),
     hasRefresh: () => ipcRenderer.invoke('tokens:hasRefresh'),

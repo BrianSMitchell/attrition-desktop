@@ -169,9 +169,21 @@ const creditsPerHour = await EconomyService.sumCreditsPerHourForEmpire(empireId)
 
     // Log payout transaction (non-blocking)
     if (wholeCredits > 0) {
-      // Note: CreditLedgerService would need Supabase support too
-      // For now, skip ledger logging in Supabase mode
-      // TODO: Implement SupabaseCreditLedgerService
+      try {
+        await supabase
+          .from(DB_TABLES.CREDIT_TRANSACTIONS)
+          .insert({
+            empire_id: empireId,
+            amount: wholeCredits,
+            type: 'income',
+            note: `Hourly credit payout (${periodsElapsed} period${periodsElapsed > 1 ? 's' : ''})`,
+            balance_after: newCredits,
+            created_at: new Date().toISOString(),
+          });
+      } catch (error) {
+        // Non-blocking - don't fail payout if transaction log fails
+        console.error('Failed to log credit transaction:', error);
+      }
     }
 
     // Debug: Log final state (only in debug mode)

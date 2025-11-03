@@ -94,7 +94,7 @@ export class NetworkManager implements INetworkManager {
 
     try {
       const apiConfig = getCurrentApiConfig();
-      const statusUrl = `${apiConfig.apiUrl.replace('/api', '')}/api/status`;
+      const statusUrl = `${apiConfig.apiUrl.replace('/api', '')}/api/system/status`;
 
       if (this.options.enableLogging) {
         console.log(`🌐 NetworkManager: Checking connectivity to ${statusUrl}`);

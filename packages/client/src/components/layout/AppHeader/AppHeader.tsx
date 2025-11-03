@@ -69,7 +69,7 @@ export const AppHeader: React.FC = () => {
                 <ResourceDisplay
                   name="credits"
                   value={auth.empire?.resources?.credits ?? 0}
-                  icon="ðŸ’°"
+                  icon="💰"
                   className="text-empire-gold"
                 />
               </button>
@@ -81,7 +81,7 @@ export const AppHeader: React.FC = () => {
             to="/messages"
             className="relative flex items-center px-3 py-1 text-sm bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors"
           >
-            <span className="mr-1">ðŸ“§</span>
+            <span className="mr-1">💬</span>
             Messages
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
