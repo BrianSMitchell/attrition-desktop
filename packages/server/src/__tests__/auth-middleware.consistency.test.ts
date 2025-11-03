@@ -9,7 +9,7 @@
 import request from 'supertest';
 import { HTTP_STATUS } from '../constants/response-formats';
 import { API_ENDPOINTS } from '../constants/api-endpoints';
-
+import { app } from '../index';
 
 // Import without mocking to test actual middleware behavior
 

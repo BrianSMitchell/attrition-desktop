@@ -8,7 +8,7 @@
 import request from 'supertest';
 import { HTTP_STATUS, ERROR_MESSAGES } from '../constants/response-formats';
 import { API_ENDPOINTS } from '../constants/api-endpoints';
-
+import { app } from '../index';
 
 // Mock all dependencies for performance testing
 jest.mock('../config/supabase', () => ({

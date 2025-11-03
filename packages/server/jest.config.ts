@@ -38,6 +38,8 @@ const config: Config = {
     '^@utils/(.*)$': '<rootDir>/src/utils/$1',
     '^@models/(.*)$': '<rootDir>/src/models/$1',
     '^@test-utils/(.*)$': '<rootDir>/src/test-utils/$1',
+    // Monorepo workspace packages
+    '^@game/shared$': '<rootDir>/../shared/src/index.ts',
   },
 
   // Transform configuration - use ts-jest for TypeScript files
@@ -53,9 +55,7 @@ const config: Config = {
         skipLibCheck: true,
         forceConsistentCasingInFileNames: true,
         resolveJsonModule: true,
-        isolatedModules: true,
       },
-      isolatedModules: true,
     }],
   },
 

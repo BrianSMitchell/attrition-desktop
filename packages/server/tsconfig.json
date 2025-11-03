@@ -18,7 +18,8 @@
     "emitDecoratorMetadata": true,
     "composite": true,
     "moduleResolution": "node",
-    "downlevelIteration": true
+    "downlevelIteration": true,
+    "isolatedModules": true
   },
   "include": [
     "src/**/*.ts"
