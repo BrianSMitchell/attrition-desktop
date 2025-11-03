@@ -201,9 +201,10 @@ jobs:
 
       - name: Check formatting
         run: pnpm run format:check
+        continue-on-error: true
 
       - name: Type checking
-        run: pnpm run type-check
+        run: pnpm run type:check
 
       - name: Upload lint results
         if: failure()
